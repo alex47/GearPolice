@@ -1,0 +1,15 @@
+## Interface: 
+## Title: GearPolice
+## Version: 1.0.0
+## Notes: My notes.
+## Author: My author
+## DefaultState: enabled
+## SavedVariables: GearPoliceDB
+
+Shared.lua
+Core.lua
+Inspection.lua
+UI.lua
+Helper.lua
+Reporting.lua
+Debug.lua
