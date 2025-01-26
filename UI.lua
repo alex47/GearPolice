@@ -29,6 +29,21 @@ function UI:AddItemIcon(container, itemLink)
     container:AddChild(itemIcon)
 end
 
+function UI:UpdatePlayerStatusIcon(playerGuid, status)
+    local playerUI = self.playerUIElements[playerGuid]
+    if not playerUI then return end
+
+    local statusIcon = playerUI.statusIcon
+    local texturePaths = {
+        scanning = "Interface\\COMMON\\Indicator-Yellow",
+        success = "Interface\\RaidFrame\\ReadyCheck-Ready",
+        failed = "Interface\\RaidFrame\\ReadyCheck-NotReady",
+        temporary_failed = "Interface\\RaidFrame\\ReadyCheck-Waiting"
+    }
+
+    statusIcon:SetImage(texturePaths[status] or nil)
+end
+
 function UI:HorizontalLayout(container)
     local width = container.frame.width or container.width or 0
     local spacing = 10

@@ -5,6 +5,7 @@ GearPolice:RegisterChatCommand("gearpolice", "HandleSlashCommands")
 GearPolice.scanQueue = {}
 GearPolice.isScanning = false
 GearPolice.scanInterval = 2  -- Time between scans in seconds
+GearPolice.maxConcurrentScans = 5
 
 function GearPolice:OnInitialize()
     GearPolice:Print("Addon loaded!")
@@ -27,30 +28,38 @@ function GearPolice:OnInitialize()
 end
 
 function GearPolice:ProcessScanQueue()
-    if GearPolice.isScanning or #GearPolice.scanQueue == 0 then
-        return
-    end
+    if self.isScanning or #self.scanQueue == 0 then return end
+    self.isScanning = true
 
-    GearPolice.isScanning = true
-    local playerGuid = table.remove(GearPolice.scanQueue, 1)
-    local unitId = GearPolice.Helper:GetUnitIdOfPlayerGuid(playerGuid)
-    local playerInfo = GearPolice.db.global.PlayerGearInfo[playerGuid]
+    -- Track active scans to avoid overlap
+    local activeScans = {}
+    local processed = 0
 
-    if unitId and playerInfo and playerInfo.CheckStatus ~= "Successful" then
-        GearPolice:StartInspectionOfUnit(unitId)
-
-        if GearPolice.db.global.DebugEnabled then
-            local playerName = UnitName(unitId) or "Unknown Player"
-            GearPolice.Debug:Message("Scanning player: " .. playerName)
+    -- Process up to maxConcurrentScans players
+    for _ = 1, math.min(self.maxConcurrentScans, #self.scanQueue) do
+        local playerGuid = table.remove(self.scanQueue, 1)  -- FIFO
+        if playerGuid then
+            table.insert(activeScans, playerGuid)
+            processed = processed + 1
         end
-    else
-        -- If unitId is not available, we can't proceed
-        GearPolice.isScanning = false
-        C_Timer.After(GearPolice.scanInterval, function()
-            GearPolice:AddToScanQueue(playerGuid)
-            GearPolice:ProcessScanQueue()
-        end)
     end
+
+    -- Start inspections for this batch
+    for _, playerGuid in ipairs(activeScans) do
+        local unitId = self.Helper:GetUnitIdOfPlayerGuid(playerGuid)
+        if unitId then
+            self:StartInspectionOfUnit(unitId)
+        else
+            -- Requeue if unitID not found
+            self:AddToScanQueue(playerGuid)
+        end
+    end
+
+    -- Schedule next batch only after this one completes
+    C_Timer.After(self.scanInterval, function()
+        self.isScanning = false
+        self:ProcessScanQueue()
+    end)
 end
 
 function GearPolice:AddToScanQueue(playerGuid)
@@ -81,38 +90,36 @@ function GearPolice:UpdatePlayerGearInfoWithGroupMembers()
 end
 
 function GearPolice:ProcessGroupMember(unitId)
-    if not UnitExists(unitId) then
-        return
-    end
+    if not UnitExists(unitId) then return end
 
     local playerGuid = UnitGUID(unitId)
     local playerName = UnitName(unitId)
 
     if not playerName or playerName == "Unknown" then
-        -- Delay and retry this player
-        C_Timer.After(1, function()
-            GearPolice:ProcessGroupMember(unitId)
-        end)
+        C_Timer.After(1, function() self:ProcessGroupMember(unitId) end)
         return
     end
 
-    local isNewPlayer = false
-
-    if GearPolice.db.global.PlayerGearInfo[playerGuid] == nil then
-        GearPolice:SetPlayerGuidToDefaultInPlayerGearInfo(playerGuid)
-        isNewPlayer = true
-    else
-        -- Clear previous data for rejoining players
-        GearPolice:ResetPlayerGearInfo(playerGuid)
+    -- Initialize new players
+    if not self.db.global.PlayerGearInfo[playerGuid] then
+        self:SetPlayerGuidToDefaultInPlayerGearInfo(playerGuid)
     end
 
-    -- Add to scan queue
-    GearPolice:AddToScanQueue(playerGuid)
+    local playerInfo = self.db.global.PlayerGearInfo[playerGuid]
 
-    -- Update the UI if this is a new player
-    if isNewPlayer then
-        GearPolice.UI:UpdateUI()
+    -- Reset temporary failures if player is still present
+    if playerInfo.CheckStatus == "TemporaryFailed" then
+        playerInfo.CheckStatus = "InProgress"
+        playerInfo.retryAttempts = 0
+        self:AddToScanQueue(playerGuid)
     end
+
+    -- Add to queue if not scanned recently
+    if (playerInfo.LastScanTime and (time() - playerInfo.LastScanTime) > 600) then
+        self:AddToScanQueue(playerGuid)
+    end
+
+    self.UI:UpdateUI()
 end
 
 function GearPolice:ResetPlayerGearInfo(playerGuid)
@@ -137,42 +144,75 @@ function GearPolice:SetPlayerGuidToDefaultInPlayerGearInfo(playerGuid)
         ["CheckRequested"] = true,
         ["CheckStatus"] = "InProgress",
         ["ProblematicItems"] = {},
-        ["LastScanTime"] = 0
+        ["LastScanTime"] = 0,
+        ["retryAttempts"] = 0
     }
 end
 
 function GearPolice:StartInspectionOfUnit(unitId)
+    if InCombatLockdown() then
+        self.Debug:Message("Cannot inspect in combat!")
+        return
+    end
+
     if not UnitExists(unitId) then
-        GearPolice.isScanning = false
+        self.isScanning = false
         return
     end
 
     local playerGuid = UnitGUID(unitId)
+    local playerInfo = self.db.global.PlayerGearInfo[playerGuid]
 
-    -- Update the status icon to scanning
-    local playerUI = GearPolice.UI.playerUIElements[playerGuid]
-    if playerUI then
-        playerUI.statusIcon:SetImage("Interface\\COMMON\\Indicator-Yellow")
-        GearPolice.UI.uiFrame:DoLayout()
-    end
+    -- Skip if already failed (optional)
+    if playerInfo.CheckStatus == "Failed" then return end
 
     if CanInspect(unitId) then
         NotifyInspect(unitId)
+        self.UI:UpdatePlayerStatusIcon(playerGuid, "scanning")
     else
-        -- Can't inspect now, retry later
-        if GearPolice.db.global.DebugEnabled then
-            local playerName = UnitName(unitId) or "Unknown Player"
-            GearPolice.Debug:Message("Cannot inspect " .. playerName .. ", retrying later.")
-        end
-        GearPolice.isScanning = false
-        C_Timer.After(GearPolice.scanInterval, function()
-            local playerGuid = UnitGUID(unitId)
-            if playerGuid then
-                GearPolice:AddToScanQueue(playerGuid)
-                GearPolice:ProcessScanQueue()
-            end
-        end)
+        -- Trigger retry with attempt tracking
+        self:RetryInspection(playerGuid, 1)
     end
+end
+
+function GearPolice:RetryInspection(playerGuid, attempt)
+    local maxAttempts = 5  -- Increased retries
+    local playerInfo = self.db.global.PlayerGearInfo[playerGuid]
+
+    -- Check if player is still in the group
+    if not self.Helper:IsPlayerInGroup(playerGuid) then
+        -- Permanent failure (player left)
+        playerInfo.CheckStatus = "Failed"
+        self.UI:UpdatePlayerStatusIcon(playerGuid, "failed")
+        return
+    end
+
+    if not playerInfo.retryAttempts then
+        playerInfo.retryAttempts = 0
+    end
+
+    -- Temporary failure (retry later)
+    if playerInfo.retryAttempts >= maxAttempts then
+        playerInfo.CheckStatus = "TemporaryFailed"
+        self.UI:UpdatePlayerStatusIcon(playerGuid, "temporary_failed")
+        -- Requeue after 5 minutes
+        C_Timer.After(300, function()
+            playerInfo.retryAttempts = 0
+            self:AddToScanQueue(playerGuid)
+        end)
+        return
+    end
+
+    -- Increment attempts and retry
+    playerInfo.retryAttempts = playerInfo.retryAttempts + 1
+    C_Timer.After(self.scanInterval * attempt, function()
+        local unitId = self.Helper:GetUnitIdOfPlayerGuid(playerGuid)
+        if unitId then
+            self:StartInspectionOfUnit(unitId)
+        else
+            self:RetryInspection(playerGuid, attempt + 1)
+        end
+    end)
 end
 
 function GearPolice:StartGearPolicingOfGroup()
@@ -184,8 +224,10 @@ function GearPolice:StartGearPolicingOfTarget()
     local targetGuid = UnitGUID("target")
     if targetGuid then
         GearPolice:ProcessGroupMember("target")
+        GearPolice.UI:UpdateUI()
+
         GearPolice:ProcessScanQueue()
-        GearPolice.UI:UpdateUI()  -- Update the UI to add the target player
+        GearPolice.UI:UpdateUI()
     end
 end
 
@@ -207,6 +249,7 @@ function GearPolice:OnInspectReady(eventName, playerGuid)
     GearPolice.Inspection:CheckUnit(playerInfo)
 
     playerInfo.CheckRequested = false
+    playerInfo.retryAttempts = 0
     playerInfo.CheckStatus = "Successful"
     playerInfo.LastScanTime = time()
 
@@ -229,15 +272,21 @@ function GearPolice:OnInspectReady(eventName, playerGuid)
         GearPolice.UI.uiFrame:DoLayout()
     end
 
-    GearPolice.isScanning = false
+    --GearPolice.isScanning = false
     -- Schedule next scan
     C_Timer.After(GearPolice.scanInterval, function()
         GearPolice:ProcessScanQueue()
     end)
 end
 
+function GearPolice:UpdateGroupMembers()
+    GearPolice:UpdatePlayerGearInfoWithGroupMembers()
+    GearPolice:ProcessScanQueue()  -- Start scanning new/updated players
+end
+
 -- Keep INSPECT_READY event
 GearPolice:RegisterEvent("INSPECT_READY", "OnInspectReady")
+GearPolice:RegisterEvent("GROUP_ROSTER_UPDATE", "UpdateGroupMembers")
 
 -- Slash command
 
