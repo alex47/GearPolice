@@ -115,7 +115,7 @@ function GearPolice:ProcessGroupMember(unitId)
     end
 
     -- Add to queue if not scanned recently
-    if (playerInfo.LastScanTime and (time() - playerInfo.LastScanTime) > 600) then
+    if (playerInfo.LastScanTime and (time() - playerInfo.LastScanTime) > 86400) then
         self:AddToScanQueue(playerGuid)
     end
 
