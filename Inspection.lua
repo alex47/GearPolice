@@ -121,68 +121,60 @@ function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFuncti
 end
 
 function Inspection:CheckUnit(playerInfo)
+    -- Clear or reset problematic items
     playerInfo.ProblematicItems = {}
 
-    local messageGem = "Missing Gem"
-    local messageEnchant = "Missing Enchant"
-    local messageItemLevel = "Low item level"
+    -- Define the checks in a table
+    local checks = {
+        gems = {
+            func = function(itemLink) return self:IsItemMissingGems(itemLink) end,
+            message = "Missing Gem"
+        },
+        enchant = {
+            func = function(itemLink) return self:IsItemMissingEnchant(itemLink) end,
+            message = "Missing Enchant"
+        },
+        waistEnchant = {
+            func = function(itemLink) return self:IsWaistMissingExtraGemEnchant(itemLink) end,
+            message = "Missing Extra Waist gem enchant"
+        },
+        ilevel = {
+            func = function(itemLink) return self:IsItemBelowItemLevel(itemLink) end,
+            message = "Low item level"
+        },
+    }
 
-    Inspection:CheckItemSlotWithRetry(playerInfo, "HeadSlot", function(itemLink) return Inspection:IsItemMissingGems(itemLink) end, messageGem)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "HeadSlot", function(itemLink) return Inspection:IsItemMissingEnchant(itemLink) end, messageEnchant)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "HeadSlot", function(itemLink) return Inspection:IsItemBelowItemLevel(itemLink) end, messageItemLevel)
+    -- Define slot-to-check mappings
+    local slotConfig = {
+        HeadSlot          = { "gems", "enchant", "ilevel" },
+        NeckSlot          = { "gems",            "ilevel" },
+        ShoulderSlot      = { "gems", "enchant", "ilevel" },
+        BackSlot          = { "gems", "enchant", "ilevel" },
+        ChestSlot         = { "gems", "enchant", "ilevel" },
+        WristSlot         = { "gems", "enchant", "ilevel" },
+        HandsSlot         = { "gems", "enchant", "ilevel" },
+        WaistSlot         = { "gems",            "ilevel" },
+        LegsSlot          = { "gems", "enchant", "ilevel" },
+        FeetSlot          = { "gems", "enchant", "ilevel" },
+        Finger0Slot       = { "gems",            "ilevel" },
+        Finger1Slot       = { "gems",            "ilevel" },
+        MainHandSlot      = { "gems", "enchant", "ilevel" },
+        SecondaryHandSlot = { "gems", "enchant", "ilevel" },
+        RangedSlot        = { "gems",            "ilevel" },
+        Trinket0Slot      = { "gems",            "ilevel" },
+        Trinket1Slot      = { "gems",            "ilevel" },
+    }
 
-    Inspection:CheckItemSlotWithRetry(playerInfo, "NeckSlot", function(itemLink) return Inspection:IsItemMissingGems(itemLink) end, messageGem)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "NeckSlot", function(itemLink) return Inspection:IsItemBelowItemLevel(itemLink) end, messageItemLevel)
-    
-    Inspection:CheckItemSlotWithRetry(playerInfo, "ShoulderSlot", function(itemLink) return Inspection:IsItemMissingGems(itemLink) end, messageGem)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "ShoulderSlot", function(itemLink) return Inspection:IsItemMissingEnchant(itemLink) end, messageEnchant)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "ShoulderSlot", function(itemLink) return Inspection:IsItemBelowItemLevel(itemLink) end, messageItemLevel)
-    
-    Inspection:CheckItemSlotWithRetry(playerInfo, "BackSlot", function(itemLink) return Inspection:IsItemMissingGems(itemLink) end, messageGem)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "BackSlot", function(itemLink) return Inspection:IsItemMissingEnchant(itemLink) end, messageEnchant)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "BackSlot", function(itemLink) return Inspection:IsItemBelowItemLevel(itemLink) end, messageItemLevel)
-    
-    Inspection:CheckItemSlotWithRetry(playerInfo, "ChestSlot", function(itemLink) return Inspection:IsItemMissingGems(itemLink) end, messageGem)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "ChestSlot", function(itemLink) return Inspection:IsItemMissingEnchant(itemLink) end, messageEnchant)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "ChestSlot", function(itemLink) return Inspection:IsItemBelowItemLevel(itemLink) end, messageItemLevel)
-    
-    Inspection:CheckItemSlotWithRetry(playerInfo, "WristSlot", function(itemLink) return Inspection:IsItemMissingGems(itemLink) end, messageGem)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "WristSlot", function(itemLink) return Inspection:IsItemMissingEnchant(itemLink) end, messageEnchant)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "WristSlot", function(itemLink) return Inspection:IsItemBelowItemLevel(itemLink) end, messageItemLevel)
-    
-    Inspection:CheckItemSlotWithRetry(playerInfo, "HandsSlot", function(itemLink) return Inspection:IsItemMissingGems(itemLink) end, messageGem)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "HandsSlot", function(itemLink) return Inspection:IsItemMissingEnchant(itemLink) end, messageEnchant)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "HandsSlot", function(itemLink) return Inspection:IsItemBelowItemLevel(itemLink) end, messageItemLevel)
-    
-    Inspection:CheckItemSlotWithRetry(playerInfo, "WaistSlot", function(itemLink) return Inspection:IsItemMissingGems(itemLink) end, messageGem)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "WaistSlot", function(itemLink) return Inspection:IsWaistMissingExtraGemEnchant(itemLink) end, "Missing Extra Waist gem enchant")
-    Inspection:CheckItemSlotWithRetry(playerInfo, "WaistSlot", function(itemLink) return Inspection:IsItemBelowItemLevel(itemLink) end, messageItemLevel)
-    
-    Inspection:CheckItemSlotWithRetry(playerInfo, "LegsSlot", function(itemLink) return Inspection:IsItemMissingGems(itemLink) end, messageGem)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "LegsSlot", function(itemLink) return Inspection:IsItemMissingEnchant(itemLink) end, messageEnchant)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "LegsSlot", function(itemLink) return Inspection:IsItemBelowItemLevel(itemLink) end, messageItemLevel)
-    
-    Inspection:CheckItemSlotWithRetry(playerInfo, "FeetSlot", function(itemLink) return Inspection:IsItemMissingGems(itemLink) end, messageGem)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "FeetSlot", function(itemLink) return Inspection:IsItemMissingEnchant(itemLink) end, messageEnchant)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "FeetSlot", function(itemLink) return Inspection:IsItemBelowItemLevel(itemLink) end, messageItemLevel)
-
-    Inspection:CheckItemSlotWithRetry(playerInfo, "Finger0Slot", function(itemLink) return Inspection:IsItemMissingGems(itemLink) end, messageGem)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "Finger0Slot", function(itemLink) return Inspection:IsItemBelowItemLevel(itemLink) end, messageItemLevel)
-
-    Inspection:CheckItemSlotWithRetry(playerInfo, "Finger1Slot", function(itemLink) return Inspection:IsItemMissingGems(itemLink) end, messageGem)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "Finger1Slot", function(itemLink) return Inspection:IsItemBelowItemLevel(itemLink) end, messageItemLevel)
-
-    Inspection:CheckItemSlotWithRetry(playerInfo, "MainHandSlot", function(itemLink) return Inspection:IsItemMissingGems(itemLink) end, messageGem)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "MainHandSlot", function(itemLink) return Inspection:IsItemMissingEnchant(itemLink) end, messageEnchant)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "MainHandSlot", function(itemLink) return Inspection:IsItemBelowItemLevel(itemLink) end, messageItemLevel)
-    
-    Inspection:CheckItemSlotWithRetry(playerInfo, "SecondaryHandSlot", function(itemLink) return Inspection:IsItemMissingGems(itemLink) end, messageGem, 1)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "SecondaryHandSlot", function(itemLink) return Inspection:IsItemMissingEnchant(itemLink) end, messageEnchant, 1)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "SecondaryHandSlot", function(itemLink) return Inspection:IsItemBelowItemLevel(itemLink) end, messageItemLevel)
-
-    Inspection:CheckItemSlotWithRetry(playerInfo, "RangedSlot", function(itemLink) return Inspection:IsItemMissingGems(itemLink) end, messageGem)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "RangedSlot", function(itemLink) return Inspection:IsItemBelowItemLevel(itemLink) end, messageItemLevel)
-    
-    Inspection:CheckItemSlotWithRetry(playerInfo, "Trinket0Slot", function(itemLink) return Inspection:IsItemBelowItemLevel(itemLink) end, messageItemLevel)
-    Inspection:CheckItemSlotWithRetry(playerInfo, "Trinket1Slot", function(itemLink) return Inspection:IsItemBelowItemLevel(itemLink) end, messageItemLevel)
+    -- Loop through each slot and perform all required checks
+    for slotName, slotChecks in pairs(slotConfig) do
+        for _, checkKey in ipairs(slotChecks) do
+            local checkData = checks[checkKey]
+            self:CheckItemSlotWithRetry(
+                playerInfo,
+                slotName,
+                checkData.func,
+                checkData.message
+            )
+        end
+    end
 end
