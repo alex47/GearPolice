@@ -232,12 +232,9 @@ function GearPolice:StartGearPolicingOfTarget()
 end
 
 function GearPolice:OnInspectReady(eventName, playerGuid)
-    if not playerGuid then
-        return
-    end
+    if not playerGuid then return end
 
     local playerInfo = GearPolice.db.global.PlayerGearInfo[playerGuid]
-
     if not playerInfo or not playerInfo.CheckRequested then
         GearPolice.isScanning = false
         return
@@ -245,37 +242,30 @@ function GearPolice:OnInspectReady(eventName, playerGuid)
 
     playerInfo.CheckStatus = "InProgress"
     GearPolice.UI:UpdateUI()
-    
-    GearPolice.Inspection:CheckUnit(playerInfo)
 
-    playerInfo.CheckRequested = false
-    playerInfo.retryAttempts = 0
-    playerInfo.CheckStatus = "Successful"
-    playerInfo.LastScanTime = time()
+    -- Start the asynchronous inspection.
+    GearPolice.Inspection:CheckUnit(playerInfo, function(updatedPlayerInfo)
+        updatedPlayerInfo.CheckRequested = false
+        updatedPlayerInfo.retryAttempts = 0
+        updatedPlayerInfo.CheckStatus = "Successful"
+        updatedPlayerInfo.LastScanTime = time()
 
-    GearPolice.Debug:Message("Scan completed for: " .. playerInfo.PlayerName)
+        GearPolice.Debug:Message("Scan completed for: " .. updatedPlayerInfo.PlayerName)
 
-    -- Update the status icon and item icons directly
-    local playerUI = GearPolice.UI.playerUIElements[playerGuid]
-    if playerUI then
-        -- Update the status icon to checkmark
-        playerUI.statusIcon:SetImage("Interface\\RaidFrame\\ReadyCheck-Ready")
-
-        -- Update item icons
-        local itemIconsContainer = playerUI.itemIconsContainer
-        itemIconsContainer:ReleaseChildren()
-        for itemLink, _ in pairs(playerInfo.ProblematicItems or {}) do
-            GearPolice.UI:AddItemIcon(itemIconsContainer, itemLink)
+        local playerUI = GearPolice.UI.playerUIElements[playerGuid]
+        if playerUI then
+            playerUI.statusIcon:SetImage("Interface\\RaidFrame\\ReadyCheck-Ready")
+            local itemIconsContainer = playerUI.itemIconsContainer
+            itemIconsContainer:ReleaseChildren()
+            for itemLink, _ in pairs(updatedPlayerInfo.ProblematicItems or {}) do
+                GearPolice.UI:AddItemIcon(itemIconsContainer, itemLink)
+            end
+            GearPolice.UI.uiFrame:DoLayout()
         end
 
-        -- Force layout update
-        GearPolice.UI.uiFrame:DoLayout()
-    end
-
-    --GearPolice.isScanning = false
-    -- Schedule next scan
-    C_Timer.After(GearPolice.scanInterval, function()
-        GearPolice:ProcessScanQueue()
+        C_Timer.After(GearPolice.scanInterval, function()
+            GearPolice:ProcessScanQueue()
+        end)
     end)
 end
 

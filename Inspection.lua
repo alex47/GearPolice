@@ -82,49 +82,53 @@ function Inspection:IsWaistMissingExtraGemEnchant(itemLink)
     return false
 end
 
-function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFunction, message, retryCount)
+function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFunction, message, retryCount, onComplete)
     if not retryCount then
         retryCount = 5
     end
 
     if retryCount <= 0 then
-        -- Max retries reached; assume scan failed for this slot
         GearPolice.Debug:Message("Failed to inspect " .. slotName .. " for " .. playerInfo.PlayerName)
+        onComplete()
         return
     end
 
     local unitId = GearPolice.Helper:GetUnitIdOfPlayerGuid(playerInfo.PlayerGuid)
-
     if not unitId then
+        onComplete()
         return
     end
 
-    -- Do the item checking
-    local itemLink = GetInventoryItemLink(unitId, GetInventorySlotInfo(slotName))
-
+    local slotID = GetInventorySlotInfo(slotName)
+    local itemLink = GetInventoryItemLink(unitId, slotID)
     if itemLink then
         if itemCheckFunction(itemLink) then
             if not playerInfo.ProblematicItems[itemLink] then
                 playerInfo.ProblematicItems[itemLink] = {}
             end
-
             table.insert(playerInfo.ProblematicItems[itemLink], message)
         end
+        GearPolice.UI:UpdateUI()
+        onComplete()
     else
-        -- Item link is nil; retry after delay
-        C_Timer.After(2, function()
-            Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFunction, message, retryCount - 1)
-        end)
+        local texture = GetInventoryItemTexture(unitId, slotID)
+        if texture then
+            -- An item is equipped (texture exists) but its link isn't available yet; retry.
+            C_Timer.After(2, function()
+                Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFunction, message, retryCount - 1, onComplete)
+            end)
+        else
+            -- No item is equipped in this slot.
+            onComplete()
+        end
     end
-
-    GearPolice.UI:UpdateUI()
 end
 
-function Inspection:CheckUnit(playerInfo)
-    -- Clear or reset problematic items
+function Inspection:CheckUnit(playerInfo, onComplete)
+    -- Reset problematic items and initialize the pending checks counter.
     playerInfo.ProblematicItems = {}
+    playerInfo.pendingChecks = 0
 
-    -- Define the checks in a table
     local checks = {
         gems = {
             func = function(itemLink) return self:IsItemMissingGems(itemLink) end,
@@ -144,7 +148,6 @@ function Inspection:CheckUnit(playerInfo)
         },
     }
 
-    -- Define slot-to-check mappings
     local slotConfig = {
         HeadSlot          = { "gems", "enchant", "ilevel" },
         NeckSlot          = { "gems",            "ilevel" },
@@ -165,16 +168,21 @@ function Inspection:CheckUnit(playerInfo)
         Trinket1Slot      = { "gems",            "ilevel" },
     }
 
-    -- Loop through each slot and perform all required checks
     for slotName, slotChecks in pairs(slotConfig) do
         for _, checkKey in ipairs(slotChecks) do
             local checkData = checks[checkKey]
-            self:CheckItemSlotWithRetry(
-                playerInfo,
-                slotName,
-                checkData.func,
-                checkData.message
-            )
+            playerInfo.pendingChecks = playerInfo.pendingChecks + 1
+            self:CheckItemSlotWithRetry(playerInfo, slotName, checkData.func, checkData.message, 5, function()
+                playerInfo.pendingChecks = playerInfo.pendingChecks - 1
+                if playerInfo.pendingChecks <= 0 then
+                    onComplete(playerInfo)
+                end
+            end)
         end
+    end
+
+    -- In case no checks were scheduled, complete immediately.
+    if playerInfo.pendingChecks == 0 then
+        onComplete(playerInfo)
     end
 end
