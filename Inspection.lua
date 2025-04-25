@@ -84,7 +84,7 @@ end
 
 function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFunction, message, retryCount, onComplete)
     if not retryCount then
-        retryCount = 5
+        retryCount = 1024
     end
 
     if retryCount <= 0 then
@@ -114,7 +114,7 @@ function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFuncti
         local texture = GetInventoryItemTexture(unitId, slotID)
         if texture then
             -- An item is equipped (texture exists) but its link isn't available yet; retry.
-            C_Timer.After(2, function()
+            C_Timer.After(10, function()
                 Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFunction, message, retryCount - 1, onComplete)
             end)
         else

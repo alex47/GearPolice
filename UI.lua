@@ -70,32 +70,37 @@ end
 
 function UI:UpdateUI()
     if not self.uiFrame or not self.uiFrame:IsVisible() then
-        return  -- UI is not created or not visible
+        return  -- UI is not created or not visible.
     end
 
     local scrollContainer = self.uiFrame.scrollContainer
 
-    -- Remove UI elements for players no longer in PlayerGearInfo
+    -- Remove UI elements for players no longer in PlayerGearInfo.
     for playerGuid, playerUI in pairs(self.playerUIElements) do
         if not GearPolice.db.global.PlayerGearInfo[playerGuid] then
-            -- Remove UI elements
             scrollContainer:RemoveChild(playerUI.playerContainer)
             self.playerUIElements[playerGuid] = nil
         end
     end
 
-    -- Update or create UI elements for each player
+    -- Fixed slot order.
+    local slotOrder = {
+        "HeadSlot", "NeckSlot", "ShoulderSlot", "BackSlot", "ChestSlot",
+        "WristSlot", "HandsSlot", "WaistSlot", "LegsSlot", "FeetSlot",
+        "Finger0Slot", "Finger1Slot", "MainHandSlot", "SecondaryHandSlot",
+        "RangedSlot", "Trinket0Slot", "Trinket1Slot"
+    }
+
     for playerGuid, playerInfo in pairs(GearPolice.db.global.PlayerGearInfo) do
         local playerUI = self.playerUIElements[playerGuid]
 
         if not playerUI then
-            -- Create UI elements for this player
+            -- Create UI elements for this player.
             local playerContainer = AceGUI:Create("SimpleGroup")
             playerContainer:SetFullWidth(true)
             playerContainer:SetLayout("Flow")
             playerContainer:SetHeight(PlayerContainerElementSize)
 
-            -- Create the Report button
             local reportButton = AceGUI:Create("Icon")
             reportButton:SetImage("Interface\\COMMON\\VOICECHAT-SPEAKER")
             reportButton:SetImageSize(IconSize, IconSize)
@@ -106,35 +111,27 @@ function UI:UpdateUI()
             end)
             playerContainer:AddChild(reportButton)
 
-            -- Create the status icon
             local statusIcon = AceGUI:Create("Icon")
             statusIcon:SetImageSize(IconSize, IconSize)
             statusIcon:SetWidth(PlayerContainerElementSize)
             statusIcon:SetHeight(PlayerContainerElementSize)
-            statusIcon:SetImage("Interface\\COMMON\\Indicator-Yellow")  -- Default icon
+            statusIcon:SetImage("Interface\\COMMON\\Indicator-Yellow")
             playerContainer:AddChild(statusIcon)
 
-            -- Create the player name label
             local playerNameLabel = AceGUI:Create("Label")
-            playerNameLabel:SetText(playerInfo.PlayerName or "Unknown Player")
             playerNameLabel:SetWidth(100)
             playerNameLabel:SetHeight(PlayerContainerElementSize)
-            playerNameLabel.label:SetJustifyV("MIDDLE")  -- Vertically center text
+            playerNameLabel.label:SetJustifyV("MIDDLE")
             playerContainer:AddChild(playerNameLabel)
 
-            -- Create item icons container
             local itemIconsContainer = AceGUI:Create("SimpleGroup")
             itemIconsContainer:SetLayout("Flow")
-            -- Remove SetFullWidth(true) to prevent wrapping
-            -- itemIconsContainer:SetFullWidth(true)
-            itemIconsContainer:SetWidth(300)  -- Adjust as needed
+            itemIconsContainer:SetWidth(500)
             itemIconsContainer:SetHeight(PlayerContainerElementSize)
             playerContainer:AddChild(itemIconsContainer)
 
-            -- Add the playerContainer to the scrollContainer
             scrollContainer:AddChild(playerContainer)
 
-            -- Store references to the UI elements
             self.playerUIElements[playerGuid] = {
                 playerContainer = playerContainer,
                 reportButton = reportButton,
@@ -145,34 +142,82 @@ function UI:UpdateUI()
             playerUI = self.playerUIElements[playerGuid]
         end
 
-        -- Update the status icon
+        -- Update status icon.
         local statusIcon = playerUI.statusIcon
-
         GearPolice.Debug:Message("playerInfo.CheckStatus: " .. playerInfo.CheckStatus)
-
         if playerInfo.CheckStatus == "InProgress" then
             statusIcon:SetImage("Interface\\COMMON\\Indicator-Yellow")
         elseif playerInfo.CheckStatus == "Successful" then
             statusIcon:SetImage("Interface\\RaidFrame\\ReadyCheck-Ready")
+        elseif playerInfo.CheckStatus == "Partial" then
+            statusIcon:SetImage("Interface\\RaidFrame\\ReadyCheck-Waiting")
         else
             statusIcon:SetImage(nil)
         end
 
-        -- Update the player name label in case it has changed
+        -- Update player name label.
         local playerNameLabel = playerUI.playerNameLabel
-        playerNameLabel:SetText(playerInfo.PlayerName or "Unknown Player")
+        if playerInfo.ProblematicItems and next(playerInfo.ProblematicItems) then
+            playerNameLabel:SetText("|cffFF0000" .. (playerInfo.PlayerName or "Unknown Player") .. "|r")
+        else
+            playerNameLabel:SetText("|cffFFFFFF" .. (playerInfo.PlayerName or "Unknown Player") .. "|r")
+        end
 
-        -- Update item icons
         local itemIconsContainer = playerUI.itemIconsContainer
         itemIconsContainer:ReleaseChildren()
-        if playerInfo.CheckStatus == "Successful" then
-            for itemLink, _ in pairs(playerInfo.ProblematicItems or {}) do
-                self:AddItemIcon(itemIconsContainer, itemLink)
+
+        -- Loop over each equipment slot.
+        for _, slotName in ipairs(slotOrder) do
+            local itemLink = playerInfo.EquippedItems and playerInfo.EquippedItems[slotName]
+            if itemLink and itemLink ~= "PENDING" then
+                -- Create an icon widget.
+                local itemIcon = AceGUI:Create("Icon")
+                local _, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(itemLink)
+                itemIcon:SetImage(itemTexture or "Interface\\Icons\\INV_Misc_QuestionMark")
+                itemIcon:SetImageSize(IconSize, IconSize)
+                itemIcon:SetWidth(PlayerContainerElementSize)
+                itemIcon:SetHeight(PlayerContainerElementSize)
+                itemIcon:SetCallback("OnEnter", function(widget)
+                    GameTooltip:SetOwner(widget.frame, "ANCHOR_TOP")
+                    GameTooltip:SetHyperlink(itemLink)
+                    GameTooltip:Show()
+                end)
+                itemIcon:SetCallback("OnLeave", function()
+                    GameTooltip:Hide()
+                end)
+                -- If this item is marked problematic, highlight it.
+                if playerInfo.ProblematicItems and playerInfo.ProblematicItems[itemLink] then
+                    if itemIcon.frame.SetBackdrop then
+                        itemIcon.frame:SetBackdrop({
+                            bgFile = nil,
+                            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+                            tile = false,
+                            edgeSize = 16,
+                        })
+                        itemIcon.frame:SetBackdropBorderColor(1, 0, 0, 1)
+                    end
+                end
+                itemIconsContainer:AddChild(itemIcon)
+            else
+                -- Show placeholder icon.
+                local placeholderIcon = AceGUI:Create("Icon")
+                placeholderIcon:SetImage("Interface\\Icons\\INV_Misc_QuestionMark")
+                placeholderIcon:SetImageSize(IconSize, IconSize)
+                placeholderIcon:SetWidth(PlayerContainerElementSize)
+                placeholderIcon:SetHeight(PlayerContainerElementSize)
+                placeholderIcon:SetCallback("OnEnter", function(widget)
+                    GameTooltip:SetOwner(widget.frame, "ANCHOR_TOP")
+                    GameTooltip:SetText("Scanning...", 1, 1, 1)
+                    GameTooltip:Show()
+                end)
+                placeholderIcon:SetCallback("OnLeave", function()
+                    GameTooltip:Hide()
+                end)
+                itemIconsContainer:AddChild(placeholderIcon)
             end
         end
     end
 
-    -- Force layout update
     self.uiFrame:DoLayout()
 end
 
@@ -193,7 +238,7 @@ function UI:ShowUI()
         self.playerUIElements = nil  -- Clear the cached UI elements
     end)
     self.uiFrame:SetLayout("Flow")
-    self.uiFrame:SetWidth(640)  -- Increased from 640
+    self.uiFrame:SetWidth(800)  -- Increased from 640
     self.uiFrame:SetHeight(480)
 
     -- Initialize the player UI elements table

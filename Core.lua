@@ -89,6 +89,71 @@ function GearPolice:UpdatePlayerGearInfoWithGroupMembers()
     end
 end
 
+function GearPolice:UpdatePlayerEquippedItems(unitId, onComplete)
+    local playerGuid = UnitGUID(unitId)
+    local playerInfo = self.db.global.PlayerGearInfo[playerGuid]
+    if not playerInfo then
+        self:SetPlayerGuidToDefaultInPlayerGearInfo(playerGuid)
+        playerInfo = self.db.global.PlayerGearInfo[playerGuid]
+    end
+
+    -- Preserve previous EquippedItems if available.
+    playerInfo.EquippedItems = playerInfo.EquippedItems or {}
+    local slotOrder = {
+        "HeadSlot", "NeckSlot", "ShoulderSlot", "BackSlot", "ChestSlot",
+        "WristSlot", "HandsSlot", "WaistSlot", "LegsSlot", "FeetSlot",
+        "Finger0Slot", "Finger1Slot", "MainHandSlot", "SecondaryHandSlot",
+        "RangedSlot", "Trinket0Slot", "Trinket1Slot"
+    }
+    local pendingCount = #slotOrder
+    local anyPending = false
+
+    for _, slotName in ipairs(slotOrder) do
+        local previousLink = playerInfo.EquippedItems[slotName]  -- keep last known valid value if any
+        GearPolice:UpdatePlayerEquippedItemForSlot(unitId, slotName, 5, function(newLink)
+            if newLink and newLink ~= "PENDING" then
+                playerInfo.EquippedItems[slotName] = newLink
+            else
+                if previousLink then
+                    -- Preserve the previously valid link
+                    playerInfo.EquippedItems[slotName] = previousLink
+                else
+                    playerInfo.EquippedItems[slotName] = "PENDING"
+                    anyPending = true
+                end
+            end
+            pendingCount = pendingCount - 1
+            if pendingCount == 0 and onComplete then
+                onComplete(anyPending)
+            end
+        end)
+    end
+end
+
+function GearPolice:UpdatePlayerEquippedItemForSlot(unitId, slotName, retryCount, onComplete)
+    retryCount = retryCount or 5
+    local slotID = GetInventorySlotInfo(slotName)
+    local itemLink = GetInventoryItemLink(unitId, slotID)
+    if itemLink then
+        onComplete(itemLink)
+    else
+        local texture = GetInventoryItemTexture(unitId, slotID)
+        if texture then
+            if retryCount > 0 then
+                C_Timer.After(2, function()
+                    GearPolice:UpdatePlayerEquippedItemForSlot(unitId, slotName, retryCount - 1, onComplete)
+                end)
+            else
+                -- Exhausted retries but texture exists: mark as pending.
+                onComplete("PENDING")
+            end
+        else
+            -- No texture implies the slot is empty.
+            onComplete(nil)
+        end
+    end
+end
+
 function GearPolice:ProcessGroupMember(unitId)
     if not UnitExists(unitId) then return end
 
@@ -100,21 +165,21 @@ function GearPolice:ProcessGroupMember(unitId)
         return
     end
 
-    -- Initialize new players
     if not self.db.global.PlayerGearInfo[playerGuid] then
         self:SetPlayerGuidToDefaultInPlayerGearInfo(playerGuid)
     end
 
     local playerInfo = self.db.global.PlayerGearInfo[playerGuid]
+    
+    -- Update equipped items (with retry logic) for this unit.
+    self:UpdatePlayerEquippedItems(unitId)
 
-    -- Reset temporary failures if player is still present
     if playerInfo.CheckStatus == "TemporaryFailed" then
         playerInfo.CheckStatus = "InProgress"
         playerInfo.retryAttempts = 0
         self:AddToScanQueue(playerGuid)
     end
 
-    -- Add to queue if not scanned recently
     if (playerInfo.LastScanTime and (time() - playerInfo.LastScanTime) > 86400) then
         self:AddToScanQueue(playerGuid)
     end
@@ -236,36 +301,44 @@ function GearPolice:OnInspectReady(eventName, playerGuid)
 
     local playerInfo = GearPolice.db.global.PlayerGearInfo[playerGuid]
     if not playerInfo or not playerInfo.CheckRequested then
-        GearPolice.isScanning = false
+        self.isScanning = false
         return
     end
 
     playerInfo.CheckStatus = "InProgress"
     GearPolice.UI:UpdateUI()
 
-    -- Start the asynchronous inspection.
+    -- Start the unit check (which will run per-slot checks for gems/enchants, etc.)
     GearPolice.Inspection:CheckUnit(playerInfo, function(updatedPlayerInfo)
         updatedPlayerInfo.CheckRequested = false
         updatedPlayerInfo.retryAttempts = 0
-        updatedPlayerInfo.CheckStatus = "Successful"
-        updatedPlayerInfo.LastScanTime = time()
 
-        GearPolice.Debug:Message("Scan completed for: " .. updatedPlayerInfo.PlayerName)
-
-        local playerUI = GearPolice.UI.playerUIElements[playerGuid]
-        if playerUI then
-            playerUI.statusIcon:SetImage("Interface\\RaidFrame\\ReadyCheck-Ready")
-            local itemIconsContainer = playerUI.itemIconsContainer
-            itemIconsContainer:ReleaseChildren()
-            for itemLink, _ in pairs(updatedPlayerInfo.ProblematicItems or {}) do
-                GearPolice.UI:AddItemIcon(itemIconsContainer, itemLink)
-            end
-            GearPolice.UI.uiFrame:DoLayout()
+        -- Now update the equipped items—with retries per slot.
+        -- (Assuming here that we can get the unit id; you may need to store it earlier.)
+        local unitId = GearPolice.Helper:GetUnitIdOfPlayerGuid(playerGuid)
+        if unitId then
+            GearPolice:UpdatePlayerEquippedItems(unitId, function(anyPending)
+                if anyPending then
+                    updatedPlayerInfo.CheckStatus = "Partial"  -- Not all slots have valid item links.
+                    -- Schedule a follow-up scan after a delay (e.g. 60 seconds)
+                    C_Timer.After(60, function()
+                        self:AddToScanQueue(playerGuid)
+                        GearPolice.UI:UpdateUI()
+                    end)
+                else
+                    updatedPlayerInfo.CheckStatus = "Successful"
+                end
+                updatedPlayerInfo.LastScanTime = time()
+                GearPolice.Debug:Message("Scan completed for: " .. updatedPlayerInfo.PlayerName)
+                GearPolice.UI:UpdateUI()
+                C_Timer.After(GearPolice.scanInterval, function()
+                    GearPolice:ProcessScanQueue()
+                end)
+            end)
+        else
+            updatedPlayerInfo.CheckStatus = "Failed"
+            GearPolice.UI:UpdateUI()
         end
-
-        C_Timer.After(GearPolice.scanInterval, function()
-            GearPolice:ProcessScanQueue()
-        end)
     end)
 end
 
