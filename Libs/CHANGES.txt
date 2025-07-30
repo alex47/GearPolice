@@ -1,63 +1,117 @@
 ------------------------------------------------------------------------
-r1319 | nevcairiel | 2024-01-17 16:15:25 +0000 (Wed, 17 Jan 2024) | 1 line
-Changed paths:
-   M /trunk/changelog.txt
-
-Update changelog
-------------------------------------------------------------------------
-r1318 | funkehdude | 2024-01-15 21:35:19 +0000 (Mon, 15 Jan 2024) | 1 line
+r1365 | funkehdude | 2025-07-11 17:08:49 +0000 (Fri, 11 Jul 2025) | 1 line
 Changed paths:
    M /trunk/Ace3.toc
 
-bump toc
+Bump toc
 ------------------------------------------------------------------------
-r1317 | funkehdude | 2024-01-15 21:34:42 +0000 (Mon, 15 Jan 2024) | 1 line
-Changed paths:
-   M /trunk/AceGUI-3.0/widgets/AceGUIWidget-ColorPicker.lua
-
-Missed bumping the color picker version
-------------------------------------------------------------------------
-r1316 | funkehdude | 2024-01-15 21:22:31 +0000 (Mon, 15 Jan 2024) | 1 line
-Changed paths:
-   M /trunk/AceGUI-3.0/widgets/AceGUIWidget-ColorPicker.lua
-
-Make sure the 10.2.5 color widget isn't click through
-------------------------------------------------------------------------
-r1315 | nevcairiel | 2024-01-15 16:40:10 +0000 (Mon, 15 Jan 2024) | 1 line
+r1364 | nevcairiel | 2025-07-05 16:01:08 +0000 (Sat, 05 Jul 2025) | 1 line
 Changed paths:
    M /trunk
-   M /trunk/AceGUI-3.0/widgets/AceGUIWidget-ColorPicker.lua
+   M /trunk/AceDB-3.0/AceDB-3.0.lua
 
-AceGUI-3.0: Colorpicker: Compat with 10.2.5 ColorPickerFrame changes
+AceDB-3.0: Avoid hitting the metatable when looking up the keys
 ------------------------------------------------------------------------
-r1314 | funkehdude | 2023-11-16 01:01:18 +0000 (Thu, 16 Nov 2023) | 1 line
+r1363 | nevcairiel | 2025-07-05 15:42:11 +0000 (Sat, 05 Jul 2025) | 3 lines
 Changed paths:
-   M /trunk/Ace3_Vanilla.toc
+   M /trunk
+   M /trunk/AceDB-3.0/AceDB-3.0.lua
 
-bump toc
+AceDB-3.0: Aggressively cleanout empty profiles tables inside namespace on logout
+
+This should help cleanup unloaded empty namespaces
 ------------------------------------------------------------------------
-r1313 | funkehdude | 2023-11-08 01:36:37 +0000 (Wed, 08 Nov 2023) | 1 line
+r1362 | funkehdude | 2025-06-19 17:08:39 +0000 (Thu, 19 Jun 2025) | 1 line
+Changed paths:
+   M /trunk/Ace3.toc
+
+Bump toc
+------------------------------------------------------------------------
+r1361 | nevcairiel | 2025-05-17 12:20:39 +0000 (Sat, 17 May 2025) | 6 lines
+Changed paths:
+   M /trunk
+   M /trunk/AceDB-3.0/AceDB-3.0.lua
+
+AceDB-3.0: Cleanup empty namespace tables
+
+Some addons use a large amount of namespaces which rarely get used, and
+empty tables can clutter the SV. Cleaning up empty tables is consistent
+with the other cleanup tasks done at logout, as they'll be re-created if
+needed.
+------------------------------------------------------------------------
+r1360 | funkehdude | 2025-05-01 22:54:00 +0000 (Thu, 01 May 2025) | 1 line
+Changed paths:
+   M /trunk/Ace3.toc
+
+Bump toc
+------------------------------------------------------------------------
+r1359 | funkehdude | 2025-03-21 19:41:37 +0000 (Fri, 21 Mar 2025) | 1 line
 Changed paths:
    M /trunk/Ace3.toc
 
 bump toc
 ------------------------------------------------------------------------
-r1312 | funkehdude | 2023-10-11 09:50:14 +0000 (Wed, 11 Oct 2023) | 1 line
-Changed paths:
-   M /trunk/Ace3_Wrath.toc
-
-bump toc
-------------------------------------------------------------------------
-r1311 | funkehdude | 2023-09-10 15:29:49 +0000 (Sun, 10 Sep 2023) | 1 line
+r1358 | funkehdude | 2025-03-21 19:37:45 +0000 (Fri, 21 Mar 2025) | 1 line
 Changed paths:
    M /trunk/Ace3.toc
 
 bump toc
 ------------------------------------------------------------------------
-r1310 | funkehdude | 2023-08-18 12:21:18 +0000 (Fri, 18 Aug 2023) | 1 line
+r1357 | funkehdude | 2025-01-23 06:13:10 +0000 (Thu, 23 Jan 2025) | 1 line
 Changed paths:
-   M /trunk/Ace3_Vanilla.toc
+   M /trunk/Ace3.toc
 
 bump toc
+------------------------------------------------------------------------
+r1356 | nevcairiel | 2024-12-05 06:15:30 +0000 (Thu, 05 Dec 2024) | 1 line
+Changed paths:
+   M /trunk
+   M /trunk/AceGUI-3.0/widgets/AceGUIContainer-TreeGroup.lua
+
+AceGUI-3.0: TreeGroup: Re-factor button hiding to help avoid bizarre button breakage
+------------------------------------------------------------------------
+r1355 | funkehdude | 2024-11-20 01:54:56 +0000 (Wed, 20 Nov 2024) | 1 line
+Changed paths:
+   M /trunk/Ace3.toc
+
+bump toc
+------------------------------------------------------------------------
+r1354 | funkehdude | 2024-09-10 14:01:06 +0000 (Tue, 10 Sep 2024) | 1 line
+Changed paths:
+   M /trunk/Ace3.toc
+
+bump toc
+------------------------------------------------------------------------
+r1353 | nevcairiel | 2024-08-27 13:37:35 +0000 (Tue, 27 Aug 2024) | 8 lines
+Changed paths:
+   M /trunk
+   M /trunk/AceDB-3.0/AceDB-3.0.lua
+
+AceDB-3.0: Handle unloaded namespaces in Reset/Copy/Delete functions
+
+When applying profile changes to namespaces, we should also handle
+namespaces that are not currently loaded.
+
+These may be from optional Load-on-Demand parts that are not currently
+loaded, but the expectation is that the database behaves consistent
+no matter what is currently active.
+------------------------------------------------------------------------
+r1352 | funkehdude | 2024-07-24 18:29:31 +0000 (Wed, 24 Jul 2024) | 1 line
+Changed paths:
+   M /trunk/.luacheckrc
+
+Update luacheck
+------------------------------------------------------------------------
+r1351 | funkehdude | 2024-07-24 18:23:24 +0000 (Wed, 24 Jul 2024) | 1 line
+Changed paths:
+   M /trunk/AceConfig-3.0/AceConfigDialog-3.0/AceConfigDialog-3.0.lua
+
+AceConfigDialog-3.0: Don't change keyboard input propagation in combat when showing the popup
+------------------------------------------------------------------------
+r1350 | funkehdude | 2024-07-24 17:55:50 +0000 (Wed, 24 Jul 2024) | 1 line
+Changed paths:
+   M /trunk/Ace3.toc
+
+Restore old toc versions, these are here purely to compensate for bad addon updaters, we don't actually care if we fully support these versions of wow
 ------------------------------------------------------------------------
 
