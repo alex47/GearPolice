@@ -1,6 +1,6 @@
-## Interface: 40401
+## Interface: 50500
 ## Title: GearPolice
-## Version: 1.1.0
+## Version: 1.2.0
 ## Notes: Shame your group members when their gear is missing enchants or gems.
 ## Author: Borlandc @ Firemaw-EU
 ## DefaultState: enabled
