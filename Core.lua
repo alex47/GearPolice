@@ -103,7 +103,7 @@ function GearPolice:UpdatePlayerEquippedItems(unitId, onComplete)
         "HeadSlot", "NeckSlot", "ShoulderSlot", "BackSlot", "ChestSlot",
         "WristSlot", "HandsSlot", "WaistSlot", "LegsSlot", "FeetSlot",
         "Finger0Slot", "Finger1Slot", "MainHandSlot", "SecondaryHandSlot",
-        "RangedSlot", "Trinket0Slot", "Trinket1Slot"
+        "Trinket0Slot", "Trinket1Slot"
     }
     local pendingCount = #slotOrder
     local anyPending = false

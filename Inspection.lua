@@ -163,7 +163,6 @@ function Inspection:CheckUnit(playerInfo, onComplete)
         Finger1Slot       = { "gems",            "ilevel" },
         MainHandSlot      = { "gems", "enchant", "ilevel" },
         SecondaryHandSlot = { "gems", "enchant", "ilevel" },
-        RangedSlot        = { "gems",            "ilevel" },
         Trinket0Slot      = { "gems",            "ilevel" },
         Trinket1Slot      = { "gems",            "ilevel" },
     }

@@ -88,7 +88,7 @@ function UI:UpdateUI()
         "HeadSlot", "NeckSlot", "ShoulderSlot", "BackSlot", "ChestSlot",
         "WristSlot", "HandsSlot", "WaistSlot", "LegsSlot", "FeetSlot",
         "Finger0Slot", "Finger1Slot", "MainHandSlot", "SecondaryHandSlot",
-        "RangedSlot", "Trinket0Slot", "Trinket1Slot"
+        "Trinket0Slot", "Trinket1Slot"
     }
 
     for playerGuid, playerInfo in pairs(GearPolice.db.global.PlayerGearInfo) do
