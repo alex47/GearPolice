@@ -3,7 +3,7 @@ local GearPolice = GearPolice
 GearPolice.Inspection = GearPolice.Inspection or {}
 local Inspection = GearPolice.Inspection
 
-local ItemLevelThreshold = 346
+local ItemLevelThreshold = 450
 
 
 function Inspection:IsItemMissingGems(itemLink)
@@ -101,6 +101,7 @@ function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFuncti
 
     local slotID = GetInventorySlotInfo(slotName)
     local itemLink = GetInventoryItemLink(unitId, slotID)
+
     if itemLink then
         if itemCheckFunction(itemLink) then
             if not playerInfo.ProblematicItems[itemLink] then
@@ -108,7 +109,6 @@ function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFuncti
             end
             table.insert(playerInfo.ProblematicItems[itemLink], message)
         end
-        GearPolice.UI:UpdateUI()
         onComplete()
     else
         local texture = GetInventoryItemTexture(unitId, slotID)
@@ -122,6 +122,18 @@ function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFuncti
             onComplete()
         end
     end
+end
+
+function Inspection:IsTwoHandedOrRangedWeaponEquipped(playerInfo)
+    local unitId = GearPolice.Helper:GetUnitIdOfPlayerGuid(playerInfo.PlayerGuid)
+    if not unitId then return false end
+
+    local slotID = GetInventorySlotInfo("MainHandSlot")
+    local link = GetInventoryItemLink(unitId, slotID)
+    if not link then return false end
+
+    local _, _, _, _, _, _, _, _, equipLoc = GetItemInfo(link)
+    return equipLoc == "INVTYPE_2HWEAPON" or equipLoc == "INVTYPE_RANGED"
 end
 
 function Inspection:CheckUnit(playerInfo, onComplete)
@@ -149,7 +161,8 @@ function Inspection:CheckUnit(playerInfo, onComplete)
     }
 
     local slotConfig = {
-        HeadSlot          = { "gems", "enchant", "ilevel" },
+        --HeadSlot          = { "gems", "enchant", "ilevel" }, -- Remove head enchant temporarily as there aren't any in the game yet as of MoP Phase 1.
+        HeadSlot          = { "gems",            "ilevel" },
         NeckSlot          = { "gems",            "ilevel" },
         ShoulderSlot      = { "gems", "enchant", "ilevel" },
         BackSlot          = { "gems", "enchant", "ilevel" },
@@ -162,10 +175,19 @@ function Inspection:CheckUnit(playerInfo, onComplete)
         Finger0Slot       = { "gems",            "ilevel" },
         Finger1Slot       = { "gems",            "ilevel" },
         MainHandSlot      = { "gems", "enchant", "ilevel" },
-        SecondaryHandSlot = { "gems", "enchant", "ilevel" },
+        --SecondaryHandSlot = { "gems", "enchant", "ilevel" },
         Trinket0Slot      = { "gems",            "ilevel" },
         Trinket1Slot      = { "gems",            "ilevel" },
     }
+
+    if self:IsTwoHandedOrRangedWeaponEquipped(playerInfo) then
+        -- Use Hearthstone as a placeholder for the secondary hand slot.
+        playerInfo.EquippedItems = playerInfo.EquippedItems or {}
+        local _, placeholderLink = GetItemInfo(6948)
+        playerInfo.EquippedItems["SecondaryHandSlot"] = placeholderLink
+    else
+        slotConfig.SecondaryHandSlot = { "gems", "enchant", "ilevel" }
+    end
 
     for slotName, slotChecks in pairs(slotConfig) do
         for _, checkKey in ipairs(slotChecks) do
