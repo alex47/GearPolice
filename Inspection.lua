@@ -111,16 +111,16 @@ function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFuncti
         end
         onComplete()
     else
-        local texture = GetInventoryItemTexture(unitId, slotID)
-        if texture then
+        --local texture = GetInventoryItemTexture(unitId, slotID)
+        --if texture then
             -- An item is equipped (texture exists) but its link isn't available yet; retry.
             C_Timer.After(10, function()
                 Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFunction, message, retryCount - 1, onComplete)
             end)
-        else
+        --else
             -- No item is equipped in this slot.
-            onComplete()
-        end
+            --onComplete()
+        --end
     end
 end
 
