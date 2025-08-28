@@ -124,7 +124,7 @@ function GearPolice:UpdatePlayerEquippedItems(unitId, onComplete)
             end
             pendingCount = pendingCount - 1
             
-            GearPolice.UI:UpdateUI()
+            --GearPolice.UI:UpdateUI()
 
             if pendingCount == 0 and onComplete then
                 onComplete(anyPending)
