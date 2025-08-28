@@ -6,6 +6,15 @@ local Inspection = GearPolice.Inspection
 local ItemLevelThreshold = 450
 
 
+-- Exponential backoff helper for retry delays (with cap and light jitter)
+local function InspectionRetryDelay(attempt)
+    local base = 0.5 * (2 ^ (attempt - 1))
+    local delay = math.min(base, 10)
+    local jitter = 0.9 + math.random() * 0.2 -- 0.9x to 1.1x
+    return delay * jitter
+end
+
+
 function Inspection:IsItemMissingGems(itemLink)
     if not itemLink then 
         return false 
@@ -31,24 +40,13 @@ function Inspection:IsItemMissingGems(itemLink)
         return false 
     end
 
-    local gem1, gem2, gem3, gem4 = select(4, strsplit(":", itemLink))
-
     local socketedGemCount = 0
-
-    if (gem1 ~= "") then
-        socketedGemCount = socketedGemCount + 1
-    end
-
-    if (gem2 ~= "") then
-        socketedGemCount = socketedGemCount + 1
-    end
-
-    if (gem3 ~= "") then
-        socketedGemCount = socketedGemCount + 1
-    end
-
-    if (gem4 ~= "") then
-        socketedGemCount = socketedGemCount + 1
+    local toCheck = math.min(gemSlotCount, 3)
+    for i = 1, toCheck do
+        local gemName, gemLink = GetItemGem(itemLink, i)
+        if gemLink or gemName then
+            socketedGemCount = socketedGemCount + 1
+        end
     end
 
     return socketedGemCount < gemSlotCount
@@ -61,7 +59,7 @@ function Inspection:IsItemMissingEnchant(itemLink)
 
     local enchantID = select(3, strsplit(":", itemLink))
 
-    return enchantID == ""
+    return (not enchantID) or enchantID == "" or enchantID == "0"
 end
 
 function Inspection:IsItemBelowItemLevel(itemLink)
@@ -79,12 +77,36 @@ function Inspection:IsItemBelowItemLevel(itemLink)
 end
 
 function Inspection:IsWaistMissingExtraGemEnchant(itemLink)
+    if not itemLink then return false end
+
+    local stats = {}
+    local itemStats = GetItemStats(itemLink, stats)
+    if not itemStats then return false end
+
+    local base = (stats["EMPTY_SOCKET_RED"] or 0)
+               + (stats["EMPTY_SOCKET_YELLOW"] or 0)
+               + (stats["EMPTY_SOCKET_BLUE"] or 0)
+
+    if base == 0 then return false end
+
+    local inserted = 0
+    for i = 1, 3 do
+        local name, link = GetItemGem(itemLink, i)
+        if link or name then inserted = inserted + 1 end
+    end
+
+    if inserted < base then return false end
+    if inserted == base then return true end
     return false
 end
 
-function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFunction, message, retryCount, onComplete)
+function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFunction, message, retryCount, onComplete, attempt)
     if not retryCount then
         retryCount = 1024
+    end
+
+    if not attempt then
+        attempt = 1
     end
 
     if retryCount <= 0 then
@@ -111,16 +133,11 @@ function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFuncti
         end
         onComplete()
     else
-        --local texture = GetInventoryItemTexture(unitId, slotID)
-        --if texture then
-            -- An item is equipped (texture exists) but its link isn't available yet; retry.
-            C_Timer.After(10, function()
-                Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFunction, message, retryCount - 1, onComplete)
-            end)
-        --else
-            -- No item is equipped in this slot.
-            --onComplete()
-        --end
+        -- An item may be equipped but its link isn't available yet; retry with backoff.
+        local delay = InspectionRetryDelay(attempt)
+        C_Timer.After(delay, function()
+            Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFunction, message, retryCount - 1, onComplete, attempt + 1)
+        end)
     end
 end
 
@@ -152,16 +169,16 @@ function Inspection:CheckUnit(playerInfo, onComplete)
         },
         waistEnchant = {
             func = function(itemLink) return self:IsWaistMissingExtraGemEnchant(itemLink) end,
-            message = "Missing Extra Waist gem enchant"
+            message = "Missing Extra Waist Gem Enchant"
         },
         ilevel = {
             func = function(itemLink) return self:IsItemBelowItemLevel(itemLink) end,
-            message = "Low item level"
+            message = "Low Item Level"
         },
     }
 
     local slotConfig = {
-        --HeadSlot          = { "gems", "enchant", "ilevel" }, -- Remove head enchant temporarily as there aren't any in the game yet as of MoP Phase 1.
+        HeadSlot          = { "gems",            "ilevel" }, -- Remove head enchant temporarily as there aren't any in the game yet as of MoP Phase 1.
         HeadSlot          = { "gems",            "ilevel" },
         NeckSlot          = { "gems",            "ilevel" },
         ShoulderSlot      = { "gems", "enchant", "ilevel" },
@@ -169,7 +186,7 @@ function Inspection:CheckUnit(playerInfo, onComplete)
         ChestSlot         = { "gems", "enchant", "ilevel" },
         WristSlot         = { "gems", "enchant", "ilevel" },
         HandsSlot         = { "gems", "enchant", "ilevel" },
-        WaistSlot         = { "gems",            "ilevel" },
+        WaistSlot         = { "gems",            "ilevel", "waistEnchant" },
         LegsSlot          = { "gems", "enchant", "ilevel" },
         FeetSlot          = { "gems", "enchant", "ilevel" },
         Finger0Slot       = { "gems",            "ilevel" },
@@ -193,7 +210,7 @@ function Inspection:CheckUnit(playerInfo, onComplete)
         for _, checkKey in ipairs(slotChecks) do
             local checkData = checks[checkKey]
             playerInfo.pendingChecks = playerInfo.pendingChecks + 1
-            self:CheckItemSlotWithRetry(playerInfo, slotName, checkData.func, checkData.message, 5, function()
+            self:CheckItemSlotWithRetry(playerInfo, slotName, checkData.func, checkData.message, nil, function()
                 playerInfo.pendingChecks = playerInfo.pendingChecks - 1
                 if playerInfo.pendingChecks <= 0 then
                     onComplete(playerInfo)
