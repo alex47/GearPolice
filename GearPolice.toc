@@ -6,6 +6,7 @@
 ## DefaultState: enabled
 ## SavedVariables: GearPoliceDB
 
+embeds.xml
 Shared.lua
 Core.lua
 Inspection.lua
