@@ -100,6 +100,55 @@ function Inspection:IsWaistMissingExtraGemEnchant(itemLink)
     return false
 end
 
+function Inspection:IsItemMissingUpgrade(itemLink, unitId, slotID)
+    if not itemLink or not unitId or not slotID then
+        return false
+    end
+
+    if not self.upgradeScanTooltip then
+        self.upgradeScanTooltip = CreateFrame("GameTooltip", "GearPoliceUpgradeScanTooltip", UIParent, "GameTooltipTemplate")
+    end
+
+    local tooltip = self.upgradeScanTooltip
+    tooltip:ClearLines()
+    tooltip:SetOwner(UIParent, "ANCHOR_NONE")
+
+    if not tooltip:SetInventoryItem(unitId, slotID) then
+        tooltip:Hide()
+        return false
+    end
+
+    local upgradePattern = ITEM_UPGRADE_TOOLTIP_FORMAT and ITEM_UPGRADE_TOOLTIP_FORMAT:gsub("%%d", "(%%d+)") or "Upgrade Level:%s*(%%d+)/(%%d+)"
+    local current, max = nil, nil
+
+    local numLines = tooltip:NumLines()
+    for i = 1, numLines do
+        local leftRegion = _G[tooltip:GetName() .. "TextLeft" .. i]
+        local rightRegion = _G[tooltip:GetName() .. "TextRight" .. i]
+        local leftText = leftRegion and leftRegion:GetText()
+        local rightText = rightRegion and rightRegion:GetText()
+
+        if leftText then
+            current, max = leftText:match(upgradePattern)
+        end
+        if (not current or not max) and rightText then
+            current, max = rightText:match(upgradePattern)
+        end
+        if current and max then
+            break
+        end
+    end
+
+    tooltip:Hide()
+
+    current, max = tonumber(current or 0), tonumber(max or 0)
+    if not current or not max or max == 0 then
+        return false
+    end
+
+    return current < max
+end
+
 function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFunction, message, retryCount, onComplete, attempt)
     if not retryCount then
         retryCount = 1024
@@ -125,7 +174,7 @@ function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFuncti
     local itemLink = GetInventoryItemLink(unitId, slotID)
 
     if itemLink then
-        if itemCheckFunction(itemLink) then
+        if itemCheckFunction(itemLink, unitId, slotID) then
             if not playerInfo.ProblematicItems[itemLink] then
                 playerInfo.ProblematicItems[itemLink] = {}
             end
@@ -171,6 +220,10 @@ function Inspection:CheckUnit(playerInfo, onComplete)
             func = function(itemLink) return self:IsWaistMissingExtraGemEnchant(itemLink) end,
             message = "Missing Extra Waist Gem Enchant"
         },
+        upgrade = {
+            func = function(itemLink, unitId, slotID) return self:IsItemMissingUpgrade(itemLink, unitId, slotID) end,
+            message = "Missing Upgrade"
+        },
         ilevel = {
             func = function(itemLink) return self:IsItemBelowItemLevel(itemLink) end,
             message = "Low Item Level"
@@ -178,23 +231,23 @@ function Inspection:CheckUnit(playerInfo, onComplete)
     }
 
     local slotConfig = {
-        HeadSlot          = { "gems",            "ilevel" }, -- Remove head enchant temporarily as there aren't any in the game yet as of MoP Phase 1.
-        HeadSlot          = { "gems",            "ilevel" },
-        NeckSlot          = { "gems",            "ilevel" },
-        ShoulderSlot      = { "gems", "enchant", "ilevel" },
-        BackSlot          = { "gems", "enchant", "ilevel" },
-        ChestSlot         = { "gems", "enchant", "ilevel" },
-        WristSlot         = { "gems", "enchant", "ilevel" },
-        HandsSlot         = { "gems", "enchant", "ilevel" },
-        WaistSlot         = { "gems",            "ilevel", "waistEnchant" },
-        LegsSlot          = { "gems", "enchant", "ilevel" },
-        FeetSlot          = { "gems", "enchant", "ilevel" },
-        Finger0Slot       = { "gems",            "ilevel" },
-        Finger1Slot       = { "gems",            "ilevel" },
-        MainHandSlot      = { "gems", "enchant", "ilevel" },
-        --SecondaryHandSlot = { "gems", "enchant", "ilevel" },
-        Trinket0Slot      = { "gems",            "ilevel" },
-        Trinket1Slot      = { "gems",            "ilevel" },
+        HeadSlot          = { "gems",            "ilevel", "upgrade" }, -- Remove head enchant temporarily as there aren't any in the game yet as of MoP Phase 1.
+        HeadSlot          = { "gems",            "ilevel", "upgrade" },
+        NeckSlot          = { "gems",            "ilevel", "upgrade" },
+        ShoulderSlot      = { "gems", "enchant", "ilevel", "upgrade" },
+        BackSlot          = { "gems", "enchant", "ilevel", "upgrade" },
+        ChestSlot         = { "gems", "enchant", "ilevel", "upgrade" },
+        WristSlot         = { "gems", "enchant", "ilevel", "upgrade" },
+        HandsSlot         = { "gems", "enchant", "ilevel", "upgrade" },
+        WaistSlot         = { "gems",            "ilevel", "waistEnchant", "upgrade" },
+        LegsSlot          = { "gems", "enchant", "ilevel", "upgrade" },
+        FeetSlot          = { "gems", "enchant", "ilevel", "upgrade" },
+        Finger0Slot       = { "gems",            "ilevel", "upgrade" },
+        Finger1Slot       = { "gems",            "ilevel", "upgrade" },
+        MainHandSlot      = { "gems", "enchant", "ilevel", "upgrade" },
+        --SecondaryHandSlot = { "gems", "enchant", "ilevel", "upgrade" },
+        Trinket0Slot      = { "gems",            "ilevel", "upgrade" },
+        Trinket1Slot      = { "gems",            "ilevel", "upgrade" },
     }
 
     if self:IsTwoHandedOrRangedWeaponEquipped(playerInfo) then
@@ -203,7 +256,7 @@ function Inspection:CheckUnit(playerInfo, onComplete)
         local _, placeholderLink = GetItemInfo(6948)
         playerInfo.EquippedItems["SecondaryHandSlot"] = placeholderLink
     else
-        slotConfig.SecondaryHandSlot = { "gems", "enchant", "ilevel" }
+        slotConfig.SecondaryHandSlot = { "gems", "enchant", "ilevel", "upgrade" }
     end
 
     for slotName, slotChecks in pairs(slotConfig) do
