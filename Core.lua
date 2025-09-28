@@ -1,4 +1,4 @@
-GearPolice = LibStub("AceAddon-3.0"):NewAddon("GearPolice", "AceConsole-3.0", "AceEvent-3.0")
+GearPolice = LibStub("AceAddon-3.0"):NewAddon("GearPolice", "AceConsole-3.0", "AceEvent-3.0", "AceTimer-3.0")
 
 GearPolice:RegisterChatCommand("gearpolice", "HandleSlashCommands")
 
@@ -6,11 +6,48 @@ GearPolice.scanQueue = {}
 GearPolice.isScanning = false
 GearPolice.scanInterval = 2  -- Time between scans in seconds
 GearPolice.maxConcurrentScans = 5
+GearPolice.activeTimers = {}
+
+function GearPolice:ScheduleManagedTimer(callback, delay)
+    if type(callback) ~= "function" or not delay then
+        return nil
+    end
+
+    self.activeTimers = self.activeTimers or {}
+
+    local handle
+    handle = self:ScheduleTimer(function()
+        if self.activeTimers then
+            self.activeTimers[handle] = nil
+        end
+        callback()
+    end, delay)
+
+    if handle then
+        self.activeTimers[handle] = true
+    end
+
+    return handle
+end
+
+function GearPolice:CancelAllManagedTimers()
+    if not self.activeTimers then
+        return
+    end
+
+    for handle in pairs(self.activeTimers) do
+        self:CancelTimer(handle, true)
+    end
+
+    self.activeTimers = {}
+end
 
 function GearPolice:OnInitialize()
     GearPolice:Print("Addon loaded!")
 
     GearPolice.db = LibStub("AceDB-3.0"):New("GearPoliceDB")
+
+    self.activeTimers = {}
 
     if type(GearPolice.db.global.PlayerGearInfo) ~= "table" then 
         GearPolice.db.global.PlayerGearInfo = {} 
@@ -56,15 +93,34 @@ function GearPolice:ProcessScanQueue()
     end
 
     -- Schedule next batch only after this one completes
-    C_Timer.After(self.scanInterval, function()
+    self:ScheduleManagedTimer(function()
         self.isScanning = false
         self:ProcessScanQueue()
-    end)
+    end, self.scanInterval)
 end
 
 function GearPolice:AddToScanQueue(playerGuid)
     if not tContains(GearPolice.scanQueue, playerGuid) then
         table.insert(GearPolice.scanQueue, playerGuid)
+    end
+end
+
+function GearPolice:StopAllScans()
+    self:CancelAllManagedTimers()
+
+    if ClearInspectPlayer then
+        ClearInspectPlayer()
+    end
+
+    self.scanQueue = {}
+    self.isScanning = false
+
+    if self.db and self.db.global and type(self.db.global.PlayerGearInfo) == "table" then
+        for _, playerInfo in pairs(self.db.global.PlayerGearInfo) do
+            playerInfo.CheckRequested = false
+            playerInfo.CheckStatus = "Cancelled"
+            playerInfo.pendingChecks = 0
+        end
     end
 end
 
@@ -143,9 +199,9 @@ function GearPolice:UpdatePlayerEquippedItemForSlot(unitId, slotName, retryCount
         local texture = GetInventoryItemTexture(unitId, slotID)
         if texture then
             if retryCount > 0 then
-                C_Timer.After(2, function()
+                self:ScheduleManagedTimer(function()
                     GearPolice:UpdatePlayerEquippedItemForSlot(unitId, slotName, retryCount - 1, onComplete)
-                end)
+                end, 2)
             else
                 -- Exhausted retries but texture exists: mark as pending.
                 onComplete("PENDING")
@@ -164,7 +220,9 @@ function GearPolice:ProcessGroupMember(unitId)
     local playerName = UnitName(unitId)
 
     if not playerName or playerName == "Unknown" then
-        C_Timer.After(1, function() self:ProcessGroupMember(unitId) end)
+        self:ScheduleManagedTimer(function()
+            self:ProcessGroupMember(unitId)
+        end, 1)
         return
     end
 
@@ -264,23 +322,23 @@ function GearPolice:RetryInspection(playerGuid, attempt)
         playerInfo.CheckStatus = "TemporaryFailed"
         self.UI:UpdatePlayerStatusIcon(playerGuid, "temporary_failed")
         -- Requeue after 5 minutes
-        C_Timer.After(300, function()
+        self:ScheduleManagedTimer(function()
             playerInfo.retryAttempts = 0
             self:AddToScanQueue(playerGuid)
-        end)
+        end, 300)
         return
     end
 
     -- Increment attempts and retry
     playerInfo.retryAttempts = playerInfo.retryAttempts + 1
-    C_Timer.After(self.scanInterval * attempt, function()
+    self:ScheduleManagedTimer(function()
         local unitId = self.Helper:GetUnitIdOfPlayerGuid(playerGuid)
         if unitId then
             self:StartInspectionOfUnit(unitId)
         else
             self:RetryInspection(playerGuid, attempt + 1)
         end
-    end)
+    end, self.scanInterval * attempt)
 end
 
 function GearPolice:StartGearPolicingOfGroup()
@@ -324,19 +382,19 @@ function GearPolice:OnInspectReady(eventName, playerGuid)
                 if anyPending then
                     updatedPlayerInfo.CheckStatus = "Partial"  -- Not all slots have valid item links.
                     -- Schedule a follow-up scan after a delay (e.g. 60 seconds)
-                    C_Timer.After(60, function()
+                    self:ScheduleManagedTimer(function()
                         self:AddToScanQueue(playerGuid)
                         GearPolice.UI:UpdateUI()
-                    end)
+                    end, 60)
                 else
                     updatedPlayerInfo.CheckStatus = "Successful"
                 end
                 updatedPlayerInfo.LastScanTime = time()
                 GearPolice.Debug:Message("Scan completed for: " .. updatedPlayerInfo.PlayerName)
                 GearPolice.UI:UpdateUI()
-                C_Timer.After(GearPolice.scanInterval, function()
+                self:ScheduleManagedTimer(function()
                     GearPolice:ProcessScanQueue()
-                end)
+                end, GearPolice.scanInterval)
             end)
         else
             updatedPlayerInfo.CheckStatus = "Failed"

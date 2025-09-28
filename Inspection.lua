@@ -184,9 +184,9 @@ function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFuncti
     else
         -- An item may be equipped but its link isn't available yet; retry with backoff.
         local delay = InspectionRetryDelay(attempt)
-        C_Timer.After(delay, function()
+        GearPolice:ScheduleManagedTimer(function()
             Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFunction, message, retryCount - 1, onComplete, attempt + 1)
-        end)
+        end, delay)
     end
 end
 

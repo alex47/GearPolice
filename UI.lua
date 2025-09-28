@@ -249,14 +249,13 @@ function UI:ShowUI()
     clearButton:SetWidth(100)
     clearButton:SetHeight(24)
     clearButton:SetCallback("OnClick", function()
+        GearPolice:StopAllScans()
         GearPolice.db.global.PlayerGearInfo = {}
-        GearPolice.scanQueue = {}
-        GearPolice.isScanning = false
-    
+
         -- Clear the cached UI elements and release the UI children
         self.playerUIElements = {}
         self.uiFrame.scrollContainer:ReleaseChildren()
-    
+
         -- Update the UI
         self:UpdateUI()
     end)
@@ -268,9 +267,8 @@ function UI:ShowUI()
     refreshButton:SetWidth(100)
     refreshButton:SetHeight(24)
     refreshButton:SetCallback("OnClick", function()
+        GearPolice:StopAllScans()
         GearPolice.db.global.PlayerGearInfo = {}
-        GearPolice.scanQueue = {}
-        GearPolice.isScanning = false
         self:UpdateUI()
         GearPolice:StartGearPolicingOfGroup()
     end)
