@@ -105,6 +105,9 @@ function Inspection:IsItemMissingUpgrade(itemLink, unitId, slotID)
         return false
     end
 
+    -- Short-circuit upgrade checks; treat every item as fully upgraded.
+    return false
+
     if not self.upgradeScanTooltip then
         self.upgradeScanTooltip = CreateFrame("GameTooltip", "GearPoliceUpgradeScanTooltip", UIParent, "GameTooltipTemplate")
     end
