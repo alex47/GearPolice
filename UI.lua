@@ -151,6 +151,10 @@ function UI:UpdateUI()
             statusIcon:SetImage("Interface\\RaidFrame\\ReadyCheck-Ready")
         elseif playerInfo.CheckStatus == "Partial" then
             statusIcon:SetImage("Interface\\RaidFrame\\ReadyCheck-Waiting")
+        elseif playerInfo.CheckStatus == "Failed" then
+            statusIcon:SetImage("Interface\\RaidFrame\\ReadyCheck-NotReady")
+        elseif playerInfo.CheckStatus == "TemporaryFailed" then
+            statusIcon:SetImage("Interface\\RaidFrame\\ReadyCheck-Waiting")
         else
             statusIcon:SetImage(nil)
         end
