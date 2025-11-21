@@ -24,27 +24,30 @@ function Debug:Message(message)
 end
 
 function Debug:PrintInspectionSummary(playerGuid)
-    local playerInfo = self.db.global.PlayerGearInfo[playerGuid]
-    local playerName = playerInfo["PlayerName"]
+    if not GearPolice.db or not GearPolice.db.global or not GearPolice.db.global.PlayerGearInfo then
+        GearPolice:Print("GearPolice DB not initialized.")
+        return
+    end
 
-    if (0 < #playerInfo["ItemLinksMissingGems"] or 0 < #playerInfo["ItemLinksMissingEnchants"]) then
-        GearPolice:Print("-------------------------")
-        GearPolice:Print(playerName)
+    local playerInfo = GearPolice.db.global.PlayerGearInfo[playerGuid]
+    if not playerInfo then
+        GearPolice:Print("No inspection data for player GUID: " .. tostring(playerGuid))
+        return
+    end
 
-        -- Printing the contents of the ItemLinksMissingGems list
-        if 0 < #playerInfo["ItemLinksMissingGems"] then
-            GearPolice:Print("Gems Missing In:")
-            for _, itemLink in ipairs(playerInfo["ItemLinksMissingGems"]) do
-                GearPolice:Print(itemLink)
-            end
-        end
+    local playerName = playerInfo.PlayerName or "Unknown Player"
+    local problems = playerInfo.ProblematicItems
 
-        -- Printing the contents of the ItemLinksMissingEnchants list
-        if 0 < #playerInfo["ItemLinksMissingEnchants"] then
-            GearPolice:Print("Enchants Missing In:")
-            for _, itemLink in ipairs(playerInfo["ItemLinksMissingEnchants"]) do
-                GearPolice:Print(itemLink)
-            end
-        end
+    if not problems or not next(problems) then
+        GearPolice:Print(playerName .. ": no gear issues recorded.")
+        return
+    end
+
+    GearPolice:Print("-------------------------")
+    GearPolice:Print(playerName)
+
+    for itemLink, issueList in pairs(problems) do
+        local issues = table.concat(issueList, ", ")
+        GearPolice:Print(itemLink .. " => " .. issues)
     end
 end
