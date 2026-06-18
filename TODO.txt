@@ -1,0 +1,35 @@
+GearPolice TODO
+===============
+
+High priority
+-------------
+
+- Guard UI status updates when the UI has not been opened.
+  UI:UpdatePlayerStatusIcon indexes self.playerUIElements directly, but that
+  table is initialized only by UI:ShowUI(). Scans can call this path when the UI
+  is closed.
+
+- Requeue or defer scan attempts blocked by combat.
+  StartInspectionOfUnit returns immediately during combat after the GUID has
+  already been removed from the scan queue. This can leave a player stuck in an
+  in-progress state until another external update happens.
+
+Medium priority
+---------------
+
+- Avoid treating genuinely empty equipment slots as pending item links.
+  Missing item links are retried and can become PENDING even when the slot is
+  actually empty. This can create Partial results and repeated follow-up scans
+  for empty slots.
+
+- Make target-scan retry behavior distinct from group-scan retry behavior.
+  /gearpolice target can scan a non-group target, but RetryInspection currently
+  marks non-group GUIDs as failed when inspection cannot start immediately.
+
+Cleanup
+-------
+
+- Remove or consolidate the duplicate HeadSlot entry in Inspection.lua.
+
+- Decide whether Shared.lua should contain shared code or be removed from the
+  load list.
