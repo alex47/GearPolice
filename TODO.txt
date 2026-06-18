@@ -4,11 +4,6 @@ GearPolice TODO
 High priority
 -------------
 
-- Guard UI status updates when the UI has not been opened.
-  UI:UpdatePlayerStatusIcon indexes self.playerUIElements directly, but that
-  table is initialized only by UI:ShowUI(). Scans can call this path when the UI
-  is closed.
-
 - Requeue or defer scan attempts blocked by combat.
   StartInspectionOfUnit returns immediately during combat after the GUID has
   already been removed from the scan queue. This can leave a player stuck in an
@@ -16,6 +11,17 @@ High priority
 
 Medium priority
 ---------------
+
+- Replace unsupported AceGUI RemoveChild usage.
+  UI:UpdateUI calls scrollContainer:RemoveChild(playerUI.playerContainer), but
+  AceGUI does not document RemoveChild and the bundled AceGUI does not implement
+  it. Rebuild or release stale child widgets using documented AceGUI APIs such as
+  ReleaseChildren().
+
+- Wrap the AceGUI ScrollFrame in a Fill-layout container.
+  AceGUI documentation notes that the container holding a ScrollFrame should use
+  the Fill layout. The current UI adds the ScrollFrame directly to a Flow-layout
+  Frame, which may make scrolling/layout behavior unreliable.
 
 - Avoid treating genuinely empty equipment slots as pending item links.
   Missing item links are retried and can become PENDING even when the slot is
@@ -28,6 +34,20 @@ Medium priority
 
 Cleanup
 -------
+
+- Move AceEvent registration into OnEnable.
+  Core.lua registers INSPECT_READY and GROUP_ROSTER_UPDATE at file load time.
+  AceAddon documentation recommends registering game events from OnEnable, after
+  initialization and saved-variable setup.
+
+- Avoid direct AceGUI widget internals where practical.
+  UI.lua mutates widget internals such as playerNameLabel.label and itemIcon.frame
+  backdrop state. AceGUI documentation warns that direct frame mutations can leak
+  through pooled widgets.
+
+- Remove the ignored extra argument from CancelTimer calls.
+  AceTimer:CancelTimer accepts only the timer id. The current true argument is
+  ignored by the bundled AceTimer and should be removed for clarity.
 
 - Remove or consolidate the duplicate HeadSlot entry in Inspection.lua.
 

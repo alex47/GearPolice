@@ -30,6 +30,8 @@ function UI:AddItemIcon(container, itemLink)
 end
 
 function UI:UpdatePlayerStatusIcon(playerGuid, status)
+    if not self.playerUIElements then return end
+
     local playerUI = self.playerUIElements[playerGuid]
     if not playerUI then return end
 
