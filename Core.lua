@@ -130,6 +130,13 @@ end
 function GearPolice:AddToScanQueue(playerGuid)
     if not playerGuid then return end
 
+    if self.db and self.db.global and self.db.global.PlayerGearInfo then
+        local playerInfo = self.db.global.PlayerGearInfo[playerGuid]
+        if playerInfo then
+            playerInfo.CheckRequested = true
+        end
+    end
+
     if not tContains(GearPolice.scanQueue, playerGuid) then
         table.insert(GearPolice.scanQueue, playerGuid)
     end
@@ -278,6 +285,10 @@ function GearPolice:ProcessGroupMember(unitId)
         self:AddToScanQueue(playerGuid)
     end
 
+    if playerInfo.CheckStatus == "Partial" then
+        self:AddToScanQueue(playerGuid)
+    end
+
     if (playerInfo.LastScanTime and (time() - playerInfo.LastScanTime) > 86400) then
         self:AddToScanQueue(playerGuid)
     end
@@ -341,6 +352,9 @@ function GearPolice:StartInspectionOfUnit(unitId)
 
     -- Skip if already failed (optional)
     if playerInfo.CheckStatus == "Failed" then return end
+
+    playerInfo.CheckRequested = true
+    playerInfo.CheckStatus = "InProgress"
 
     if CanInspect(unitId) then
         NotifyInspect(unitId)
