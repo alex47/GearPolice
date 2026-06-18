@@ -4,11 +4,6 @@ GearPolice TODO
 Medium priority
 ---------------
 
-- Wrap the AceGUI ScrollFrame in a Fill-layout container.
-  AceGUI documentation notes that the container holding a ScrollFrame should use
-  the Fill layout. The current UI adds the ScrollFrame directly to a Flow-layout
-  Frame, which may make scrolling/layout behavior unreliable.
-
 - Avoid treating genuinely empty equipment slots as pending item links.
   Missing item links are retried and can become PENDING even when the slot is
   actually empty. This can create Partial results and repeated follow-up scans

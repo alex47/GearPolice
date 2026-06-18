@@ -308,11 +308,16 @@ function UI:ShowUI()
     end)
     self.uiFrame:AddChild(publicShamingCheckbox)
 
-    -- Create and set up the scroll container
+    -- AceGUI ScrollFrames need a Fill-layout parent to size and scroll correctly.
+    self.uiFrame.scrollWrapper = AceGUI:Create("SimpleGroup")
+    self.uiFrame.scrollWrapper:SetFullWidth(true)
+    self.uiFrame.scrollWrapper:SetFullHeight(true)
+    self.uiFrame.scrollWrapper:SetLayout("Fill")
+    self.uiFrame:AddChild(self.uiFrame.scrollWrapper)
+
     self.uiFrame.scrollContainer = AceGUI:Create("ScrollFrame")
-    self.uiFrame.scrollContainer:SetFullWidth(true)
     self.uiFrame.scrollContainer:SetLayout("List")
-    self.uiFrame:AddChild(self.uiFrame.scrollContainer)
+    self.uiFrame.scrollWrapper:AddChild(self.uiFrame.scrollContainer)
 
     -- Populate the UI
     self:UpdateUI()
