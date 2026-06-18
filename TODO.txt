@@ -1,14 +1,6 @@
 GearPolice TODO
 ===============
 
-High priority
--------------
-
-- Requeue or defer scan attempts blocked by combat.
-  StartInspectionOfUnit returns immediately during combat after the GUID has
-  already been removed from the scan queue. This can leave a player stuck in an
-  in-progress state until another external update happens.
-
 Medium priority
 ---------------
 
@@ -34,11 +26,6 @@ Medium priority
 
 Cleanup
 -------
-
-- Move AceEvent registration into OnEnable.
-  Core.lua registers INSPECT_READY and GROUP_ROSTER_UPDATE at file load time.
-  AceAddon documentation recommends registering game events from OnEnable, after
-  initialization and saved-variable setup.
 
 - Avoid direct AceGUI widget internals where practical.
   UI.lua mutates widget internals such as playerNameLabel.label and itemIcon.frame

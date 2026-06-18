@@ -64,8 +64,20 @@ function GearPolice:OnInitialize()
     end
 end
 
+function GearPolice:OnEnable()
+    self:RegisterEvent("INSPECT_READY", "OnInspectReady")
+    self:RegisterEvent("GROUP_ROSTER_UPDATE", "UpdateGroupMembers")
+    self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnCombatEnded")
+end
+
 function GearPolice:ProcessScanQueue()
     if self.isScanning or #self.scanQueue == 0 then return end
+
+    if InCombatLockdown() then
+        self.Debug:Message("Scan queue paused while in combat.")
+        return
+    end
+
     self.isScanning = true
 
     -- Track active scans to avoid overlap
@@ -99,7 +111,17 @@ function GearPolice:ProcessScanQueue()
     end, self.scanInterval)
 end
 
+function GearPolice:OnCombatEnded()
+    if #self.scanQueue == 0 then return end
+
+    self.isScanning = false
+    self.Debug:Message("Combat ended; resuming scan queue.")
+    self:ProcessScanQueue()
+end
+
 function GearPolice:AddToScanQueue(playerGuid)
+    if not playerGuid then return end
+
     if not tContains(GearPolice.scanQueue, playerGuid) then
         table.insert(GearPolice.scanQueue, playerGuid)
     end
@@ -276,18 +298,31 @@ function GearPolice:SetPlayerGuidToDefaultInPlayerGearInfo(playerGuid)
 end
 
 function GearPolice:StartInspectionOfUnit(unitId)
-    if InCombatLockdown() then
-        self.Debug:Message("Cannot inspect in combat!")
-        return
-    end
-
     if not UnitExists(unitId) then
         self.isScanning = false
         return
     end
 
     local playerGuid = UnitGUID(unitId)
+    if not playerGuid then
+        self.isScanning = false
+        return
+    end
+
     local playerInfo = self.db.global.PlayerGearInfo[playerGuid]
+
+    if not playerInfo then
+        self:SetPlayerGuidToDefaultInPlayerGearInfo(playerGuid)
+        playerInfo = self.db.global.PlayerGearInfo[playerGuid]
+    end
+
+    if not playerInfo then return end
+
+    if InCombatLockdown() then
+        self.Debug:Message("Cannot inspect in combat; queued scan for later.")
+        self:AddToScanQueue(playerGuid)
+        return
+    end
 
     -- Skip if already failed (optional)
     if playerInfo.CheckStatus == "Failed" then return end
@@ -407,10 +442,6 @@ function GearPolice:UpdateGroupMembers()
     GearPolice:UpdatePlayerGearInfoWithGroupMembers()
     GearPolice:ProcessScanQueue()  -- Start scanning new/updated players
 end
-
--- Keep INSPECT_READY event
-GearPolice:RegisterEvent("INSPECT_READY", "OnInspectReady")
-GearPolice:RegisterEvent("GROUP_ROSTER_UPDATE", "UpdateGroupMembers")
 
 -- Slash command
 
