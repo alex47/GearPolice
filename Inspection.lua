@@ -6,12 +6,8 @@ local Inspection = GearPolice.Inspection
 local ItemLevelThreshold = 450
 
 
--- Exponential backoff helper for retry delays (with cap and light jitter)
-local function InspectionRetryDelay(attempt)
-    local base = 0.5 * (2 ^ (attempt - 1))
-    local delay = math.min(base, 10)
-    local jitter = 0.9 + math.random() * 0.2 -- 0.9x to 1.1x
-    return delay * jitter
+local function InspectionRetryDelay()
+    return GearPolice.InventorySlotRetryDelay
 end
 
 
@@ -152,19 +148,13 @@ function Inspection:IsItemMissingUpgrade(itemLink, unitId, slotID)
     return current < max
 end
 
-function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFunction, message, retryCount, onComplete, attempt)
+function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFunction, message, retryCount, onComplete, noEvidenceCount)
     if not retryCount then
-        retryCount = 1024
+        retryCount = GearPolice.InventorySlotRetryCount
     end
 
-    if not attempt then
-        attempt = 1
-    end
-
-    if retryCount <= 0 then
-        GearPolice.Debug:Message("Failed to inspect " .. slotName .. " for " .. playerInfo.PlayerName)
-        onComplete()
-        return
+    if not noEvidenceCount then
+        noEvidenceCount = 0
     end
 
     local unitId = GearPolice.Helper:GetUnitIdOfPlayerGuid(playerInfo.PlayerGuid)
@@ -173,10 +163,9 @@ function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFuncti
         return
     end
 
-    local slotID = GetInventorySlotInfo(slotName)
-    local itemLink = GetInventoryItemLink(unitId, slotID)
+    local slotState, itemLink, slotID = GearPolice.Helper:GetInventorySlotState(unitId, slotName)
 
-    if itemLink then
+    if slotState == GearPolice.InventorySlotReady then
         if itemCheckFunction(itemLink, unitId, slotID) then
             if not playerInfo.ProblematicItems[itemLink] then
                 playerInfo.ProblematicItems[itemLink] = {}
@@ -184,22 +173,37 @@ function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFuncti
             table.insert(playerInfo.ProblematicItems[itemLink], message)
         end
         onComplete()
-    else
-        -- An item may be equipped but its link isn't available yet; retry with backoff.
-        local delay = InspectionRetryDelay(attempt)
-        GearPolice:ScheduleManagedTimer(function()
-            Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFunction, message, retryCount - 1, onComplete, attempt + 1)
-        end, delay)
+        return
     end
+
+    if slotState == GearPolice.InventorySlotNoEvidence then
+        noEvidenceCount = noEvidenceCount + 1
+        if GearPolice.Helper:CanConfirmEmptyInventorySlot(unitId, slotName, noEvidenceCount) then
+            onComplete()
+            return
+        end
+    else
+        noEvidenceCount = 0
+    end
+
+    if retryCount <= 0 then
+        GearPolice.Debug:Message("Unable to confirm " .. slotName .. " for " .. playerInfo.PlayerName)
+        onComplete()
+        return
+    end
+
+    local delay = InspectionRetryDelay()
+    GearPolice:ScheduleManagedTimer(function()
+        Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFunction, message, retryCount - 1, onComplete, noEvidenceCount)
+    end, delay)
 end
 
 function Inspection:IsTwoHandedOrRangedWeaponEquipped(playerInfo)
     local unitId = GearPolice.Helper:GetUnitIdOfPlayerGuid(playerInfo.PlayerGuid)
     if not unitId then return false end
 
-    local slotID = GetInventorySlotInfo("MainHandSlot")
-    local link = GetInventoryItemLink(unitId, slotID)
-    if not link then return false end
+    local slotState, link = GearPolice.Helper:GetInventorySlotState(unitId, "MainHandSlot")
+    if slotState ~= GearPolice.InventorySlotReady then return nil end
 
     local _, _, _, _, _, _, _, _, equipLoc = GetItemInfo(link)
     return equipLoc == "INVTYPE_2HWEAPON" or equipLoc == "INVTYPE_RANGED"
@@ -254,10 +258,8 @@ function Inspection:CheckUnit(playerInfo, onComplete)
     }
 
     if self:IsTwoHandedOrRangedWeaponEquipped(playerInfo) then
-        -- Use Hearthstone as a placeholder for the secondary hand slot.
         playerInfo.EquippedItems = playerInfo.EquippedItems or {}
-        local _, placeholderLink = GetItemInfo(6948)
-        playerInfo.EquippedItems["SecondaryHandSlot"] = placeholderLink
+        playerInfo.EquippedItems["SecondaryHandSlot"] = GearPolice.InventorySlotEmpty
     else
         slotConfig.SecondaryHandSlot = { "gems", "enchant", "ilevel", "upgrade" }
     end

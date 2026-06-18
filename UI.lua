@@ -91,13 +91,7 @@ function UI:UpdateUI()
         self.playerUIElements = {}
     end
 
-    -- Fixed slot order.
-    local slotOrder = {
-        "HeadSlot", "NeckSlot", "ShoulderSlot", "BackSlot", "ChestSlot",
-        "WristSlot", "HandsSlot", "WaistSlot", "LegsSlot", "FeetSlot",
-        "Finger0Slot", "Finger1Slot", "MainHandSlot", "SecondaryHandSlot",
-        "Trinket0Slot", "Trinket1Slot"
-    }
+    local slotOrder = GearPolice.Helper:GetInventorySlotNames()
 
     for playerGuid, playerInfo in pairs(GearPolice.db.global.PlayerGearInfo) do
         local playerUI = self.playerUIElements[playerGuid]
@@ -181,7 +175,22 @@ function UI:UpdateUI()
         -- Loop over each equipment slot.
         for _, slotName in ipairs(slotOrder) do
             local itemLink = playerInfo.EquippedItems and playerInfo.EquippedItems[slotName]
-            if itemLink and itemLink ~= "PENDING" then
+            if itemLink == GearPolice.InventorySlotEmpty then
+                local emptyIcon = AceGUI:Create("Icon")
+                emptyIcon:SetImage(nil)
+                emptyIcon:SetImageSize(IconSize, IconSize)
+                emptyIcon:SetWidth(PlayerContainerElementSize)
+                emptyIcon:SetHeight(PlayerContainerElementSize)
+                emptyIcon:SetCallback("OnEnter", function(widget)
+                    GameTooltip:SetOwner(widget.frame, "ANCHOR_TOP")
+                    GameTooltip:SetText("Empty slot", 1, 1, 1)
+                    GameTooltip:Show()
+                end)
+                emptyIcon:SetCallback("OnLeave", function()
+                    GameTooltip:Hide()
+                end)
+                itemIconsContainer:AddChild(emptyIcon)
+            elseif itemLink and itemLink ~= GearPolice.InventorySlotPending then
                 -- Create an icon widget.
                 local itemIcon = AceGUI:Create("Icon")
                 local _, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(itemLink)

@@ -4,11 +4,6 @@ GearPolice TODO
 Medium priority
 ---------------
 
-- Avoid treating genuinely empty equipment slots as pending item links.
-  Missing item links are retried and can become PENDING even when the slot is
-  actually empty. This can create Partial results and repeated follow-up scans
-  for empty slots.
-
 - Make target-scan retry behavior distinct from group-scan retry behavior.
   /gearpolice target can scan a non-group target, but RetryInspection currently
   marks non-group GUIDs as failed when inspection cannot start immediately.

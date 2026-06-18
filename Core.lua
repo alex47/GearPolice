@@ -7,6 +7,14 @@ GearPolice.isScanning = false
 GearPolice.scanInterval = 2  -- Time between scans in seconds
 GearPolice.maxConcurrentScans = 5
 GearPolice.activeTimers = {}
+GearPolice.InventorySlotReady = "READY"
+GearPolice.InventorySlotPending = "PENDING"
+GearPolice.InventorySlotNoEvidence = "NO_EVIDENCE"
+GearPolice.InventorySlotEmpty = "EMPTY"
+GearPolice.InventorySlotRetryCount = 6
+GearPolice.InventorySlotRetryDelay = 2
+GearPolice.InventorySlotEmptyConfirmations = 5
+GearPolice.InventorySnapshotEvidenceMinimum = 4
 
 function GearPolice:ScheduleManagedTimer(callback, delay)
     if type(callback) ~= "function" or not delay then
@@ -169,36 +177,33 @@ end
 
 function GearPolice:UpdatePlayerEquippedItems(unitId, onComplete)
     local playerGuid = UnitGUID(unitId)
+    if not playerGuid then
+        if onComplete then
+            onComplete(true)
+        end
+        return
+    end
+
     local playerInfo = self.db.global.PlayerGearInfo[playerGuid]
     if not playerInfo then
         self:SetPlayerGuidToDefaultInPlayerGearInfo(playerGuid)
         playerInfo = self.db.global.PlayerGearInfo[playerGuid]
     end
 
-    -- Preserve previous EquippedItems if available.
     playerInfo.EquippedItems = playerInfo.EquippedItems or {}
-    local slotOrder = {
-        "HeadSlot", "NeckSlot", "ShoulderSlot", "BackSlot", "ChestSlot",
-        "WristSlot", "HandsSlot", "WaistSlot", "LegsSlot", "FeetSlot",
-        "Finger0Slot", "Finger1Slot", "MainHandSlot", "SecondaryHandSlot",
-        "Trinket0Slot", "Trinket1Slot"
-    }
+    local slotOrder = self.Helper:GetInventorySlotNames()
     local pendingCount = #slotOrder
     local anyPending = false
 
     for _, slotName in ipairs(slotOrder) do
-        local previousLink = playerInfo.EquippedItems[slotName]  -- keep last known valid value if any
-        GearPolice:UpdatePlayerEquippedItemForSlot(unitId, slotName, 5, function(newLink)
-            if newLink and newLink ~= "PENDING" then
-                playerInfo.EquippedItems[slotName] = newLink
+        GearPolice:UpdatePlayerEquippedItemForSlot(unitId, slotName, self.InventorySlotRetryCount, function(slotState, itemLink)
+            if slotState == self.InventorySlotReady then
+                playerInfo.EquippedItems[slotName] = itemLink
+            elseif slotState == self.InventorySlotEmpty then
+                playerInfo.EquippedItems[slotName] = self.InventorySlotEmpty
             else
-                if previousLink then
-                    -- Preserve the previously valid link
-                    playerInfo.EquippedItems[slotName] = previousLink
-                else
-                    playerInfo.EquippedItems[slotName] = "PENDING"
-                    anyPending = true
-                end
+                playerInfo.EquippedItems[slotName] = self.InventorySlotPending
+                anyPending = true
             end
             pendingCount = pendingCount - 1
             
@@ -207,31 +212,41 @@ function GearPolice:UpdatePlayerEquippedItems(unitId, onComplete)
             if pendingCount == 0 and onComplete then
                 onComplete(anyPending)
             end
-        end)
+        end, 0, playerGuid)
     end
 end
 
-function GearPolice:UpdatePlayerEquippedItemForSlot(unitId, slotName, retryCount, onComplete)
-    retryCount = retryCount or 5
-    local slotID = GetInventorySlotInfo(slotName)
-    local itemLink = GetInventoryItemLink(unitId, slotID)
-    if itemLink then
-        onComplete(itemLink)
-    else
-        local texture = GetInventoryItemTexture(unitId, slotID)
-        if texture then
-            if retryCount > 0 then
-                self:ScheduleManagedTimer(function()
-                    GearPolice:UpdatePlayerEquippedItemForSlot(unitId, slotName, retryCount - 1, onComplete)
-                end, 2)
-            else
-                -- Exhausted retries but texture exists: mark as pending.
-                onComplete("PENDING")
-            end
-        else
-            -- No texture implies the slot is empty.
-            onComplete(nil)
+function GearPolice:UpdatePlayerEquippedItemForSlot(unitId, slotName, retryCount, onComplete, noEvidenceCount, expectedPlayerGuid)
+    retryCount = retryCount or self.InventorySlotRetryCount
+    noEvidenceCount = noEvidenceCount or 0
+
+    if expectedPlayerGuid and UnitGUID(unitId) ~= expectedPlayerGuid then
+        onComplete(self.InventorySlotPending)
+        return
+    end
+
+    local slotState, itemLink = self.Helper:GetInventorySlotState(unitId, slotName)
+    if slotState == self.InventorySlotReady then
+        onComplete(slotState, itemLink)
+        return
+    end
+
+    if slotState == self.InventorySlotNoEvidence then
+        noEvidenceCount = noEvidenceCount + 1
+        if self.Helper:CanConfirmEmptyInventorySlot(unitId, slotName, noEvidenceCount) then
+            onComplete(self.InventorySlotEmpty)
+            return
         end
+    else
+        noEvidenceCount = 0
+    end
+
+    if retryCount > 0 then
+        self:ScheduleManagedTimer(function()
+            GearPolice:UpdatePlayerEquippedItemForSlot(unitId, slotName, retryCount - 1, onComplete, noEvidenceCount, expectedPlayerGuid)
+        end, self.InventorySlotRetryDelay)
+    else
+        onComplete(self.InventorySlotPending)
     end
 end
 
