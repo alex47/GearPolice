@@ -77,12 +77,18 @@ function UI:UpdateUI()
 
     local scrollContainer = self.uiFrame.scrollContainer
 
-    -- Remove UI elements for players no longer in PlayerGearInfo.
-    for playerGuid, playerUI in pairs(self.playerUIElements) do
+    -- AceGUI has no supported single-child removal API; rebuild if the row cache is stale.
+    local needsRebuild = false
+    for playerGuid in pairs(self.playerUIElements) do
         if not GearPolice.db.global.PlayerGearInfo[playerGuid] then
-            scrollContainer:RemoveChild(playerUI.playerContainer)
-            self.playerUIElements[playerGuid] = nil
+            needsRebuild = true
+            break
         end
+    end
+
+    if needsRebuild then
+        scrollContainer:ReleaseChildren()
+        self.playerUIElements = {}
     end
 
     -- Fixed slot order.

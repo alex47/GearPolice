@@ -4,12 +4,6 @@ GearPolice TODO
 Medium priority
 ---------------
 
-- Replace unsupported AceGUI RemoveChild usage.
-  UI:UpdateUI calls scrollContainer:RemoveChild(playerUI.playerContainer), but
-  AceGUI does not document RemoveChild and the bundled AceGUI does not implement
-  it. Rebuild or release stale child widgets using documented AceGUI APIs such as
-  ReleaseChildren().
-
 - Wrap the AceGUI ScrollFrame in a Fill-layout container.
   AceGUI documentation notes that the container holding a ScrollFrame should use
   the Fill layout. The current UI adds the ScrollFrame directly to a Flow-layout
