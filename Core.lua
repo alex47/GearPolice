@@ -61,9 +61,10 @@ function GearPolice:OnInitialize()
         GearPolice.db.global.PlayerGearInfo = {} 
     end
 
-    -- Initialize PublicShamingEnabled if it's not set
-    if type(GearPolice.db.global.PublicShamingEnabled) ~= "boolean" then
-        GearPolice.db.global.PublicShamingEnabled = false
+    if GearPolice.db.global.ReportMode ~= "whisper"
+        and GearPolice.db.global.ReportMode ~= "public"
+        and GearPolice.db.global.ReportMode ~= "debug" then
+        GearPolice.db.global.ReportMode = "whisper"
     end
 
     -- Initialize DebugEnabled if it's not set

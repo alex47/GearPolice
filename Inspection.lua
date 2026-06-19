@@ -97,55 +97,8 @@ function Inspection:IsWaistMissingExtraGemEnchant(itemLink)
 end
 
 function Inspection:IsItemMissingUpgrade(itemLink, unitId, slotID)
-    if not itemLink or not unitId or not slotID then
-        return false
-    end
-
     -- Short-circuit upgrade checks; treat every item as fully upgraded.
     return false
-
-    if not self.upgradeScanTooltip then
-        self.upgradeScanTooltip = CreateFrame("GameTooltip", "GearPoliceUpgradeScanTooltip", UIParent, "GameTooltipTemplate")
-    end
-
-    local tooltip = self.upgradeScanTooltip
-    tooltip:ClearLines()
-    tooltip:SetOwner(UIParent, "ANCHOR_NONE")
-
-    if not tooltip:SetInventoryItem(unitId, slotID) then
-        tooltip:Hide()
-        return false
-    end
-
-    local upgradePattern = ITEM_UPGRADE_TOOLTIP_FORMAT and ITEM_UPGRADE_TOOLTIP_FORMAT:gsub("%%d", "(%%d+)") or "Upgrade Level:%s*(%%d+)/(%%d+)"
-    local current, max = nil, nil
-
-    local numLines = tooltip:NumLines()
-    for i = 1, numLines do
-        local leftRegion = _G[tooltip:GetName() .. "TextLeft" .. i]
-        local rightRegion = _G[tooltip:GetName() .. "TextRight" .. i]
-        local leftText = leftRegion and leftRegion:GetText()
-        local rightText = rightRegion and rightRegion:GetText()
-
-        if leftText then
-            current, max = leftText:match(upgradePattern)
-        end
-        if (not current or not max) and rightText then
-            current, max = rightText:match(upgradePattern)
-        end
-        if current and max then
-            break
-        end
-    end
-
-    tooltip:Hide()
-
-    current, max = tonumber(current or 0), tonumber(max or 0)
-    if not current or not max or max == 0 then
-        return false
-    end
-
-    return current < max
 end
 
 function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFunction, message, retryCount, onComplete, noEvidenceCount)

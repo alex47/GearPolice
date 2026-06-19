@@ -18,12 +18,13 @@ function Reporting:ReportProblematicItems(playerInfo)
     for itemLink, problems in pairs(playerInfo.ProblematicItems) do
         local problemsStr = table.concat(problems, ", ")
         local message = "{Square} GearPolice {Cross} " .. playerInfo.PlayerName .. " - " .. itemLink .. ": " .. problemsStr
+        local reportMode = GearPolice.db.global.ReportMode
 
-        if GearPolice.db.global.PublicShamingEnabled then
-            -- Send to RAID or PARTY chat
+        if reportMode == "public" then
             SendChatMessage(message, IsInRaid() and "RAID" or "PARTY")
+        elseif reportMode == "debug" then
+            GearPolice:Print(message)
         else
-            -- Whisper to the player
             SendChatMessage(message, "WHISPER", nil, playerInfo.PlayerName)
         end
     end

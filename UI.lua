@@ -304,18 +304,23 @@ function UI:ShowUI()
     end)
     self.uiFrame:AddChild(targetButton)
 
-    -- Create the Public Shaming checkbox
-    local publicShamingCheckbox = AceGUI:Create("CheckBox")
-    publicShamingCheckbox:SetLabel("Public Shaming")
-    publicShamingCheckbox:SetWidth(120)
-    publicShamingCheckbox:SetValue(GearPolice.db.global.PublicShamingEnabled)
-    publicShamingCheckbox:SetCallback("OnValueChanged", function(widget, event, value)
-        GearPolice.db.global.PublicShamingEnabled = value
-        if value then
-            SendChatMessage("{Square} GearPolice {Cross} Public Shaming mode: Activated", IsInRaid() and "RAID" or "PARTY")
-        end
+    local reportModeDropdown = AceGUI:Create("Dropdown")
+    reportModeDropdown:SetLabel("Report Mode")
+    reportModeDropdown:SetWidth(160)
+    reportModeDropdown:SetList({
+        whisper = "Whisper",
+        public = "Public",
+        debug = "Debug",
+    }, {
+        "whisper",
+        "public",
+        "debug",
+    })
+    reportModeDropdown:SetValue(GearPolice.db.global.ReportMode)
+    reportModeDropdown:SetCallback("OnValueChanged", function(widget, event, value)
+        GearPolice.db.global.ReportMode = value
     end)
-    self.uiFrame:AddChild(publicShamingCheckbox)
+    self.uiFrame:AddChild(reportModeDropdown)
 
     -- AceGUI ScrollFrames need a Fill-layout parent to size and scroll correctly.
     self.uiFrame.scrollWrapper = AceGUI:Create("SimpleGroup")
