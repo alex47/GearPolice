@@ -4,12 +4,6 @@ GearPolice TODO
 Medium priority
 ---------------
 
-- Resolve each equipment slot once per scan, then run all rules against cached
-  slot results.
-  Inspection.lua currently starts independent retry chains per slot rule
-  (gems/enchant/ilevel/upgrade), so the same slot can be probed and written
-  multiple times and empty-slot confirmation can depend on callback order.
-
 - Treat missing item metadata as pending instead of successful.
   GetDetailedItemLevelInfo, GetItemStats, and GetItemInfo can return nil while
   item data is not cached. The current checks often return false in that case,
