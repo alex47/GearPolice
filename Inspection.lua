@@ -10,6 +10,88 @@ local function InspectionRetryDelay()
     return GearPolice.InventorySlotRetryDelay
 end
 
+function Inspection:IsCurrentScan(playerInfo, scanGeneration)
+    return not scanGeneration or (playerInfo and playerInfo.ScanGeneration == scanGeneration)
+end
+
+function Inspection:IsStoredItemLink(slotValue)
+    if not slotValue then
+        return false
+    end
+
+    if slotValue == GearPolice.InventorySlotPending then
+        return false
+    end
+
+    if slotValue == GearPolice.InventorySlotEmpty then
+        return false
+    end
+
+    if slotValue == GearPolice.InventorySlotNoEvidence then
+        return false
+    end
+
+    if slotValue == GearPolice.InventorySlotReady then
+        return false
+    end
+
+    return true
+end
+
+function Inspection:SetEquippedSlotValue(playerInfo, slotName, slotValue, scanGeneration)
+    if not self:IsCurrentScan(playerInfo, scanGeneration) then
+        return false
+    end
+
+    playerInfo.EquippedItems = playerInfo.EquippedItems or {}
+    local currentValue = playerInfo.EquippedItems[slotName]
+
+    if slotValue == GearPolice.InventorySlotPending then
+        if not currentValue or currentValue == GearPolice.InventorySlotPending then
+            playerInfo.EquippedItems[slotName] = slotValue
+        end
+        return true
+    end
+
+    if slotValue == GearPolice.InventorySlotEmpty then
+        if not currentValue or currentValue == GearPolice.InventorySlotPending or currentValue == GearPolice.InventorySlotEmpty then
+            playerInfo.EquippedItems[slotName] = slotValue
+        end
+        return true
+    end
+
+    playerInfo.EquippedItems[slotName] = slotValue
+    return true
+end
+
+function Inspection:GetCapturedInventoryEvidenceCount(playerInfo, excludedSlotName)
+    if not playerInfo or type(playerInfo.EquippedItems) ~= "table" then
+        return 0
+    end
+
+    local evidenceCount = 0
+    for _, slotName in ipairs(GearPolice.Helper:GetInventorySlotNames()) do
+        if slotName ~= excludedSlotName and self:IsStoredItemLink(playerInfo.EquippedItems[slotName]) then
+            evidenceCount = evidenceCount + 1
+        end
+    end
+
+    return evidenceCount
+end
+
+function Inspection:CanConfirmEmptyInventorySlot(playerInfo, unitId, slotName, noEvidenceCount)
+    if GearPolice.Helper:CanConfirmEmptyInventorySlot(unitId, slotName, noEvidenceCount) then
+        return true
+    end
+
+    if (noEvidenceCount or 0) < GearPolice.InventorySlotEmptyConfirmations then
+        return false
+    end
+
+    local capturedEvidenceCount = self:GetCapturedInventoryEvidenceCount(playerInfo, slotName)
+    return capturedEvidenceCount >= GearPolice.InventorySnapshotEvidenceMinimum
+end
+
 
 function Inspection:IsItemMissingGems(itemLink)
     if not itemLink then 
@@ -101,7 +183,20 @@ function Inspection:IsItemMissingUpgrade(itemLink, unitId, slotID)
     return false
 end
 
-function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFunction, message, retryCount, onComplete, noEvidenceCount)
+function Inspection:IsTwoHandedOrRangedWeaponLink(itemLink)
+    if not itemLink then
+        return false
+    end
+
+    local _, _, _, _, _, _, _, _, equipLoc = GetItemInfo(itemLink)
+    return equipLoc == "INVTYPE_2HWEAPON" or equipLoc == "INVTYPE_RANGED"
+end
+
+function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFunction, message, retryCount, onComplete, noEvidenceCount, scanGeneration)
+    if not self:IsCurrentScan(playerInfo, scanGeneration) then
+        return
+    end
+
     if not retryCount then
         retryCount = GearPolice.InventorySlotRetryCount
     end
@@ -112,6 +207,9 @@ function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFuncti
 
     local unitId = GearPolice.Helper:GetUnitIdOfPlayerGuid(playerInfo.PlayerGuid)
     if not unitId then
+        if not self:SetEquippedSlotValue(playerInfo, slotName, GearPolice.InventorySlotPending, scanGeneration) then
+            return
+        end
         onComplete()
         return
     end
@@ -119,8 +217,13 @@ function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFuncti
     local slotState, itemLink, slotID = GearPolice.Helper:GetInventorySlotState(unitId, slotName)
 
     if slotState == GearPolice.InventorySlotReady then
-        playerInfo.EquippedItems = playerInfo.EquippedItems or {}
-        playerInfo.EquippedItems[slotName] = itemLink
+        if not self:SetEquippedSlotValue(playerInfo, slotName, itemLink, scanGeneration) then
+            return
+        end
+
+        if slotName == "MainHandSlot" and self:IsTwoHandedOrRangedWeaponLink(itemLink) then
+            self:SetEquippedSlotValue(playerInfo, "SecondaryHandSlot", GearPolice.InventorySlotEmpty, scanGeneration)
+        end
 
         if itemCheckFunction(itemLink, unitId, slotID) then
             if not playerInfo.ProblematicItems[itemLink] then
@@ -134,7 +237,10 @@ function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFuncti
 
     if slotState == GearPolice.InventorySlotNoEvidence then
         noEvidenceCount = noEvidenceCount + 1
-        if GearPolice.Helper:CanConfirmEmptyInventorySlot(unitId, slotName, noEvidenceCount) then
+        if self:CanConfirmEmptyInventorySlot(playerInfo, unitId, slotName, noEvidenceCount) then
+            if not self:SetEquippedSlotValue(playerInfo, slotName, GearPolice.InventorySlotEmpty, scanGeneration) then
+                return
+            end
             onComplete()
             return
         end
@@ -143,6 +249,9 @@ function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFuncti
     end
 
     if retryCount <= 0 then
+        if not self:SetEquippedSlotValue(playerInfo, slotName, GearPolice.InventorySlotPending, scanGeneration) then
+            return
+        end
         GearPolice.Debug:Message("Unable to confirm " .. slotName .. " for " .. playerInfo.PlayerName)
         onComplete()
         return
@@ -150,7 +259,7 @@ function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFuncti
 
     local delay = InspectionRetryDelay()
     GearPolice:ScheduleManagedTimer(function()
-        Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFunction, message, retryCount - 1, onComplete, noEvidenceCount)
+        Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFunction, message, retryCount - 1, onComplete, noEvidenceCount, scanGeneration)
     end, delay)
 end
 
@@ -161,11 +270,10 @@ function Inspection:IsTwoHandedOrRangedWeaponEquipped(playerInfo)
     local slotState, link = GearPolice.Helper:GetInventorySlotState(unitId, "MainHandSlot")
     if slotState ~= GearPolice.InventorySlotReady then return nil end
 
-    local _, _, _, _, _, _, _, _, equipLoc = GetItemInfo(link)
-    return equipLoc == "INVTYPE_2HWEAPON" or equipLoc == "INVTYPE_RANGED"
+    return self:IsTwoHandedOrRangedWeaponLink(link)
 end
 
-function Inspection:CheckUnit(playerInfo, onComplete)
+function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
     -- Reset problematic items and initialize the pending checks counter.
     playerInfo.ProblematicItems = {}
     playerInfo.pendingChecks = 0
@@ -214,8 +322,7 @@ function Inspection:CheckUnit(playerInfo, onComplete)
     }
 
     if self:IsTwoHandedOrRangedWeaponEquipped(playerInfo) then
-        playerInfo.EquippedItems = playerInfo.EquippedItems or {}
-        playerInfo.EquippedItems["SecondaryHandSlot"] = GearPolice.InventorySlotEmpty
+        self:SetEquippedSlotValue(playerInfo, "SecondaryHandSlot", GearPolice.InventorySlotEmpty, scanGeneration)
     else
         slotConfig.SecondaryHandSlot = { "gems", "enchant", "ilevel", "upgrade" }
     end
@@ -225,11 +332,15 @@ function Inspection:CheckUnit(playerInfo, onComplete)
             local checkData = checks[checkKey]
             playerInfo.pendingChecks = playerInfo.pendingChecks + 1
             self:CheckItemSlotWithRetry(playerInfo, slotName, checkData.func, checkData.message, nil, function()
+                if not self:IsCurrentScan(playerInfo, scanGeneration) then
+                    return
+                end
+
                 playerInfo.pendingChecks = playerInfo.pendingChecks - 1
                 if playerInfo.pendingChecks <= 0 then
                     onComplete(playerInfo)
                 end
-            end)
+            end, nil, scanGeneration)
         end
     end
 

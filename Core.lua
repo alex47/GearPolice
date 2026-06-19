@@ -158,8 +158,24 @@ function GearPolice:StopAllScans()
             playerInfo.CheckRequested = false
             playerInfo.CheckStatus = "Cancelled"
             playerInfo.pendingChecks = 0
+            playerInfo.ScanGeneration = (playerInfo.ScanGeneration or 0) + 1
         end
     end
+end
+
+function GearPolice:HasPendingEquippedItems(playerInfo)
+    if not playerInfo or type(playerInfo.EquippedItems) ~= "table" then
+        return true
+    end
+
+    for _, slotName in ipairs(self.Helper:GetInventorySlotNames()) do
+        local slotValue = playerInfo.EquippedItems[slotName]
+        if not slotValue or slotValue == self.InventorySlotPending then
+            return true
+        end
+    end
+
+    return false
 end
 
 function GearPolice:UpdatePlayerGearInfoWithGroupMembers()
@@ -183,86 +199,6 @@ function GearPolice:UpdatePlayerGearInfoWithGroupMembers()
     end
 end
 
-function GearPolice:UpdatePlayerEquippedItems(unitId, onComplete)
-    local playerGuid = UnitGUID(unitId)
-    if not playerGuid then
-        if onComplete then
-            onComplete(true)
-        end
-        return
-    end
-
-    local playerInfo = self.db.global.PlayerGearInfo[playerGuid]
-    if not playerInfo then
-        self:SetPlayerGuidToDefaultInPlayerGearInfo(playerGuid)
-        playerInfo = self.db.global.PlayerGearInfo[playerGuid]
-    end
-
-    playerInfo.EquippedItems = playerInfo.EquippedItems or {}
-    local slotOrder = self.Helper:GetInventorySlotNames()
-    local pendingCount = #slotOrder
-    local anyPending = false
-
-    for _, slotName in ipairs(slotOrder) do
-        GearPolice:UpdatePlayerEquippedItemForSlot(unitId, slotName, self.InventorySlotRetryCount, function(slotState, itemLink)
-            if slotState == self.InventorySlotReady then
-                playerInfo.EquippedItems[slotName] = itemLink
-            elseif slotState == self.InventorySlotEmpty then
-                playerInfo.EquippedItems[slotName] = self.InventorySlotEmpty
-            else
-                local existingItemLink = playerInfo.EquippedItems[slotName]
-                if not existingItemLink
-                    or existingItemLink == self.InventorySlotPending
-                    or existingItemLink == self.InventorySlotEmpty then
-                    playerInfo.EquippedItems[slotName] = self.InventorySlotPending
-                    anyPending = true
-                end
-            end
-            pendingCount = pendingCount - 1
-            
-            --GearPolice.UI:UpdateUI()
-
-            if pendingCount == 0 and onComplete then
-                onComplete(anyPending)
-            end
-        end, 0, playerGuid)
-    end
-end
-
-function GearPolice:UpdatePlayerEquippedItemForSlot(unitId, slotName, retryCount, onComplete, noEvidenceCount, expectedPlayerGuid)
-    retryCount = retryCount or self.InventorySlotRetryCount
-    noEvidenceCount = noEvidenceCount or 0
-
-    if expectedPlayerGuid and UnitGUID(unitId) ~= expectedPlayerGuid then
-        onComplete(self.InventorySlotPending)
-        return
-    end
-
-    local slotState, itemLink = self.Helper:GetInventorySlotState(unitId, slotName)
-    if slotState == self.InventorySlotReady then
-        onComplete(slotState, itemLink)
-        return
-    end
-
-    if slotState == self.InventorySlotNoEvidence then
-        noEvidenceCount = noEvidenceCount + 1
-        if self.Helper:CanConfirmEmptyInventorySlot(unitId, slotName, noEvidenceCount) then
-            onComplete(self.InventorySlotEmpty)
-            return
-        end
-    else
-        noEvidenceCount = 0
-    end
-
-    if retryCount > 0 then
-        self:ScheduleManagedTimer(function()
-            GearPolice:UpdatePlayerEquippedItemForSlot(unitId, slotName, retryCount - 1, onComplete, noEvidenceCount, expectedPlayerGuid)
-        end, self.InventorySlotRetryDelay)
-    else
-        onComplete(self.InventorySlotPending)
-    end
-end
-
 function GearPolice:ProcessGroupMember(unitId)
     if not UnitExists(unitId) then return end
 
@@ -281,9 +217,6 @@ function GearPolice:ProcessGroupMember(unitId)
     end
 
     local playerInfo = self.db.global.PlayerGearInfo[playerGuid]
-    
-    -- Update equipped items (with retry logic) for this unit.
-    self:UpdatePlayerEquippedItems(unitId)
 
     if playerInfo.CheckStatus == "TemporaryFailed" then
         playerInfo.CheckStatus = "InProgress"
@@ -325,7 +258,8 @@ function GearPolice:SetPlayerGuidToDefaultInPlayerGearInfo(playerGuid)
         ["CheckStatus"] = "InProgress",
         ["ProblematicItems"] = {},
         ["LastScanTime"] = 0,
-        ["retryAttempts"] = 0
+        ["retryAttempts"] = 0,
+        ["ScanGeneration"] = 0
     }
 end
 
@@ -437,41 +371,38 @@ function GearPolice:OnInspectReady(eventName, playerGuid)
     end
 
     playerInfo.CheckStatus = "InProgress"
+    playerInfo.ScanGeneration = (playerInfo.ScanGeneration or 0) + 1
+    local scanGeneration = playerInfo.ScanGeneration
     playerInfo.EquippedItems = {}
     GearPolice.UI:UpdateUI()
 
-    -- Start the unit check (which will run per-slot checks for gems/enchants, etc.)
     GearPolice.Inspection:CheckUnit(playerInfo, function(updatedPlayerInfo)
+        if updatedPlayerInfo.ScanGeneration ~= scanGeneration then
+            return
+        end
+
         updatedPlayerInfo.CheckRequested = false
         updatedPlayerInfo.retryAttempts = 0
 
-        -- Now update the equipped items—with retries per slot.
-        -- (Assuming here that we can get the unit id; you may need to store it earlier.)
-        local unitId = GearPolice.Helper:GetUnitIdOfPlayerGuid(playerGuid)
-        if unitId then
-            GearPolice:UpdatePlayerEquippedItems(unitId, function(anyPending)
-                if anyPending then
-                    updatedPlayerInfo.CheckStatus = "Partial"  -- Not all slots have valid item links.
-                    -- Schedule a follow-up scan after a delay (e.g. 60 seconds)
-                    self:ScheduleManagedTimer(function()
-                        self:AddToScanQueue(playerGuid)
-                        GearPolice.UI:UpdateUI()
-                    end, 60)
-                else
-                    updatedPlayerInfo.CheckStatus = "Successful"
+        if GearPolice:HasPendingEquippedItems(updatedPlayerInfo) then
+            updatedPlayerInfo.CheckStatus = "Partial"
+            self:ScheduleManagedTimer(function()
+                if updatedPlayerInfo.ScanGeneration == scanGeneration then
+                    self:AddToScanQueue(playerGuid)
+                    GearPolice.UI:UpdateUI()
                 end
-                updatedPlayerInfo.LastScanTime = time()
-                GearPolice.Debug:Message("Scan completed for: " .. updatedPlayerInfo.PlayerName)
-                GearPolice.UI:UpdateUI()
-                self:ScheduleManagedTimer(function()
-                    GearPolice:ProcessScanQueue()
-                end, GearPolice.scanInterval)
-            end)
+            end, 60)
         else
-            updatedPlayerInfo.CheckStatus = "Failed"
-            GearPolice.UI:UpdateUI()
+            updatedPlayerInfo.CheckStatus = "Successful"
         end
-    end)
+
+        updatedPlayerInfo.LastScanTime = time()
+        GearPolice.Debug:Message("Scan completed for: " .. updatedPlayerInfo.PlayerName)
+        GearPolice.UI:UpdateUI()
+        self:ScheduleManagedTimer(function()
+            GearPolice:ProcessScanQueue()
+        end, GearPolice.scanInterval)
+    end, scanGeneration)
 end
 
 function GearPolice:UpdateGroupMembers()
