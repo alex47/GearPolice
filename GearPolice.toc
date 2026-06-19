@@ -1,4 +1,4 @@
-## Interface: 50500
+## Interface: 50504
 ## Title: GearPolice
 ## Version: 1.2.0
 ## Notes: Shame your group members when their gear is missing enchants or gems.
