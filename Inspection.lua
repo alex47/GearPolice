@@ -260,7 +260,7 @@ function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFuncti
     local delay = InspectionRetryDelay()
     GearPolice:ScheduleManagedTimer(function()
         Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFunction, message, retryCount - 1, onComplete, noEvidenceCount, scanGeneration)
-    end, delay)
+    end, delay, playerInfo.PlayerGuid)
 end
 
 function Inspection:IsTwoHandedOrRangedWeaponEquipped(playerInfo)
