@@ -4,9 +4,23 @@ GearPolice TODO
 Medium priority
 ---------------
 
-- Make target-scan retry behavior distinct from group-scan retry behavior.
-  /gearpolice target can scan a non-group target, but RetryInspection currently
-  marks non-group GUIDs as failed when inspection cannot start immediately.
+- Resolve each equipment slot once per scan, then run all rules against cached
+  slot results.
+  Inspection.lua currently starts independent retry chains per slot rule
+  (gems/enchant/ilevel/upgrade), so the same slot can be probed and written
+  multiple times and empty-slot confirmation can depend on callback order.
+
+- Treat missing item metadata as pending instead of successful.
+  GetDetailedItemLevelInfo, GetItemStats, and GetItemInfo can return nil while
+  item data is not cached. The current checks often return false in that case,
+  allowing a scan to pass without actually evaluating the item.
+
+Low priority
+------------
+
+- Guard reporting against missing or malformed ProblematicItems tables.
+  Reporting.lua assumes playerInfo.ProblematicItems is always a table; older
+  saved data or partial records could make the report button throw.
 
 Cleanup
 -------
@@ -15,12 +29,6 @@ Cleanup
   UI.lua mutates widget internals such as playerNameLabel.label and itemIcon.frame
   backdrop state. AceGUI documentation warns that direct frame mutations can leak
   through pooled widgets.
-
-- Remove the ignored extra argument from CancelTimer calls.
-  AceTimer:CancelTimer accepts only the timer id. The current true argument is
-  ignored by the bundled AceTimer and should be removed for clarity.
-
-- Remove or consolidate the duplicate HeadSlot entry in Inspection.lua.
 
 - Decide whether Shared.lua should contain shared code or be removed from the
   load list.

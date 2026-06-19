@@ -3,9 +3,12 @@ GearPolice = LibStub("AceAddon-3.0"):NewAddon("GearPolice", "AceConsole-3.0", "A
 GearPolice:RegisterChatCommand("gearpolice", "HandleSlashCommands")
 
 GearPolice.scanQueue = {}
+GearPolice.queuedScanReasons = {}
+GearPolice.currentScan = nil
+GearPolice.scanQueueTimer = nil
 GearPolice.isScanning = false
 GearPolice.scanInterval = 2  -- Time between scans in seconds
-GearPolice.maxConcurrentScans = 5
+GearPolice.inspectReadyTimeout = 8
 GearPolice.activeScanGuids = {}
 GearPolice.activeTimers = {}
 GearPolice.activePlayerTimers = {}
@@ -77,11 +80,35 @@ function GearPolice:CancelAllManagedTimers()
     end
 
     for handle in pairs(self.activeTimers) do
-        self:CancelTimer(handle, true)
+        self:CancelTimer(handle)
     end
 
     self.activeTimers = {}
     self.activePlayerTimers = {}
+    self.scanQueueTimer = nil
+end
+
+function GearPolice:CancelScanQueueTimer()
+    if not self.scanQueueTimer then
+        return
+    end
+
+    self:CancelTimer(self.scanQueueTimer)
+    if self.activeTimers then
+        self.activeTimers[self.scanQueueTimer] = nil
+    end
+    self.scanQueueTimer = nil
+end
+
+function GearPolice:ScheduleScanQueueProcessing(delay)
+    if self.currentScan or #self.scanQueue == 0 or self.scanQueueTimer then
+        return
+    end
+
+    self.scanQueueTimer = self:ScheduleManagedTimer(function()
+        self.scanQueueTimer = nil
+        self:ProcessScanQueue()
+    end, delay or self.scanInterval)
 end
 
 function GearPolice:OnInitialize()
@@ -92,9 +119,13 @@ function GearPolice:OnInitialize()
     self.activeScanGuids = {}
     self.activeTimers = {}
     self.activePlayerTimers = {}
+    self.queuedScanReasons = {}
+    self.currentScan = nil
+    self.scanQueueTimer = nil
+    self.isScanning = false
 
-    if type(GearPolice.db.global.PlayerGearInfo) ~= "table" then 
-        GearPolice.db.global.PlayerGearInfo = {} 
+    if type(GearPolice.db.global.PlayerGearInfo) ~= "table" then
+        GearPolice.db.global.PlayerGearInfo = {}
     end
 
     if GearPolice.db.global.ReportMode ~= "whisper"
@@ -116,65 +147,120 @@ function GearPolice:OnEnable()
 end
 
 function GearPolice:ProcessScanQueue()
-    if self.isScanning or #self.scanQueue == 0 then return end
+    if self.currentScan or #self.scanQueue == 0 then return end
 
     if InCombatLockdown() then
         self.Debug:Message("Scan queue paused while in combat.")
         return
     end
 
-    self.isScanning = true
+    self:CancelScanQueueTimer()
 
-    local activeScans = {}
+    while #self.scanQueue > 0 do
+        local playerGuid = table.remove(self.scanQueue, 1)
+        local reason = self.queuedScanReasons[playerGuid] or "group"
+        self.queuedScanReasons[playerGuid] = nil
 
-    -- Process up to maxConcurrentScans players, skipping GUIDs already being inspected.
-    while #activeScans < self.maxConcurrentScans and #self.scanQueue > 0 do
-        local playerGuid = table.remove(self.scanQueue, 1)  -- FIFO
-        if playerGuid and not self.activeScanGuids[playerGuid] then
-            table.insert(activeScans, playerGuid)
+        if playerGuid then
+            local playerInfo = self.db.global.PlayerGearInfo[playerGuid]
+            if not playerInfo then
+                self:SetPlayerGuidToDefaultInPlayerGearInfo(playerGuid)
+                playerInfo = self.db.global.PlayerGearInfo[playerGuid]
+            end
+
+            if playerInfo then
+                if self:IsPlayerScanComplete(playerInfo) and not playerInfo.ForceScanRequested then
+                    playerInfo.CheckRequested = false
+                elseif playerInfo.CheckStatus == "Failed" then
+                    playerInfo.CheckRequested = false
+                else
+                    playerInfo.CheckRequested = true
+                    playerInfo.CheckStatus = "InProgress"
+                    playerInfo.pendingChecks = 0
+                    playerInfo.retryAttempts = playerInfo.retryAttempts or 0
+
+                    local scanGeneration = playerInfo.ScanGeneration or 0
+                    self.currentScan = {
+                        playerGuid = playerGuid,
+                        generation = scanGeneration,
+                        reason = reason,
+                    }
+                    self.activeScanGuids[playerGuid] = true
+                    self.isScanning = true
+
+                    local unitId = self:GetScanUnitId(playerGuid, reason)
+                    if unitId then
+                        self:StartInspectionOfUnit(unitId, reason, scanGeneration)
+                    else
+                        self:RetryInspection(playerGuid, 1, scanGeneration)
+                    end
+                    return
+                end
+            end
         end
     end
-
-    if #activeScans == 0 then
-        self.isScanning = false
-        return
-    end
-
-    -- Start inspections for this batch
-    for _, playerGuid in ipairs(activeScans) do
-        local unitId = self.Helper:GetUnitIdOfPlayerGuid(playerGuid)
-        if unitId then
-            self:StartInspectionOfUnit(unitId)
-        else
-            -- Requeue if unitID not found
-            self:AddToScanQueue(playerGuid)
-        end
-    end
-
-    -- Schedule next batch only after this one completes
-    self:ScheduleManagedTimer(function()
-        self.isScanning = false
-        self:ProcessScanQueue()
-    end, self.scanInterval)
 end
 
 function GearPolice:OnCombatEnded()
-    if #self.scanQueue == 0 then return end
+    if self.currentScan or #self.scanQueue == 0 then return end
 
-    self.isScanning = false
     self.Debug:Message("Combat ended; resuming scan queue.")
     self:ProcessScanQueue()
 end
 
-function GearPolice:AddToScanQueue(playerGuid, forceScan)
-    if not playerGuid then return false end
+function GearPolice:NormalizeScanReason(reason)
+    if reason == "target" then
+        return "target"
+    end
 
-    if self.activeScanGuids and self.activeScanGuids[playerGuid] then
+    return "group"
+end
+
+function GearPolice:IsPlayerQueued(playerGuid)
+    if not playerGuid then
         return false
     end
 
-    if tContains(GearPolice.scanQueue, playerGuid) then
+    for _, queuedGuid in ipairs(self.scanQueue) do
+        if queuedGuid == playerGuid then
+            return true
+        end
+    end
+
+    return false
+end
+
+function GearPolice:HasScheduledPlayerWork(playerGuid)
+    local timers = self.activePlayerTimers and self.activePlayerTimers[playerGuid]
+    return timers and next(timers) ~= nil
+end
+
+function GearPolice:AddToScanQueue(playerGuid, forceScan, reason, addToFront)
+    if not playerGuid then return false end
+
+    if self.currentScan and self.currentScan.playerGuid == playerGuid then
         return false
+    end
+
+    reason = self:NormalizeScanReason(reason)
+    if self:IsPlayerQueued(playerGuid) then
+        self.queuedScanReasons[playerGuid] = reason
+
+        if self.db and self.db.global and self.db.global.PlayerGearInfo then
+            local playerInfo = self.db.global.PlayerGearInfo[playerGuid]
+            if playerInfo then
+                playerInfo.QueuedScanReason = reason
+                if forceScan then
+                    playerInfo.ForceScanRequested = true
+                end
+            end
+        end
+
+        if addToFront then
+            self:RemoveFromScanQueue(playerGuid)
+        else
+            return false
+        end
     end
 
     if self.db and self.db.global and self.db.global.PlayerGearInfo then
@@ -184,17 +270,22 @@ function GearPolice:AddToScanQueue(playerGuid, forceScan)
                 return false
             end
 
-            if not playerInfo.CheckRequested then
-                playerInfo.ScanGeneration = (playerInfo.ScanGeneration or 0) + 1
-            end
+            playerInfo.ScanGeneration = (playerInfo.ScanGeneration or 0) + 1
             playerInfo.CheckRequested = true
+            playerInfo.QueuedScanReason = reason
             if forceScan then
                 playerInfo.ForceScanRequested = true
             end
         end
     end
 
-    table.insert(GearPolice.scanQueue, playerGuid)
+    self.queuedScanReasons[playerGuid] = reason
+    if addToFront then
+        table.insert(GearPolice.scanQueue, 1, playerGuid)
+    else
+        table.insert(GearPolice.scanQueue, playerGuid)
+    end
+
     return true
 end
 
@@ -208,6 +299,26 @@ function GearPolice:RemoveFromScanQueue(playerGuid)
             table.remove(self.scanQueue, i)
         end
     end
+
+    if self.queuedScanReasons then
+        self.queuedScanReasons[playerGuid] = nil
+    end
+end
+
+function GearPolice:ClearCurrentScanForPlayer(playerGuid)
+    if not playerGuid or not self.currentScan or self.currentScan.playerGuid ~= playerGuid then
+        return
+    end
+
+    self.currentScan = nil
+    self.isScanning = false
+    if self.activeScanGuids then
+        self.activeScanGuids[playerGuid] = nil
+    end
+
+    if ClearInspectPlayer then
+        ClearInspectPlayer()
+    end
 end
 
 function GearPolice:ClearScheduledWorkForPlayer(playerGuid)
@@ -217,9 +328,7 @@ function GearPolice:ClearScheduledWorkForPlayer(playerGuid)
 
     self:CancelManagedTimersForPlayer(playerGuid)
     self:RemoveFromScanQueue(playerGuid)
-    if self.activeScanGuids then
-        self.activeScanGuids[playerGuid] = nil
-    end
+    self:ClearCurrentScanForPlayer(playerGuid)
 end
 
 function GearPolice:StopAllScans()
@@ -230,8 +339,11 @@ function GearPolice:StopAllScans()
     end
 
     self.scanQueue = {}
+    self.queuedScanReasons = {}
+    self.currentScan = nil
     self.activeScanGuids = {}
     self.isScanning = false
+    self.scanQueueTimer = nil
 
     if self.db and self.db.global and type(self.db.global.PlayerGearInfo) == "table" then
         for _, playerInfo in pairs(self.db.global.PlayerGearInfo) do
@@ -268,6 +380,116 @@ function GearPolice:IsPlayerScanComplete(playerInfo)
     end
 
     return not self:HasPendingEquippedItems(playerInfo)
+end
+
+function GearPolice:IsCurrentScan(playerGuid, scanGeneration)
+    local currentScan = self.currentScan
+    if not currentScan or currentScan.playerGuid ~= playerGuid then
+        return false
+    end
+
+    if scanGeneration and currentScan.generation ~= scanGeneration then
+        return false
+    end
+
+    return true
+end
+
+function GearPolice:IsScanTargetAvailable(playerGuid, reason)
+    if not playerGuid then
+        return false
+    end
+
+    reason = self:NormalizeScanReason(reason)
+    if reason == "target" then
+        return UnitGUID("target") == playerGuid
+    end
+
+    return self.Helper:IsPlayerInGroup(playerGuid)
+end
+
+function GearPolice:GetScanUnitId(playerGuid, reason)
+    reason = self:NormalizeScanReason(reason)
+    if not self:IsScanTargetAvailable(playerGuid, reason) then
+        return nil
+    end
+
+    if reason == "target" then
+        return "target"
+    end
+
+    return self.Helper:GetUnitIdOfPlayerGuid(playerGuid)
+end
+
+function GearPolice:FinishScan(playerGuid, scanGeneration, status, options)
+    if not self:IsCurrentScan(playerGuid, scanGeneration) then
+        return false
+    end
+
+    options = options or {}
+
+    local currentScan = self.currentScan
+    local playerInfo = self.db.global.PlayerGearInfo[playerGuid]
+    if playerInfo and scanGeneration and playerInfo.ScanGeneration ~= scanGeneration then
+        return false
+    end
+
+    self:CancelManagedTimersForPlayer(playerGuid)
+    self:RemoveFromScanQueue(playerGuid)
+
+    if self.activeScanGuids then
+        self.activeScanGuids[playerGuid] = nil
+    end
+    self.currentScan = nil
+    self.isScanning = false
+
+    if ClearInspectPlayer then
+        ClearInspectPlayer()
+    end
+
+    if playerInfo then
+        playerInfo.CheckRequested = false
+        playerInfo.CheckStatus = status
+        playerInfo.pendingChecks = 0
+        playerInfo.retryAttempts = 0
+        playerInfo.ForceScanRequested = false
+        if options.updateLastScanTime then
+            playerInfo.LastScanTime = time()
+        end
+    end
+
+    if options.debugMessage then
+        self.Debug:Message(options.debugMessage)
+    end
+
+    self.UI:UpdateUI()
+    self:ScheduleScanQueueProcessing(self.scanInterval)
+
+    return true, playerInfo, currentScan
+end
+
+function GearPolice:ScheduleDelayedScanRetry(playerGuid, scanGeneration, reason, expectedStatus, delay)
+    reason = self:NormalizeScanReason(reason)
+
+    self:ScheduleManagedTimer(function()
+        local playerInfo = self.db.global.PlayerGearInfo[playerGuid]
+        if not playerInfo then
+            return
+        end
+
+        if playerInfo.ScanGeneration ~= scanGeneration or playerInfo.CheckStatus ~= expectedStatus then
+            return
+        end
+
+        if not self:IsScanTargetAvailable(playerGuid, reason) then
+            return
+        end
+
+        playerInfo.retryAttempts = 0
+        self:AddToScanQueue(playerGuid, true, reason)
+        self.UI:UpdateUI()
+        self:ProcessScanQueue()
+    end, delay, playerGuid)
 end
 
 function GearPolice:UpdatePlayerGearInfoWithGroupMembers()
@@ -313,17 +535,21 @@ function GearPolice:ProcessGroupMember(unitId)
     local playerInfo = self.db.global.PlayerGearInfo[playerGuid]
 
     if isNewPlayer then
-        self:AddToScanQueue(playerGuid, true)
+        self:AddToScanQueue(playerGuid, true, "group")
     elseif playerInfo.CheckStatus == "TemporaryFailed" then
-        playerInfo.CheckStatus = "InProgress"
-        playerInfo.retryAttempts = 0
-        self:AddToScanQueue(playerGuid, true)
+        if not self:HasScheduledPlayerWork(playerGuid) then
+            playerInfo.CheckStatus = "InProgress"
+            playerInfo.retryAttempts = 0
+            self:AddToScanQueue(playerGuid, true, "group")
+        end
     elseif playerInfo.CheckStatus == "Partial" then
-        self:AddToScanQueue(playerGuid, true)
+        if not self:HasScheduledPlayerWork(playerGuid) then
+            self:AddToScanQueue(playerGuid, true, "group")
+        end
     elseif not playerInfo.LastScanTime or playerInfo.LastScanTime <= 0 then
-        self:AddToScanQueue(playerGuid, true)
+        self:AddToScanQueue(playerGuid, true, "group")
     elseif (time() - playerInfo.LastScanTime) > 86400 then
-        self:AddToScanQueue(playerGuid, true)
+        self:AddToScanQueue(playerGuid, true, "group")
     end
 
     self.UI:UpdateUI()
@@ -378,70 +604,93 @@ function GearPolice:SetPlayerGuidToDefaultInPlayerGearInfo(playerGuid)
     }
 end
 
-function GearPolice:StartInspectionOfUnit(unitId)
-    if not UnitExists(unitId) then
-        self.isScanning = false
+function GearPolice:ScheduleInspectReadyTimeout(playerGuid, scanGeneration)
+    self:ScheduleManagedTimer(function()
+        if not self:IsCurrentScan(playerGuid, scanGeneration) then
+            return
+        end
+
+        if self.currentScan.inspectReadyReceived then
+            return
+        end
+
+        self.Debug:Message("INSPECT_READY timed out; retrying scan.")
+        self:RetryInspection(playerGuid, 1, scanGeneration)
+    end, self.inspectReadyTimeout, playerGuid)
+end
+
+function GearPolice:StartInspectionOfUnit(unitId, reason, scanGeneration)
+    if not self.currentScan then
         return
     end
 
-    local playerGuid = UnitGUID(unitId)
-    if not playerGuid then
-        self.isScanning = false
+    reason = self:NormalizeScanReason(reason or self.currentScan.reason)
+    local playerGuid = self.currentScan.playerGuid
+
+    if not self:IsCurrentScan(playerGuid, scanGeneration) then
+        return
+    end
+
+    if not unitId or not UnitExists(unitId) or UnitGUID(unitId) ~= playerGuid then
+        self:RetryInspection(playerGuid, 1, scanGeneration)
         return
     end
 
     local playerInfo = self.db.global.PlayerGearInfo[playerGuid]
-
-    if not playerInfo then
-        self:SetPlayerGuidToDefaultInPlayerGearInfo(playerGuid)
-        playerInfo = self.db.global.PlayerGearInfo[playerGuid]
-    end
-
-    if not playerInfo then return end
-
-    if not playerInfo.CheckRequested then
-        self:ClearScheduledWorkForPlayer(playerGuid)
+    if not playerInfo or not playerInfo.CheckRequested then
+        self:FinishScan(playerGuid, scanGeneration, "Failed")
         return
     end
 
     if self:IsPlayerScanComplete(playerInfo) and not playerInfo.ForceScanRequested then
-        playerInfo.CheckRequested = false
-        self:ClearScheduledWorkForPlayer(playerGuid)
+        self:FinishScan(playerGuid, scanGeneration, "Successful")
         return
     end
 
     if InCombatLockdown() then
         self.Debug:Message("Cannot inspect in combat; queued scan for later.")
-        self:AddToScanQueue(playerGuid, true)
+        self:ClearCurrentScanForPlayer(playerGuid)
+        self:AddToScanQueue(playerGuid, true, reason, true)
         return
     end
 
-    -- Skip if already failed (optional)
     if playerInfo.CheckStatus == "Failed" then
-        self:ClearScheduledWorkForPlayer(playerGuid)
+        self:FinishScan(playerGuid, scanGeneration, "Failed")
         return
     end
 
     playerInfo.CheckStatus = "InProgress"
+    self.currentScan.unitId = unitId
+    self.currentScan.reason = reason
+    self.currentScan.inspectReadyReceived = false
     self.activeScanGuids[playerGuid] = true
-    local scanGeneration = playerInfo.ScanGeneration or 0
 
     if CanInspect(unitId) then
-        playerInfo.ForceScanRequested = false
         NotifyInspect(unitId)
+        self:ScheduleInspectReadyTimeout(playerGuid, scanGeneration)
         self.UI:UpdatePlayerStatusIcon(playerGuid, "scanning")
     else
-        -- Trigger retry with attempt tracking
         self:RetryInspection(playerGuid, 1, scanGeneration)
     end
 end
 
 function GearPolice:RetryInspection(playerGuid, attempt, scanGeneration)
-    local maxAttempts = 5  -- Increased retries
+    local maxAttempts = 5
+    attempt = attempt or 1
+
+    if not self:IsCurrentScan(playerGuid, scanGeneration) then
+        return
+    end
+
+    if self.currentScan.inspectReadyReceived then
+        return
+    end
+
+    local reason = self:NormalizeScanReason(self.currentScan.reason)
     local playerInfo = self.db.global.PlayerGearInfo[playerGuid]
 
     if not playerInfo or not playerInfo.CheckRequested then
-        self:ClearScheduledWorkForPlayer(playerGuid)
+        self:FinishScan(playerGuid, scanGeneration, "Failed")
         return
     end
 
@@ -449,41 +698,41 @@ function GearPolice:RetryInspection(playerGuid, attempt, scanGeneration)
         return
     end
 
-    -- Check if player is still in the group
-    if not self.Helper:IsPlayerInGroup(playerGuid) then
-        -- Permanent failure (player left)
-        playerInfo.CheckStatus = "Failed"
-        self:ClearScheduledWorkForPlayer(playerGuid)
-        self.UI:UpdatePlayerStatusIcon(playerGuid, "failed")
+    if not self:IsScanTargetAvailable(playerGuid, reason) then
+        self:FinishScan(playerGuid, scanGeneration, "Failed")
         return
     end
 
-    if not playerInfo.retryAttempts then
-        playerInfo.retryAttempts = 0
-    end
+    playerInfo.retryAttempts = playerInfo.retryAttempts or 0
 
-    -- Temporary failure (retry later)
     if playerInfo.retryAttempts >= maxAttempts then
-        playerInfo.CheckStatus = "TemporaryFailed"
-        self.activeScanGuids[playerGuid] = nil
-        self.UI:UpdatePlayerStatusIcon(playerGuid, "temporary_failed")
-        -- Requeue after 5 minutes
-        local retryGeneration = playerInfo.ScanGeneration
-        self:ScheduleManagedTimer(function()
-            if playerInfo.ScanGeneration == retryGeneration and playerInfo.CheckStatus == "TemporaryFailed" then
-                playerInfo.retryAttempts = 0
-                self:AddToScanQueue(playerGuid, true)
-            end
-        end, 300, playerGuid)
+        local finished, finishedPlayerInfo, completedScan =
+            self:FinishScan(playerGuid, scanGeneration, "TemporaryFailed")
+        if finished and finishedPlayerInfo and completedScan then
+            self:ScheduleDelayedScanRetry(
+                playerGuid,
+                finishedPlayerInfo.ScanGeneration,
+                completedScan.reason,
+                "TemporaryFailed",
+                300
+            )
+        end
         return
     end
 
-    -- Increment attempts and retry
     playerInfo.retryAttempts = playerInfo.retryAttempts + 1
     self:ScheduleManagedTimer(function()
+        if not self:IsCurrentScan(playerGuid, scanGeneration) then
+            return
+        end
+
+        if self.currentScan.inspectReadyReceived then
+            return
+        end
+
         local currentPlayerInfo = self.db.global.PlayerGearInfo[playerGuid]
         if not currentPlayerInfo or not currentPlayerInfo.CheckRequested then
-            self:ClearScheduledWorkForPlayer(playerGuid)
+            self:FinishScan(playerGuid, scanGeneration, "Failed")
             return
         end
 
@@ -491,9 +740,9 @@ function GearPolice:RetryInspection(playerGuid, attempt, scanGeneration)
             return
         end
 
-        local unitId = self.Helper:GetUnitIdOfPlayerGuid(playerGuid)
+        local unitId = self:GetScanUnitId(playerGuid, self.currentScan.reason)
         if unitId then
-            self:StartInspectionOfUnit(unitId)
+            self:StartInspectionOfUnit(unitId, self.currentScan.reason, scanGeneration)
         else
             self:RetryInspection(playerGuid, attempt + 1, scanGeneration)
         end
@@ -519,7 +768,7 @@ function GearPolice:StartGearPolicingOfTarget()
         end
 
         GearPolice:ResetPlayerGearInfo(targetGuid, targetName)
-        GearPolice:AddToScanQueue(targetGuid, true)
+        GearPolice:AddToScanQueue(targetGuid, true, "target", true)
         GearPolice.UI:UpdateUI()
 
         GearPolice:ProcessScanQueue()
@@ -531,51 +780,53 @@ function GearPolice:OnInspectReady(eventName, playerGuid)
     if not playerGuid then return end
 
     local playerInfo = GearPolice.db.global.PlayerGearInfo[playerGuid]
-    if not self.activeScanGuids[playerGuid] then
+    if not self:IsCurrentScan(playerGuid) then
         return
     end
 
     if not playerInfo or not playerInfo.CheckRequested then
-        self.activeScanGuids[playerGuid] = nil
-        self.isScanning = false
+        self:FinishScan(playerGuid, self.currentScan.generation, "Failed")
         return
     end
 
+    local scanGeneration = self.currentScan.generation
+    if playerInfo.ScanGeneration ~= scanGeneration then
+        return
+    end
+
+    self.currentScan.inspectReadyReceived = true
     playerInfo.CheckStatus = "InProgress"
-    playerInfo.ScanGeneration = (playerInfo.ScanGeneration or 0) + 1
-    local scanGeneration = playerInfo.ScanGeneration
     playerInfo.EquippedItems = {}
     GearPolice.UI:UpdateUI()
 
     GearPolice.Inspection:CheckUnit(playerInfo, function(updatedPlayerInfo)
-        if updatedPlayerInfo.ScanGeneration ~= scanGeneration then
+        if not self:IsCurrentScan(playerGuid, scanGeneration)
+            or updatedPlayerInfo.ScanGeneration ~= scanGeneration then
             return
         end
 
-        updatedPlayerInfo.CheckRequested = false
-        updatedPlayerInfo.retryAttempts = 0
-        self:ClearScheduledWorkForPlayer(playerGuid)
-
+        local status
         if GearPolice:HasPendingEquippedItems(updatedPlayerInfo) then
-            updatedPlayerInfo.CheckStatus = "Partial"
-            self:ScheduleManagedTimer(function()
-                if updatedPlayerInfo.ScanGeneration == scanGeneration
-                    and updatedPlayerInfo.CheckStatus == "Partial" then
-                    self:AddToScanQueue(playerGuid, true)
-                    GearPolice.UI:UpdateUI()
-                end
-            end, 60, playerGuid)
+            status = "Partial"
         else
-            updatedPlayerInfo.CheckStatus = "Successful"
+            status = "Successful"
         end
 
-        updatedPlayerInfo.LastScanTime = time()
-        updatedPlayerInfo.ForceScanRequested = false
-        GearPolice.Debug:Message("Scan completed for: " .. updatedPlayerInfo.PlayerName)
-        GearPolice.UI:UpdateUI()
-        self:ScheduleManagedTimer(function()
-            GearPolice:ProcessScanQueue()
-        end, GearPolice.scanInterval)
+        local finished, finishedPlayerInfo, completedScan =
+            self:FinishScan(playerGuid, scanGeneration, status, {
+                updateLastScanTime = true,
+                debugMessage = "Scan completed for: " .. (updatedPlayerInfo.PlayerName or "Unknown"),
+            })
+
+        if finished and status == "Partial" and finishedPlayerInfo and completedScan then
+            self:ScheduleDelayedScanRetry(
+                playerGuid,
+                scanGeneration,
+                completedScan.reason,
+                "Partial",
+                60
+            )
+        end
     end, scanGeneration)
 end
 

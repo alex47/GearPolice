@@ -303,7 +303,6 @@ function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
 
     local slotConfig = {
         HeadSlot          = { "gems",            "ilevel", "upgrade" }, -- Remove head enchant temporarily as there aren't any in the game yet as of MoP Phase 1.
-        HeadSlot          = { "gems",            "ilevel", "upgrade" },
         NeckSlot          = { "gems",            "ilevel", "upgrade" },
         ShoulderSlot      = { "gems", "enchant", "ilevel", "upgrade" },
         BackSlot          = { "gems", "enchant", "ilevel", "upgrade" },
@@ -327,25 +326,51 @@ function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
         slotConfig.SecondaryHandSlot = { "gems", "enchant", "ilevel", "upgrade" }
     end
 
-    for slotName, slotChecks in pairs(slotConfig) do
-        for _, checkKey in ipairs(slotChecks) do
-            local checkData = checks[checkKey]
-            playerInfo.pendingChecks = playerInfo.pendingChecks + 1
-            self:CheckItemSlotWithRetry(playerInfo, slotName, checkData.func, checkData.message, nil, function()
-                if not self:IsCurrentScan(playerInfo, scanGeneration) then
-                    return
-                end
+    local totalChecks = 0
+    local completedChecks = 0
+    local isSchedulingChecks = true
+    local isUnitCheckComplete = false
 
-                playerInfo.pendingChecks = playerInfo.pendingChecks - 1
-                if playerInfo.pendingChecks <= 0 then
-                    onComplete(playerInfo)
-                end
-            end, nil, scanGeneration)
+    local function CompleteCheck()
+        if isUnitCheckComplete or not self:IsCurrentScan(playerInfo, scanGeneration) then
+            return
+        end
+
+        completedChecks = completedChecks + 1
+        playerInfo.pendingChecks = totalChecks - completedChecks
+        if playerInfo.pendingChecks < 0 then
+            playerInfo.pendingChecks = 0
+        end
+
+        if not isSchedulingChecks and completedChecks >= totalChecks then
+            isUnitCheckComplete = true
+            playerInfo.pendingChecks = 0
+            onComplete(playerInfo)
         end
     end
 
-    -- In case no checks were scheduled, complete immediately.
-    if playerInfo.pendingChecks == 0 then
+    for _, slotName in ipairs(GearPolice.Helper:GetInventorySlotNames()) do
+        local slotChecks = slotConfig[slotName]
+        if slotChecks then
+            for _, checkKey in ipairs(slotChecks) do
+                local checkData = checks[checkKey]
+                totalChecks = totalChecks + 1
+                playerInfo.pendingChecks = totalChecks - completedChecks
+                self:CheckItemSlotWithRetry(playerInfo, slotName, checkData.func, checkData.message, nil, function()
+                    CompleteCheck()
+                end, nil, scanGeneration)
+            end
+        end
+    end
+
+    isSchedulingChecks = false
+
+    if totalChecks == 0 then
+        isUnitCheckComplete = true
+        onComplete(playerInfo)
+    elseif completedChecks >= totalChecks then
+        isUnitCheckComplete = true
+        playerInfo.pendingChecks = 0
         onComplete(playerInfo)
     end
 end
