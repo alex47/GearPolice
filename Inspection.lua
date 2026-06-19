@@ -119,6 +119,9 @@ function Inspection:CheckItemSlotWithRetry(playerInfo, slotName, itemCheckFuncti
     local slotState, itemLink, slotID = GearPolice.Helper:GetInventorySlotState(unitId, slotName)
 
     if slotState == GearPolice.InventorySlotReady then
+        playerInfo.EquippedItems = playerInfo.EquippedItems or {}
+        playerInfo.EquippedItems[slotName] = itemLink
+
         if itemCheckFunction(itemLink, unitId, slotID) then
             if not playerInfo.ProblematicItems[itemLink] then
                 playerInfo.ProblematicItems[itemLink] = {}

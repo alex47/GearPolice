@@ -210,8 +210,13 @@ function GearPolice:UpdatePlayerEquippedItems(unitId, onComplete)
             elseif slotState == self.InventorySlotEmpty then
                 playerInfo.EquippedItems[slotName] = self.InventorySlotEmpty
             else
-                playerInfo.EquippedItems[slotName] = self.InventorySlotPending
-                anyPending = true
+                local existingItemLink = playerInfo.EquippedItems[slotName]
+                if not existingItemLink
+                    or existingItemLink == self.InventorySlotPending
+                    or existingItemLink == self.InventorySlotEmpty then
+                    playerInfo.EquippedItems[slotName] = self.InventorySlotPending
+                    anyPending = true
+                end
             end
             pendingCount = pendingCount - 1
             
@@ -432,6 +437,7 @@ function GearPolice:OnInspectReady(eventName, playerGuid)
     end
 
     playerInfo.CheckStatus = "InProgress"
+    playerInfo.EquippedItems = {}
     GearPolice.UI:UpdateUI()
 
     -- Start the unit check (which will run per-slot checks for gems/enchants, etc.)
