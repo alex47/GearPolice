@@ -9,9 +9,14 @@ UI.PlayerContainerElementSize = 24
 UI.PlayerNameWidth = 110
 UI.PlayerStatusTextWidth = 72
 UI.PlayerIssueSummaryWidth = 84
-UI.ItemIconsContainerWidth = 440
+UI.EquipmentIconFrameSize = 24
+UI.EquipmentIconSpacing = 2
 UI.ToolbarActionsWidth = 300
-UI.ItemIconWidgetType = "GearPoliceItemIcon"
+UI.MainWindowWidth = 900
+UI.MainWindowHeight = 520
+UI.MinimumWindowWidth = 820
+UI.MinimumWindowHeight = 320
+UI.ItemStripWidgetType = "GearPoliceItemStrip"
 UI.QuestionMarkIcon = "Interface\\Icons\\INV_Misc_QuestionMark"
 UI.FilterMode = "all"
 
@@ -55,4 +60,13 @@ end
 
 function UI:GetCheckStatusTexture(checkStatus)
     return self.CheckStatusTextures[checkStatus]
+end
+
+function UI:GetEquipmentIconStripWidth(slotCount)
+    slotCount = slotCount or 0
+    if slotCount <= 0 then
+        return 0
+    end
+
+    return (slotCount * self.EquipmentIconFrameSize) + ((slotCount - 1) * self.EquipmentIconSpacing)
 end

@@ -75,11 +75,8 @@ local function CreatePlayerRow(scrollContainer)
     issueSummaryLabel:SetJustifyV("MIDDLE")
     playerContainer:AddChild(issueSummaryLabel)
 
-    local itemIconsContainer = AceGUI:Create("SimpleGroup")
-    itemIconsContainer:SetLayout("Flow")
-    itemIconsContainer:SetWidth(UI.ItemIconsContainerWidth)
-    itemIconsContainer:SetHeight(UI.PlayerContainerElementSize)
-    playerContainer:AddChild(itemIconsContainer)
+    local itemStrip = UI:CreateEquipmentIconStrip()
+    playerContainer:AddChild(itemStrip)
 
     scrollContainer:AddChild(playerContainer)
 
@@ -90,75 +87,11 @@ local function CreatePlayerRow(scrollContainer)
         statusLabel = statusLabel,
         playerNameLabel = playerNameLabel,
         issueSummaryLabel = issueSummaryLabel,
-        itemIconsContainer = itemIconsContainer,
+        itemStrip = itemStrip,
     }
 end
 
-local function RenderEmptySlot(ui, itemIconsContainer, slot)
-    local emptyIcon = ui:CreateEquipmentSlotIcon()
-    emptyIcon:SetImage(nil)
-    emptyIcon:SetVisualState("empty")
-    emptyIcon:SetCallback("OnEnter", function(widget)
-        GameTooltip:SetOwner(widget.frame, "ANCHOR_TOP")
-        GameTooltip:SetText(slot.slotLabel or "Empty Slot", 1, 1, 1)
-        GameTooltip:AddLine("Empty slot", 0.7, 0.7, 0.7, true)
-        GameTooltip:Show()
-    end)
-    emptyIcon:SetCallback("OnLeave", function()
-        GameTooltip:Hide()
-    end)
-    itemIconsContainer:AddChild(emptyIcon)
-end
-
-local function RenderItemSlot(ui, itemIconsContainer, slot)
-    local itemIcon = ui:CreateEquipmentSlotIcon()
-    itemIcon:SetImage(slot.texture)
-    itemIcon:SetCallback("OnEnter", function(widget)
-        GameTooltip:SetOwner(widget.frame, "ANCHOR_TOP")
-        GameTooltip:SetHyperlink(slot.itemLink)
-        if type(slot.problems) == "table" and #slot.problems > 0 then
-            GameTooltip:AddLine(" ")
-            GameTooltip:AddLine("GearPolice:", 1, 0.82, 0, true)
-            for _, problem in ipairs(slot.problems) do
-                GameTooltip:AddLine(" - " .. problem.message, 1, 0.25, 0.25, true)
-            end
-        end
-        GameTooltip:Show()
-    end)
-    itemIcon:SetCallback("OnLeave", function()
-        GameTooltip:Hide()
-    end)
-    itemIcon:SetVisualState(slot.isProblematic and "problem" or "ok")
-    itemIconsContainer:AddChild(itemIcon)
-end
-
-local function RenderPendingSlot(ui, itemIconsContainer, slot)
-    local placeholderIcon = ui:CreateEquipmentSlotIcon()
-    placeholderIcon:SetImage(slot.texture)
-    placeholderIcon:SetVisualState("pending")
-    placeholderIcon:SetCallback("OnEnter", function(widget)
-        GameTooltip:SetOwner(widget.frame, "ANCHOR_TOP")
-        GameTooltip:SetText(slot.slotLabel or "Equipment Slot", 1, 1, 1)
-        GameTooltip:AddLine("Scanning...", 1, 0.82, 0, true)
-        GameTooltip:Show()
-    end)
-    placeholderIcon:SetCallback("OnLeave", function()
-        GameTooltip:Hide()
-    end)
-    itemIconsContainer:AddChild(placeholderIcon)
-end
-
-local function RenderSlot(ui, itemIconsContainer, slot)
-    if slot.state == "empty" then
-        RenderEmptySlot(ui, itemIconsContainer, slot)
-    elseif slot.state == "item" then
-        RenderItemSlot(ui, itemIconsContainer, slot)
-    else
-        RenderPendingSlot(ui, itemIconsContainer, slot)
-    end
-end
-
-local function UpdatePlayerRow(ui, playerUI, row)
+local function UpdatePlayerRow(playerUI, row)
     playerUI.reportButton:SetCallback("OnClick", function()
         GearPolice.Reporting:ReportProblematicItems(row.playerInfo)
     end)
@@ -174,12 +107,7 @@ local function UpdatePlayerRow(ui, playerUI, row)
         playerUI.playerNameLabel:SetText("|cffFFFFFF" .. row.playerName .. "|r")
     end
 
-    local itemIconsContainer = playerUI.itemIconsContainer
-    itemIconsContainer:ReleaseChildren()
-
-    for _, slot in ipairs(row.slots) do
-        RenderSlot(ui, itemIconsContainer, slot)
-    end
+    playerUI.itemStrip:SetSlots(row.slots)
 end
 
 function PlayerRows.Render(ui, scrollContainer, rows)
@@ -200,7 +128,7 @@ function PlayerRows.Render(ui, scrollContainer, rows)
             ui.playerUIElements[row.playerGuid] = playerUI
         end
 
-        UpdatePlayerRow(ui, playerUI, row)
+        UpdatePlayerRow(playerUI, row)
     end
 end
 

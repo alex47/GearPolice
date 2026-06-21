@@ -3,6 +3,19 @@ local GearPolice = GearPolice
 
 local UI = GearPolice.UI
 
+local function SetResizeBounds(frameWidget)
+    local frame = frameWidget and frameWidget.frame
+    if not frame then
+        return
+    end
+
+    if frame.SetResizeBounds then
+        frame:SetResizeBounds(UI.MinimumWindowWidth, UI.MinimumWindowHeight)
+    else
+        frame:SetMinResize(UI.MinimumWindowWidth, UI.MinimumWindowHeight)
+    end
+end
+
 function UI:ShowUI()
     if self.uiFrame then
         AceGUI:Release(self.uiFrame)
@@ -20,8 +33,9 @@ function UI:ShowUI()
         self.playerOrder = nil
     end)
     self.uiFrame:SetLayout("Flow")
-    self.uiFrame:SetWidth(900)
-    self.uiFrame:SetHeight(520)
+    self.uiFrame:SetWidth(UI.MainWindowWidth)
+    self.uiFrame:SetHeight(UI.MainWindowHeight)
+    SetResizeBounds(self.uiFrame)
 
     self.playerUIElements = {}
     self.playerOrder = {}

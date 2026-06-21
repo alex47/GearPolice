@@ -3,7 +3,7 @@ local GearPolice = GearPolice
 
 local UI = GearPolice.UI
 
-local ItemIconWidgetVersion = 2
+local ItemStripWidgetVersion = 1
 
 local function ApplyTextureColor(texture, color)
     if color then
@@ -48,102 +48,186 @@ local function ApplyFrameBackdrop(frame, stateConfig)
     end
 end
 
-local function ItemIcon_OnEnter(frame)
-    frame.obj:Fire("OnEnter")
+local function SetButtonVisualState(button, state)
+    local stateConfig = UI.ItemIconVisualStates[state or "ok"] or UI.ItemIconVisualStates.ok
+    ApplyFrameBackdrop(button, stateConfig)
+    ApplyTextureColor(button.image, stateConfig and stateConfig.imageColor)
 end
 
-local function ItemIcon_OnLeave(frame)
-    frame.obj:Fire("OnLeave")
+local function SetButtonImage(button, texture)
+    button.image:SetTexture(texture)
+
+    if button.image:GetTexture() then
+        button.image:SetTexCoord(0, 1, 0, 1)
+    end
 end
 
-local function ItemIcon_OnClick(frame, button)
-    frame.obj:Fire("OnClick", button)
+local function AddProblemLines(slot)
+    if type(slot.problems) ~= "table" or #slot.problems == 0 then
+        return
+    end
+
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine("GearPolice:", 1, 0.82, 0, true)
+    for _, problem in ipairs(slot.problems) do
+        GameTooltip:AddLine(" - " .. problem.message, 1, 0.25, 0.25, true)
+    end
 end
 
-local itemIconMethods = {
-    OnAcquire = function(self)
-        self:SetWidth(UI.PlayerContainerElementSize)
-        self:SetHeight(UI.PlayerContainerElementSize)
-        self:SetImage(nil)
-        self:SetImageSize(UI.IconSize, UI.IconSize)
-        self:SetVisualState("ok")
-        self.frame:Enable()
-    end,
+local function ShowSlotTooltip(button)
+    local widget = button.obj
+    local slot = widget.slots and widget.slots[button.slotIndex]
+    if not slot then
+        return
+    end
 
-    OnRelease = function(self)
-        self:SetVisualState("ok")
-        self:SetImage(nil)
-    end,
+    GameTooltip:SetOwner(button, "ANCHOR_TOP")
 
-    SetImage = function(self, path, ...)
-        self.image:SetTexture(path)
+    if slot.state == "item" and slot.itemLink then
+        GameTooltip:SetHyperlink(slot.itemLink)
+        AddProblemLines(slot)
+    elseif slot.state == "empty" then
+        GameTooltip:SetText(slot.slotLabel or "Empty Slot", 1, 1, 1)
+        GameTooltip:AddLine("Empty slot", 0.7, 0.7, 0.7, true)
+    else
+        GameTooltip:SetText(slot.slotLabel or "Equipment Slot", 1, 1, 1)
+        GameTooltip:AddLine("Scanning...", 1, 0.82, 0, true)
+    end
 
-        if self.image:GetTexture() then
-            local argCount = select("#", ...)
-            if argCount == 4 or argCount == 8 then
-                self.image:SetTexCoord(...)
-            else
-                self.image:SetTexCoord(0, 1, 0, 1)
-            end
-        end
-    end,
+    GameTooltip:Show()
+end
 
-    SetImageSize = function(self, width, height)
-        self.image:SetWidth(width)
-        self.image:SetHeight(height)
-    end,
+local function SlotButton_OnEnter(button)
+    ShowSlotTooltip(button)
+end
 
-    SetVisualState = function(self, state)
-        self.visualState = state or "ok"
-        local stateConfig = UI.ItemIconVisualStates[self.visualState] or UI.ItemIconVisualStates.ok
-        ApplyFrameBackdrop(self.frame, stateConfig)
-        ApplyTextureColor(self.image, stateConfig and stateConfig.imageColor)
-    end,
+local function SlotButton_OnLeave()
+    GameTooltip:Hide()
+end
 
-    SetProblematic = function(self, isProblematic)
-        self:SetVisualState(isProblematic and "problem" or "ok")
-    end,
-}
-
-local function CreateItemIconWidget()
+local function CreateSlotButton(widget, index)
     local backdropTemplate = _G.BackdropTemplateMixin and "BackdropTemplate" or nil
-    local frame = CreateFrame("Button", nil, UIParent, backdropTemplate)
-    frame:Hide()
-    frame:EnableMouse(true)
-    frame:SetScript("OnEnter", ItemIcon_OnEnter)
-    frame:SetScript("OnLeave", ItemIcon_OnLeave)
-    frame:SetScript("OnClick", ItemIcon_OnClick)
+    local button = CreateFrame("Button", nil, widget.frame, backdropTemplate)
+    button:SetWidth(UI.EquipmentIconFrameSize)
+    button:SetHeight(UI.EquipmentIconFrameSize)
+    button:EnableMouse(true)
+    button.obj = widget
+    button.slotIndex = index
+    button:SetScript("OnEnter", SlotButton_OnEnter)
+    button:SetScript("OnLeave", SlotButton_OnLeave)
 
-    local image = frame:CreateTexture(nil, "BACKGROUND")
+    local image = button:CreateTexture(nil, "BACKGROUND")
     image:SetPoint("CENTER")
+    image:SetWidth(UI.IconSize)
+    image:SetHeight(UI.IconSize)
+    button.image = image
 
-    local highlight = frame:CreateTexture(nil, "HIGHLIGHT")
+    local highlight = button:CreateTexture(nil, "HIGHLIGHT")
     highlight:SetAllPoints(image)
     highlight:SetTexture(136580)
     highlight:SetTexCoord(0, 1, 0.23, 0.77)
     highlight:SetBlendMode("ADD")
 
+    return button
+end
+
+local function EnsureSlotButtons(widget, slotCount)
+    for i = #widget.buttons + 1, slotCount do
+        widget.buttons[i] = CreateSlotButton(widget, i)
+    end
+end
+
+local function PositionSlotButtons(widget, slotCount)
+    for i = 1, slotCount do
+        local button = widget.buttons[i]
+        button:ClearAllPoints()
+
+        if i == 1 then
+            button:SetPoint("LEFT", widget.frame, "LEFT", 0, 0)
+        else
+            button:SetPoint("LEFT", widget.buttons[i - 1], "RIGHT", UI.EquipmentIconSpacing, 0)
+        end
+
+        button:Show()
+    end
+
+    for i = slotCount + 1, #widget.buttons do
+        widget.buttons[i]:Hide()
+    end
+end
+
+local function RenderSlotButton(button, slot)
+    if slot.state == "item" then
+        SetButtonImage(button, slot.texture)
+        SetButtonVisualState(button, slot.isProblematic and "problem" or "ok")
+    elseif slot.state == "empty" then
+        SetButtonImage(button, nil)
+        SetButtonVisualState(button, "empty")
+    else
+        SetButtonImage(button, slot.texture)
+        SetButtonVisualState(button, "pending")
+    end
+end
+
+local itemStripMethods = {
+    OnAcquire = function(self)
+        self.slots = {}
+        self:SetHeight(UI.PlayerContainerElementSize)
+        self:SetWidth(UI:GetEquipmentIconStripWidth(0))
+    end,
+
+    OnRelease = function(self)
+        self.slots = {}
+
+        for _, button in ipairs(self.buttons) do
+            button:Hide()
+            SetButtonImage(button, nil)
+            SetButtonVisualState(button, "ok")
+        end
+    end,
+
+    SetSlots = function(self, slots)
+        self.slots = slots or {}
+
+        local slotCount = #self.slots
+        self:SetWidth(UI:GetEquipmentIconStripWidth(slotCount))
+        self:SetHeight(UI.PlayerContainerElementSize)
+
+        EnsureSlotButtons(self, slotCount)
+        PositionSlotButtons(self, slotCount)
+
+        for i, slot in ipairs(self.slots) do
+            RenderSlotButton(self.buttons[i], slot)
+        end
+    end,
+}
+
+local function CreateItemStripWidget()
+    local frame = CreateFrame("Frame", nil, UIParent)
+    frame:Hide()
+    frame:SetHeight(UI.PlayerContainerElementSize)
+    frame:EnableMouse(false)
+
     local widget = {
-        image = image,
+        buttons = {},
+        slots = {},
         frame = frame,
-        type = UI.ItemIconWidgetType,
+        type = UI.ItemStripWidgetType,
     }
 
-    for methodName, method in pairs(itemIconMethods) do
+    for methodName, method in pairs(itemStripMethods) do
         widget[methodName] = method
     end
 
     return AceGUI:RegisterAsWidget(widget)
 end
 
-AceGUI:RegisterWidgetType(UI.ItemIconWidgetType, CreateItemIconWidget, ItemIconWidgetVersion)
+AceGUI:RegisterWidgetType(UI.ItemStripWidgetType, CreateItemStripWidget, ItemStripWidgetVersion)
 
-function UI:CreateEquipmentSlotIcon()
-    local icon = AceGUI:Create(self.ItemIconWidgetType)
-    icon:SetImageSize(self.IconSize, self.IconSize)
-    icon:SetWidth(self.PlayerContainerElementSize)
-    icon:SetHeight(self.PlayerContainerElementSize)
-    icon:SetVisualState("ok")
+function UI:CreateEquipmentIconStrip()
+    local strip = AceGUI:Create(self.ItemStripWidgetType)
+    strip:SetHeight(self.PlayerContainerElementSize)
+    strip:SetWidth(self:GetEquipmentIconStripWidth(#GearPolice.Helper:GetInventorySlotNames()))
 
-    return icon
+    return strip
 end
