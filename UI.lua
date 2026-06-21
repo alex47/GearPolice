@@ -11,6 +11,7 @@ UI.PlayerStatusTextWidth = 72
 UI.PlayerIssueSummaryWidth = 84
 UI.EquipmentIconFrameSize = 24
 UI.EquipmentIconSpacing = 2
+UI.RowGap = 0
 UI.ToolbarActionsWidth = 300
 UI.MainWindowWidth = 900
 UI.MainWindowHeight = 520

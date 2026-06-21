@@ -6,6 +6,9 @@ local UI = GearPolice.UI
 UI.PlayerRows = UI.PlayerRows or {}
 
 local PlayerRows = UI.PlayerRows
+local ManualLayoutName = "GearPoliceManual"
+
+AceGUI:RegisterLayout(ManualLayoutName, function(_content, _children) end)
 
 function UI:UpdatePlayerStatusIcon(playerGuid, status)
     if not self.playerUIElements then return end
@@ -40,7 +43,8 @@ end
 local function CreatePlayerRow(scrollContainer)
     local playerContainer = AceGUI:Create("SimpleGroup")
     playerContainer:SetFullWidth(true)
-    playerContainer:SetLayout("Flow")
+    playerContainer:SetLayout(ManualLayoutName)
+    playerContainer:SetAutoAdjustHeight(false)
     playerContainer:SetHeight(UI.PlayerContainerElementSize)
 
     local reportButton = AceGUI:Create("Icon")
@@ -48,6 +52,7 @@ local function CreatePlayerRow(scrollContainer)
     reportButton:SetImageSize(UI.IconSize, UI.IconSize)
     reportButton:SetWidth(UI.PlayerContainerElementSize)
     reportButton:SetHeight(UI.PlayerContainerElementSize)
+    reportButton:SetPoint("LEFT", playerContainer.content, "LEFT", 0, 0)
     playerContainer:AddChild(reportButton)
 
     local statusIcon = AceGUI:Create("Icon")
@@ -55,27 +60,32 @@ local function CreatePlayerRow(scrollContainer)
     statusIcon:SetWidth(UI.PlayerContainerElementSize)
     statusIcon:SetHeight(UI.PlayerContainerElementSize)
     statusIcon:SetImage("Interface\\COMMON\\Indicator-Yellow")
+    statusIcon:SetPoint("LEFT", reportButton.frame, "RIGHT", UI.RowGap, 0)
     playerContainer:AddChild(statusIcon)
 
     local statusLabel = AceGUI:Create("Label")
     statusLabel:SetWidth(UI.PlayerStatusTextWidth)
     statusLabel:SetHeight(UI.PlayerContainerElementSize)
     statusLabel:SetJustifyV("MIDDLE")
+    statusLabel:SetPoint("LEFT", statusIcon.frame, "RIGHT", UI.RowGap, 0)
     playerContainer:AddChild(statusLabel)
 
     local playerNameLabel = AceGUI:Create("Label")
     playerNameLabel:SetWidth(UI.PlayerNameWidth)
     playerNameLabel:SetHeight(UI.PlayerContainerElementSize)
     playerNameLabel:SetJustifyV("MIDDLE")
+    playerNameLabel:SetPoint("LEFT", statusLabel.frame, "RIGHT", UI.RowGap, 0)
     playerContainer:AddChild(playerNameLabel)
 
     local issueSummaryLabel = AceGUI:Create("Label")
     issueSummaryLabel:SetWidth(UI.PlayerIssueSummaryWidth)
     issueSummaryLabel:SetHeight(UI.PlayerContainerElementSize)
     issueSummaryLabel:SetJustifyV("MIDDLE")
+    issueSummaryLabel:SetPoint("LEFT", playerNameLabel.frame, "RIGHT", UI.RowGap, 0)
     playerContainer:AddChild(issueSummaryLabel)
 
     local itemStrip = UI:CreateEquipmentIconStrip()
+    itemStrip:SetPoint("LEFT", issueSummaryLabel.frame, "RIGHT", UI.RowGap, 0)
     playerContainer:AddChild(itemStrip)
 
     scrollContainer:AddChild(playerContainer)
