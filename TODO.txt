@@ -1,13 +1,6 @@
 GearPolice TODO
 ===============
 
-Low priority
-------------
-
-- Guard reporting against missing or malformed ProblematicItems tables.
-  Reporting.lua assumes playerInfo.ProblematicItems is always a table; older
-  saved data or partial records could make the report button throw.
-
 Cleanup
 -------
 
