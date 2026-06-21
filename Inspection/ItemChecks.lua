@@ -2,6 +2,56 @@ local GearPolice = GearPolice
 
 local Inspection = GearPolice.Inspection
 
+local function GetUpgradeScanTooltip()
+    if not Inspection.upgradeScanTooltip then
+        Inspection.upgradeScanTooltip = CreateFrame(
+            "GameTooltip",
+            "GearPoliceUpgradeScanTooltip",
+            UIParent,
+            "GameTooltipTemplate"
+        )
+    end
+
+    return Inspection.upgradeScanTooltip
+end
+
+local function ParseUpgradeLevelText(text)
+    if not text then
+        return nil, nil
+    end
+
+    local currentUpgrade, maximumUpgrade = text:match("Upgrade Level:%s*(%d+)%s*/%s*(%d+)")
+    if not currentUpgrade or not maximumUpgrade then
+        return nil, nil
+    end
+
+    return tonumber(currentUpgrade), tonumber(maximumUpgrade)
+end
+
+local function ReadUpgradeLevelFromTooltip(tooltip)
+    local tooltipName = tooltip:GetName()
+    if not tooltipName then
+        return nil, nil, false
+    end
+
+    local sawUpgradeText = false
+    for i = 1, tooltip:NumLines() do
+        local textLine = _G[tooltipName .. "TextLeft" .. i]
+        local text = textLine and textLine:GetText()
+        local currentUpgrade, maximumUpgrade = ParseUpgradeLevelText(text)
+
+        if currentUpgrade and maximumUpgrade then
+            return currentUpgrade, maximumUpgrade, true
+        end
+
+        if text and text:find("Upgrade") then
+            sawUpgradeText = true
+        end
+    end
+
+    return nil, nil, sawUpgradeText
+end
+
 function Inspection:IsItemInfoAvailable(itemLink)
     if not itemLink then
         return false
@@ -130,9 +180,52 @@ function Inspection:IsWaistMissingExtraGemEnchant(itemLink)
     return false
 end
 
-function Inspection:IsItemMissingUpgrade(_itemLink, _unitId, _slotID)
-    -- Short-circuit upgrade checks; treat every item as fully upgraded.
-    return false
+function Inspection:GetInventorySlotUpgradeLevel(unitId, slotID)
+    if not unitId or not slotID or not UnitExists(unitId) then
+        return nil, nil, GearPolice.ItemMetadataPending
+    end
+
+    local tooltip = GetUpgradeScanTooltip()
+    tooltip:ClearLines()
+    tooltip:SetOwner(UIParent, "ANCHOR_NONE")
+
+    local hasItem = tooltip:SetInventoryItem(unitId, slotID)
+    local lineCount = tooltip:NumLines()
+    local _, tooltipItemLink = tooltip:GetItem()
+    local currentUpgrade, maximumUpgrade, sawUpgradeText = ReadUpgradeLevelFromTooltip(tooltip)
+
+    tooltip:Hide()
+
+    if not hasItem or not tooltipItemLink or lineCount == 0 then
+        return nil, nil, GearPolice.ItemMetadataPending
+    end
+
+    if currentUpgrade and maximumUpgrade then
+        return currentUpgrade, maximumUpgrade, nil
+    end
+
+    if sawUpgradeText then
+        return nil, nil, GearPolice.ItemMetadataPending
+    end
+
+    return nil, nil, nil
+end
+
+function Inspection:IsItemMissingUpgrade(itemLink, unitId, slotID)
+    if not itemLink then
+        return false
+    end
+
+    local currentUpgrade, maximumUpgrade, pending = self:GetInventorySlotUpgradeLevel(unitId, slotID)
+    if self:IsItemMetadataPending(pending) then
+        return GearPolice.ItemMetadataPending
+    end
+
+    if not currentUpgrade or not maximumUpgrade then
+        return false
+    end
+
+    return currentUpgrade < maximumUpgrade
 end
 
 function Inspection:IsTwoHandedOrRangedWeaponLink(itemLink)
