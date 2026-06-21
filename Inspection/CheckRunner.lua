@@ -1,6 +1,16 @@
 local GearPolice = GearPolice
 
 local Inspection = GearPolice.Inspection
+local EnchanterRingEnchantRuleId = "missing_enchanter_ring_enchant"
+local EnchanterRingEnchantMessage = "Missing Enchanter Ring Enchant"
+
+local function IsPendingSlotValue(slotValue)
+    return not slotValue or slotValue == GearPolice.InventorySlotPending
+end
+
+local function IsEnchantedItemLink(itemLink)
+    return Inspection:IsStoredItemLink(itemLink) and not Inspection:IsItemMissingEnchant(itemLink)
+end
 
 function Inspection:ApplySlotChecks(playerInfo, slotName, slotValue, slotID, scanGeneration)
     if not self:IsCurrentScan(playerInfo, scanGeneration) or not self:IsStoredItemLink(slotValue) then
@@ -34,6 +44,51 @@ function Inspection:ApplySlotChecks(playerInfo, slotName, slotValue, slotID, sca
     end
 end
 
+function Inspection:ApplyEnchanterRingChecks(playerInfo, scanGeneration)
+    if not self:IsCurrentScan(playerInfo, scanGeneration) then
+        return
+    end
+
+    local equippedItems = playerInfo and playerInfo.EquippedItems
+    if type(equippedItems) ~= "table" then
+        return
+    end
+
+    local firstRing = equippedItems.Finger0Slot
+    local secondRing = equippedItems.Finger1Slot
+    if IsPendingSlotValue(firstRing) or IsPendingSlotValue(secondRing) then
+        return
+    end
+
+    local firstRingIsEnchanted = IsEnchantedItemLink(firstRing)
+    local secondRingIsEnchanted = IsEnchantedItemLink(secondRing)
+    if not firstRingIsEnchanted and not secondRingIsEnchanted then
+        return
+    end
+
+    if self:IsStoredItemLink(firstRing) and not firstRingIsEnchanted then
+        self:RecordProblem(
+            playerInfo,
+            "Finger0Slot",
+            firstRing,
+            EnchanterRingEnchantRuleId,
+            EnchanterRingEnchantMessage,
+            scanGeneration
+        )
+    end
+
+    if self:IsStoredItemLink(secondRing) and not secondRingIsEnchanted then
+        self:RecordProblem(
+            playerInfo,
+            "Finger1Slot",
+            secondRing,
+            EnchanterRingEnchantRuleId,
+            EnchanterRingEnchantMessage,
+            scanGeneration
+        )
+    end
+end
+
 function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
     playerInfo.ProblematicItems = {}
     playerInfo.Problems = {}
@@ -48,6 +103,7 @@ function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
     local function CompleteUnitCheckIfReady()
         if not isSchedulingSlots and not isUnitCheckComplete and completedSlots >= totalSlots then
             isUnitCheckComplete = true
+            self:ApplyEnchanterRingChecks(playerInfo, scanGeneration)
             playerInfo.pendingChecks = 0
             onComplete(playerInfo)
         end
