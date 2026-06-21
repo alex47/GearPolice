@@ -2,32 +2,12 @@ GearPolice = LibStub("AceAddon-3.0"):NewAddon("GearPolice", "AceConsole-3.0", "A
 
 GearPolice:RegisterChatCommand("gearpolice", "HandleSlashCommands")
 
-GearPolice.scanQueue = {}
-GearPolice.queuedScanReasons = {}
-GearPolice.currentScan = nil
-GearPolice.scanQueueTimer = nil
-GearPolice.isScanning = false
-GearPolice.activeScanGuids = {}
-GearPolice.activeTimers = {}
-GearPolice.activePlayerTimers = {}
-GearPolice.currentRoster = nil
-GearPolice.wasGrouped = false
-
 function GearPolice:OnInitialize()
     GearPolice:Print("Addon loaded!")
 
     GearPolice.db = LibStub("AceDB-3.0"):New("GearPoliceDB")
 
-    self.activeScanGuids = {}
-    self.activeTimers = {}
-    self.activePlayerTimers = {}
-    self.queuedScanReasons = {}
-    self.currentScan = nil
-    self.scanQueueTimer = nil
-    self.isScanning = false
-    self.wasGrouped = IsInRaid() or IsInGroup()
-    self:ResetRosterSnapshot()
-
+    self:InitializeRuntimeState()
     self.PlayerStore:EnsureStorage()
 
     if GearPolice.db.global.ReportMode ~= "whisper"
@@ -46,63 +26,6 @@ function GearPolice:OnEnable()
     self:RegisterEvent("INSPECT_READY", "OnInspectReady")
     self:RegisterEvent("GROUP_ROSTER_UPDATE", "UpdateGroupMembers")
     self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnCombatEnded")
-end
-
-function GearPolice:ClearScheduledWorkForPlayer(playerGuid)
-    if not playerGuid then
-        return
-    end
-
-    self:CancelManagedTimersForPlayer(playerGuid)
-    self:RemoveFromScanQueue(playerGuid)
-    self:ClearCurrentScanForPlayer(playerGuid)
-end
-
-function GearPolice:RemovePlayerFromTracking(playerGuid)
-    if not playerGuid or not self.db or not self.db.global then
-        return
-    end
-
-    self:ClearScheduledWorkForPlayer(playerGuid)
-
-    self.PlayerStore:Remove(playerGuid)
-
-    self:RemoveGuidFromCurrentRoster(playerGuid)
-end
-
-function GearPolice:StopAllScans()
-    self:CancelAllManagedTimers()
-
-    if ClearInspectPlayer then
-        ClearInspectPlayer()
-    end
-
-    self.scanQueue = {}
-    self.queuedScanReasons = {}
-    self.currentScan = nil
-    self.activeScanGuids = {}
-    self.isScanning = false
-    self.scanQueueTimer = nil
-    self:ResetRosterSnapshot()
-
-    self.PlayerStore:MarkAllScansCancelled()
-end
-
-function GearPolice:ClearAllTrackedPlayers()
-    self:StopAllScans()
-
-    self.PlayerStore:ClearAll()
-
-    self:ResetRosterSnapshot()
-    self.UI:UpdateUI()
-end
-
-function GearPolice:ClearTrackedPlayersForRosterTransition()
-    self:StopAllScans()
-
-    self.PlayerStore:ClearAll()
-
-    self:ResetRosterSnapshot()
 end
 
 function GearPolice:StartGearPolicingOfGroup()
