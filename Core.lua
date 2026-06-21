@@ -13,6 +13,7 @@ GearPolice.activeScanGuids = {}
 GearPolice.activeTimers = {}
 GearPolice.activePlayerTimers = {}
 GearPolice.currentRoster = nil
+GearPolice.wasGrouped = false
 GearPolice.InventorySlotReady = "READY"
 GearPolice.InventorySlotPending = "PENDING"
 GearPolice.InventorySlotNoEvidence = "NO_EVIDENCE"
@@ -298,6 +299,7 @@ function GearPolice:OnInitialize()
     self.currentScan = nil
     self.scanQueueTimer = nil
     self.isScanning = false
+    self.wasGrouped = IsInRaid() or IsInGroup()
     self:ResetRosterSnapshot()
 
     if type(GearPolice.db.global.PlayerGearInfo) ~= "table" then
@@ -557,6 +559,16 @@ function GearPolice:ClearAllTrackedPlayers()
     self.UI:UpdateUI()
 end
 
+function GearPolice:ClearTrackedPlayersForRosterTransition()
+    self:StopAllScans()
+
+    if self.db and self.db.global then
+        self.db.global.PlayerGearInfo = {}
+    end
+
+    self:ResetRosterSnapshot()
+end
+
 function GearPolice:HasPendingEquippedItems(playerInfo)
     if not playerInfo or type(playerInfo.EquippedItems) ~= "table" then
         return true
@@ -739,11 +751,18 @@ end
 
 function GearPolice:UpdatePlayerGearInfoWithGroupMembers()
     local snapshot = self:BuildGroupRosterSnapshot()
+
     if not snapshot.groupType then
         self:ClearAllTrackedPlayers()
+        self.wasGrouped = false
         return
     end
 
+    if not self.wasGrouped then
+        self:ClearTrackedPlayersForRosterTransition()
+    end
+
+    self.wasGrouped = true
     self:ReconcileGroupRoster(snapshot)
 end
 
