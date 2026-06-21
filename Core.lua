@@ -224,9 +224,7 @@ function GearPolice:OnInitialize()
     self.wasGrouped = IsInRaid() or IsInGroup()
     self:ResetRosterSnapshot()
 
-    if type(GearPolice.db.global.PlayerGearInfo) ~= "table" then
-        GearPolice.db.global.PlayerGearInfo = {}
-    end
+    self.PlayerStore:EnsureStorage()
 
     if GearPolice.db.global.ReportMode ~= "whisper"
         and GearPolice.db.global.ReportMode ~= "public"
@@ -438,9 +436,7 @@ function GearPolice:RemovePlayerFromTracking(playerGuid)
 
     self:ClearScheduledWorkForPlayer(playerGuid)
 
-    if self.db.global.PlayerGearInfo then
-        self.db.global.PlayerGearInfo[playerGuid] = nil
-    end
+    self.PlayerStore:Remove(playerGuid)
 
     self:RemoveGuidFromCurrentRoster(playerGuid)
 end
@@ -460,22 +456,13 @@ function GearPolice:StopAllScans()
     self.scanQueueTimer = nil
     self:ResetRosterSnapshot()
 
-    if self.db and self.db.global and type(self.db.global.PlayerGearInfo) == "table" then
-        for _, playerInfo in pairs(self.db.global.PlayerGearInfo) do
-            playerInfo.CheckRequested = false
-            playerInfo.CheckStatus = "Cancelled"
-            playerInfo.pendingChecks = 0
-            playerInfo.ScanGeneration = (playerInfo.ScanGeneration or 0) + 1
-        end
-    end
+    self.PlayerStore:MarkAllScansCancelled()
 end
 
 function GearPolice:ClearAllTrackedPlayers()
     self:StopAllScans()
 
-    if self.db and self.db.global then
-        self.db.global.PlayerGearInfo = {}
-    end
+    self.PlayerStore:ClearAll()
 
     self:ResetRosterSnapshot()
     self.UI:UpdateUI()
@@ -484,47 +471,9 @@ end
 function GearPolice:ClearTrackedPlayersForRosterTransition()
     self:StopAllScans()
 
-    if self.db and self.db.global then
-        self.db.global.PlayerGearInfo = {}
-    end
+    self.PlayerStore:ClearAll()
 
     self:ResetRosterSnapshot()
-end
-
-function GearPolice:HasPendingEquippedItems(playerInfo)
-    if not playerInfo or type(playerInfo.EquippedItems) ~= "table" then
-        return true
-    end
-
-    for _, slotName in ipairs(self.Helper:GetInventorySlotNames()) do
-        local slotValue = playerInfo.EquippedItems[slotName]
-        if not slotValue or slotValue == self.InventorySlotPending then
-            return true
-        end
-    end
-
-    return false
-end
-
-function GearPolice:HasPendingItemMetadata(playerInfo)
-    if not playerInfo or type(playerInfo.PendingItemMetadata) ~= "table" then
-        return false
-    end
-
-    return next(playerInfo.PendingItemMetadata) ~= nil
-end
-
-function GearPolice:IsPlayerScanComplete(playerInfo)
-    if not playerInfo then
-        return false
-    end
-
-    if playerInfo.CheckStatus ~= "Successful" then
-        return false
-    end
-
-    return not self:HasPendingEquippedItems(playerInfo)
-        and not self:HasPendingItemMetadata(playerInfo)
 end
 
 function GearPolice:IsCurrentScan(playerGuid, scanGeneration)
@@ -747,59 +696,6 @@ function GearPolice:ProcessGroupMember(unitId, sortIndex, groupType)
     elseif (time() - playerInfo.LastScanTime) > 86400 then
         self:AddToScanQueue(playerGuid, true, "group")
     end
-end
-
-function GearPolice:ResetPlayerGearInfo(playerGuid, playerName)
-    if not playerGuid then
-        return
-    end
-
-    if not GearPolice.db.global.PlayerGearInfo[playerGuid] then
-        self:SetPlayerGuidToDefaultInPlayerGearInfo(playerGuid)
-    end
-
-    local playerInfo = GearPolice.db.global.PlayerGearInfo[playerGuid]
-    if not playerInfo then
-        return
-    end
-
-    playerInfo.PlayerName = playerName or playerInfo.PlayerName or "Unknown"
-    playerInfo.PlayerGuid = playerGuid
-    playerInfo.CheckRequested = true
-    playerInfo.CheckStatus = "InProgress"
-    playerInfo.ProblematicItems = {}
-    playerInfo.EquippedItems = {}
-    playerInfo.PendingItemMetadata = {}
-    playerInfo.LastScanTime = 0
-    playerInfo.retryAttempts = 0
-    playerInfo.pendingChecks = 0
-    playerInfo.ForceScanRequested = true
-    playerInfo.ScanGeneration = (playerInfo.ScanGeneration or 0) + 1
-    self:ApplyCurrentRosterMetadata(playerGuid, playerInfo)
-
-    self:ClearScheduledWorkForPlayer(playerGuid)
-end
-
-function GearPolice:SetPlayerGuidToDefaultInPlayerGearInfo(playerGuid)
-    if not playerGuid then
-        return
-    end
-
-    local _, _, _, _, _, playerName = GetPlayerInfoByGUID(playerGuid)
-
-    GearPolice.db.global.PlayerGearInfo[playerGuid] = {
-        ["PlayerName"] = playerName or "Unknown",
-        ["PlayerGuid"] = playerGuid,
-        ["CheckRequested"] = true,
-        ["CheckStatus"] = "InProgress",
-        ["ProblematicItems"] = {},
-        ["PendingItemMetadata"] = {},
-        ["LastScanTime"] = 0,
-        ["retryAttempts"] = 0,
-        ["ForceScanRequested"] = true,
-        ["ScanGeneration"] = 0,
-        ["IsRosterTracked"] = false
-    }
 end
 
 function GearPolice:ScheduleInspectReadyTimeout(playerGuid, scanGeneration)

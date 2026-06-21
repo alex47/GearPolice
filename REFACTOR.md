@@ -22,7 +22,8 @@ stabilized.
 - Complete: Phase 1, extract constants and slots.
 - Complete: Phase 2, extract rule configuration from `Inspection:CheckUnit`.
 - Complete: Phase 3, extract timer service.
-- Next: Phase 4, extract player store.
+- Complete: Phase 4, extract player store.
+- Next: Phase 5, extract roster service.
 
 ## Non-Goals
 
