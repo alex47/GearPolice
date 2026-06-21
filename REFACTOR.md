@@ -17,6 +17,11 @@ stabilized.
 - Reduce the size and responsibility count of `Core.lua`.
 - Preserve behavior through small, verifiable extraction steps.
 
+## Progress
+
+- Complete: Phase 1, extract constants and slots.
+- Next: Phase 2, extract rule configuration from `Inspection:CheckUnit`.
+
 ## Non-Goals
 
 - Do not rewrite every subsystem at once.

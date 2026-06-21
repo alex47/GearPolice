@@ -3,21 +3,8 @@ local GearPolice = GearPolice
 GearPolice.Helper = GearPolice.Helper or {}
 local Helper = GearPolice.Helper
 
-local InventorySlotNames = {
-    "HeadSlot", "NeckSlot", "ShoulderSlot", "BackSlot", "ChestSlot",
-    "WristSlot", "HandsSlot", "WaistSlot", "LegsSlot", "FeetSlot",
-    "Finger0Slot", "Finger1Slot", "MainHandSlot", "SecondaryHandSlot",
-    "Trinket0Slot", "Trinket1Slot"
-}
-
-local InventorySnapshotEvidenceSlotNames = {
-    "HeadSlot", "ShoulderSlot", "ChestSlot", "HandsSlot", "WaistSlot",
-    "LegsSlot", "FeetSlot", "MainHandSlot"
-}
-
-
-function Helper:GetInventorySlotNames()
-    return InventorySlotNames
+function Helper.GetInventorySlotNames()
+    return GearPolice.Slots.GetInventorySlotNames()
 end
 
 function Helper:InventorySlotTooltipHasItem(unitId, slotID)
@@ -79,7 +66,7 @@ function Helper:GetInventorySnapshotEvidenceCount(unitId, excludedSlotName)
     end
 
     local evidenceCount = 0
-    for _, slotName in ipairs(InventorySnapshotEvidenceSlotNames) do
+    for _, slotName in ipairs(GearPolice.Slots.GetInventorySnapshotEvidenceSlotNames()) do
         if slotName ~= excludedSlotName then
             local slotState = self:GetInventorySlotState(unitId, slotName)
             if self:IsInventorySlotEvidenceState(slotState) then

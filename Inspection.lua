@@ -3,9 +3,6 @@ local GearPolice = GearPolice
 GearPolice.Inspection = GearPolice.Inspection or {}
 local Inspection = GearPolice.Inspection
 
-local ItemLevelThreshold = 450
-
-
 local function InspectionRetryDelay()
     return GearPolice.InventorySlotRetryDelay
 end
@@ -214,7 +211,7 @@ function Inspection:IsItemBelowItemLevel(itemLink)
         return GearPolice.ItemMetadataPending
     end
 
-    return itemLevel < ItemLevelThreshold
+    return itemLevel < GearPolice.ItemLevelThreshold
 end
 
 function Inspection:IsWaistMissingExtraGemEnchant(itemLink)

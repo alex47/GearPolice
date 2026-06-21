@@ -7,22 +7,11 @@ GearPolice.queuedScanReasons = {}
 GearPolice.currentScan = nil
 GearPolice.scanQueueTimer = nil
 GearPolice.isScanning = false
-GearPolice.scanInterval = 2  -- Time between scans in seconds
-GearPolice.inspectReadyTimeout = 8
 GearPolice.activeScanGuids = {}
 GearPolice.activeTimers = {}
 GearPolice.activePlayerTimers = {}
 GearPolice.currentRoster = nil
 GearPolice.wasGrouped = false
-GearPolice.InventorySlotReady = "READY"
-GearPolice.InventorySlotPending = "PENDING"
-GearPolice.InventorySlotNoEvidence = "NO_EVIDENCE"
-GearPolice.InventorySlotEmpty = "EMPTY"
-GearPolice.ItemMetadataPending = "PENDING_METADATA"
-GearPolice.InventorySlotRetryCount = 6
-GearPolice.InventorySlotRetryDelay = 2
-GearPolice.InventorySlotEmptyConfirmations = 5
-GearPolice.InventorySnapshotEvidenceMinimum = 4
 
 function GearPolice:ScheduleManagedTimer(callback, delay, playerGuid)
     if type(callback) ~= "function" or not delay then
