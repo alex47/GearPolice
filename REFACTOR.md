@@ -24,7 +24,8 @@ stabilized.
 - Complete: Phase 3, extract timer service.
 - Complete: Phase 4, extract player store.
 - Complete: Phase 5, extract roster service.
-- Next: Phase 6, extract scan queue.
+- Complete: Phase 6, extract scan queue.
+- Next: Phase 7, extract scan session.
 
 ## Non-Goals
 

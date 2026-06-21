@@ -14,6 +14,7 @@ Config\Rules.lua
 Services\Timers.lua
 State\PlayerStore.lua
 Services\Roster.lua
+Services\ScanQueue.lua
 Inspection.lua
 UI.lua
 Helper.lua
