@@ -17,6 +17,9 @@ Services\Roster.lua
 Services\ScanQueue.lua
 Services\ScanSession.lua
 Inspection.lua
+Inspection\ItemChecks.lua
+Inspection\SlotResolver.lua
+Inspection\CheckRunner.lua
 UI.lua
 Helper.lua
 Reporting.lua
