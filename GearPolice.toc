@@ -11,6 +11,10 @@ Core.lua
 Config\Constants.lua
 Config\Slots.lua
 Config\Rules.lua
+Helper.lua
+Util\Tables.lua
+Util\Units.lua
+Util\Inventory.lua
 State\RuntimeState.lua
 Services\Timers.lua
 State\PlayerStore.lua
@@ -26,6 +30,5 @@ UI\ViewModel.lua
 UI\Widgets\ItemIcon.lua
 UI\PlayerRows.lua
 UI\MainWindow.lua
-Helper.lua
 Reporting.lua
 Debug.lua
