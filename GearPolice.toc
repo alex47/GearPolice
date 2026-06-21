@@ -13,6 +13,7 @@ Config\Slots.lua
 Config\Rules.lua
 Services\Timers.lua
 State\PlayerStore.lua
+Services\Roster.lua
 Inspection.lua
 UI.lua
 Helper.lua
