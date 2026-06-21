@@ -115,14 +115,12 @@ function Inspection:IsItemInfoAvailable(itemLink)
     return itemName ~= nil
 end
 
-
-function Inspection:IsItemMissingGems(itemLink)
+function Inspection:CountSocketSlots(itemLink)
     if not itemLink then
-        return false
+        return 0
     end
 
     local tempTable = {}
-
     local itemStats = GetItemStats(itemLink, tempTable)
 
     if not itemStats then
@@ -130,31 +128,69 @@ function Inspection:IsItemMissingGems(itemLink)
             return GearPolice.ItemMetadataPending
         end
 
-        return false
+        return 0
     end
 
-    local gemSlotCount = 0
-
-    for label, _ in pairs(itemStats) do
+    local socketSlotCount = 0
+    for label, value in pairs(itemStats) do
         if label:match("EMPTY_SOCKET_") then
-            gemSlotCount = gemSlotCount + 1
+            socketSlotCount = socketSlotCount + (tonumber(value) or 1)
         end
     end
 
-    if gemSlotCount == 0 then
-        return false
+    return socketSlotCount
+end
+
+function Inspection:CountSocketedGemIds(itemLink, maxGemFields)
+    if not itemLink then
+        return 0
     end
 
+    maxGemFields = maxGemFields or 4
+    if maxGemFields > 4 then
+        maxGemFields = 4
+    end
+
+    local itemString = itemLink:match("item:([^|]+)")
+    if not itemString then
+        return 0
+    end
+
+    local _, _, gemId1, gemId2, gemId3, gemId4 = strsplit(":", itemString)
+    local gemIds = { gemId1, gemId2, gemId3, gemId4 }
     local socketedGemCount = 0
-    local toCheck = math.min(gemSlotCount, 3)
-    for i = 1, toCheck do
-        local gemName, gemLink = GetItemGem(itemLink, i)
-        if gemLink or gemName then
+
+    for i = 1, maxGemFields do
+        local gemId = gemIds[i]
+        if gemId and gemId ~= "" and gemId ~= "0" then
             socketedGemCount = socketedGemCount + 1
         end
     end
 
-    return socketedGemCount < gemSlotCount
+    return socketedGemCount
+end
+
+function Inspection:IsItemMissingGems(itemLink)
+    if not itemLink then
+        return false
+    end
+
+    local socketSlotCount = self:CountSocketSlots(itemLink)
+
+    if self:IsItemMetadataPending(socketSlotCount) then
+        return GearPolice.ItemMetadataPending
+    end
+
+    if socketSlotCount == 0 then
+        return false
+    end
+
+    if socketSlotCount > 4 then
+        return GearPolice.ItemMetadataPending
+    end
+
+    local socketedGemCount = self:CountSocketedGemIds(itemLink, socketSlotCount)
+    return socketedGemCount < socketSlotCount
 end
 
 function Inspection:IsItemMissingEnchant(itemLink)
@@ -184,27 +220,14 @@ end
 function Inspection:IsWaistMissingExtraGemEnchant(itemLink)
     if not itemLink then return false end
 
-    local stats = {}
-    local itemStats = GetItemStats(itemLink, stats)
-    if not itemStats then
-        if not self:IsItemInfoAvailable(itemLink) then
-            return GearPolice.ItemMetadataPending
-        end
-
-        return false
+    local base = self:CountSocketSlots(itemLink)
+    if self:IsItemMetadataPending(base) then
+        return GearPolice.ItemMetadataPending
     end
-
-    local base = (stats["EMPTY_SOCKET_RED"] or 0)
-               + (stats["EMPTY_SOCKET_YELLOW"] or 0)
-               + (stats["EMPTY_SOCKET_BLUE"] or 0)
 
     if base == 0 then return false end
 
-    local inserted = 0
-    for i = 1, 3 do
-        local name, link = GetItemGem(itemLink, i)
-        if link or name then inserted = inserted + 1 end
-    end
+    local inserted = self:CountSocketedGemIds(itemLink, 4)
 
     if inserted < base then return false end
     if inserted == base then return true end
