@@ -11,6 +11,7 @@ Core.lua
 Config\Constants.lua
 Config\Slots.lua
 Config\Rules.lua
+Services\Timers.lua
 Inspection.lua
 UI.lua
 Helper.lua
