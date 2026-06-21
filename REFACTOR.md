@@ -29,7 +29,7 @@ stabilized.
 - Complete: Phase 8, split inspection modules.
 - Complete: Phase 9, split UI modules.
 - Complete: Phase 10, normalize problem records.
-- Next: final refactor audit.
+- Complete: final refactor audit, including runtime state and utility module extraction.
 
 ## Non-Goals
 
@@ -134,6 +134,7 @@ Util/
 
 Reporting.lua
 Debug.lua
+Helper.lua       -- compatibility namespace for older GearPolice.Helper callers
 ```
 
 The `.toc` load order should remain explicit. Load lower-level modules before
@@ -145,20 +146,23 @@ Core.lua
 Config/Constants.lua
 Config/Slots.lua
 Config/Rules.lua
+Helper.lua
 Util/Tables.lua
 Util/Units.lua
 Util/Inventory.lua
 State/RuntimeState.lua
-State/PlayerStore.lua
 Services/Timers.lua
+State/PlayerStore.lua
 Services/Roster.lua
 Services/ScanQueue.lua
 Services/ScanSession.lua
+Inspection.lua
 Inspection/ItemChecks.lua
 Inspection/SlotResolver.lua
 Inspection/CheckRunner.lua
-UI/Widgets/ItemIcon.lua
+UI.lua
 UI/ViewModel.lua
+UI/Widgets/ItemIcon.lua
 UI/PlayerRows.lua
 UI/MainWindow.lua
 Reporting.lua
