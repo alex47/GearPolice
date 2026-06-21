@@ -7,26 +7,117 @@ local UI = GearPolice.UI
 local IconSize = 16  -- Set the icon size here
 local PlayerContainerElementSize = 24
 
+local ItemIconWidgetType = "GearPoliceItemIcon"
+local ItemIconWidgetVersion = 1
 
-function UI:AddItemIcon(container, itemLink)
-    local itemIcon = AceGUI:Create("Icon")
-    local _, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(itemLink)
-    itemIcon:SetImage(itemTexture or "Interface\\Icons\\INV_Misc_QuestionMark")
-    itemIcon:SetImageSize(IconSize, IconSize)
-    itemIcon:SetWidth(PlayerContainerElementSize)
-    itemIcon:SetHeight(PlayerContainerElementSize)
+local function ItemIcon_OnEnter(frame)
+    frame.obj:Fire("OnEnter")
+end
 
-    itemIcon:SetCallback("OnEnter", function(widget)
-        GameTooltip:SetOwner(widget.frame, "ANCHOR_TOP")
-        GameTooltip:SetHyperlink(itemLink)
-        GameTooltip:Show()
-    end)
+local function ItemIcon_OnLeave(frame)
+    frame.obj:Fire("OnLeave")
+end
 
-    itemIcon:SetCallback("OnLeave", function()
-        GameTooltip:Hide()
-    end)
+local function ItemIcon_OnClick(frame, button)
+    frame.obj:Fire("OnClick", button)
+end
 
-    container:AddChild(itemIcon)
+local itemIconMethods = {
+    OnAcquire = function(self)
+        self:SetWidth(PlayerContainerElementSize)
+        self:SetHeight(PlayerContainerElementSize)
+        self:SetImage(nil)
+        self:SetImageSize(IconSize, IconSize)
+        self:SetProblematic(false)
+        self.image:SetVertexColor(1, 1, 1, 1)
+        self.frame:Enable()
+    end,
+
+    OnRelease = function(self)
+        self:SetProblematic(false)
+        self:SetImage(nil)
+    end,
+
+    SetImage = function(self, path, ...)
+        self.image:SetTexture(path)
+
+        if self.image:GetTexture() then
+            local argCount = select("#", ...)
+            if argCount == 4 or argCount == 8 then
+                self.image:SetTexCoord(...)
+            else
+                self.image:SetTexCoord(0, 1, 0, 1)
+            end
+        end
+    end,
+
+    SetImageSize = function(self, width, height)
+        self.image:SetWidth(width)
+        self.image:SetHeight(height)
+    end,
+
+    SetProblematic = function(self, isProblematic)
+        if not self.frame.SetBackdrop then
+            return
+        end
+
+        self.frame:SetBackdrop(nil)
+
+        if isProblematic then
+            self.frame:SetBackdrop({
+                bgFile = nil,
+                edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+                tile = false,
+                edgeSize = 16,
+            })
+            if self.frame.SetBackdropBorderColor then
+                self.frame:SetBackdropBorderColor(1, 0, 0, 1)
+            end
+        end
+    end,
+}
+
+local function CreateItemIconWidget()
+    local backdropTemplate = _G.BackdropTemplateMixin and "BackdropTemplate" or nil
+    local frame = CreateFrame("Button", nil, UIParent, backdropTemplate)
+    frame:Hide()
+    frame:EnableMouse(true)
+    frame:SetScript("OnEnter", ItemIcon_OnEnter)
+    frame:SetScript("OnLeave", ItemIcon_OnLeave)
+    frame:SetScript("OnClick", ItemIcon_OnClick)
+
+    local image = frame:CreateTexture(nil, "BACKGROUND")
+    image:SetPoint("CENTER")
+
+    local highlight = frame:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints(image)
+    highlight:SetTexture(136580) -- Interface\\PaperDollInfoFrame\\UI-Character-Tab-Highlight
+    highlight:SetTexCoord(0, 1, 0.23, 0.77)
+    highlight:SetBlendMode("ADD")
+
+    local widget = {
+        image = image,
+        frame = frame,
+        type = ItemIconWidgetType,
+    }
+
+    for methodName, method in pairs(itemIconMethods) do
+        widget[methodName] = method
+    end
+
+    return AceGUI:RegisterAsWidget(widget)
+end
+
+AceGUI:RegisterWidgetType(ItemIconWidgetType, CreateItemIconWidget, ItemIconWidgetVersion)
+
+local function CreateEquipmentSlotIcon()
+    local icon = AceGUI:Create(ItemIconWidgetType)
+    icon:SetImageSize(IconSize, IconSize)
+    icon:SetWidth(PlayerContainerElementSize)
+    icon:SetHeight(PlayerContainerElementSize)
+    icon:SetProblematic(false)
+
+    return icon
 end
 
 function UI:UpdatePlayerStatusIcon(playerGuid, status)
@@ -44,30 +135,6 @@ function UI:UpdatePlayerStatusIcon(playerGuid, status)
     }
 
     statusIcon:SetImage(texturePaths[status] or nil)
-end
-
-function UI:HorizontalLayout(container)
-    local width = container.frame.width or container.width or 0
-    local spacing = 10
-    local usedWidth = 0
-
-    for _, child in ipairs(container.children) do
-        local childFrame = child.frame
-        childFrame:ClearAllPoints()
-        childFrame:SetPoint("TOPLEFT", container.frame, "TOPLEFT", usedWidth, 0)
-        usedWidth = usedWidth + childFrame:GetWidth() + spacing
-    end
-end
-
-function UI:LayoutPlayerContainer(playerContainer, playerNameLabel, gemsContainer, enchantContainer)
-    playerNameLabel.frame:ClearAllPoints()
-    playerNameLabel.frame:SetPoint("TOPLEFT", playerContainer.frame, "TOPLEFT", 0, 0)
-
-    gemsContainer.frame:ClearAllPoints()
-    gemsContainer.frame:SetPoint("TOPLEFT", playerNameLabel.frame, "TOPRIGHT", 10, 0)
-
-    enchantContainer.frame:ClearAllPoints()
-    enchantContainer.frame:SetPoint("TOPLEFT", gemsContainer.frame, "TOPRIGHT", 10, 0)
 end
 
 function UI:UpdateUI()
@@ -127,7 +194,7 @@ function UI:UpdateUI()
             reportButton:SetImageSize(IconSize, IconSize)
             reportButton:SetWidth(PlayerContainerElementSize)
             reportButton:SetHeight(PlayerContainerElementSize)
-            reportButton:SetCallback("OnClick", function(widget)
+            reportButton:SetCallback("OnClick", function()
                 GearPolice.Reporting:ReportProblematicItems(playerInfo)
             end)
             playerContainer:AddChild(reportButton)
@@ -142,7 +209,7 @@ function UI:UpdateUI()
             local playerNameLabel = AceGUI:Create("Label")
             playerNameLabel:SetWidth(100)
             playerNameLabel:SetHeight(PlayerContainerElementSize)
-            playerNameLabel.label:SetJustifyV("MIDDLE")
+            playerNameLabel:SetJustifyV("MIDDLE")
             playerContainer:AddChild(playerNameLabel)
 
             local itemIconsContainer = AceGUI:Create("SimpleGroup")
@@ -195,11 +262,8 @@ function UI:UpdateUI()
         for _, slotName in ipairs(slotOrder) do
             local itemLink = playerInfo.EquippedItems and playerInfo.EquippedItems[slotName]
             if itemLink == GearPolice.InventorySlotEmpty then
-                local emptyIcon = AceGUI:Create("Icon")
+                local emptyIcon = CreateEquipmentSlotIcon()
                 emptyIcon:SetImage(nil)
-                emptyIcon:SetImageSize(IconSize, IconSize)
-                emptyIcon:SetWidth(PlayerContainerElementSize)
-                emptyIcon:SetHeight(PlayerContainerElementSize)
                 emptyIcon:SetCallback("OnEnter", function(widget)
                     GameTooltip:SetOwner(widget.frame, "ANCHOR_TOP")
                     GameTooltip:SetText("Empty slot", 1, 1, 1)
@@ -211,12 +275,9 @@ function UI:UpdateUI()
                 itemIconsContainer:AddChild(emptyIcon)
             elseif itemLink and itemLink ~= GearPolice.InventorySlotPending then
                 -- Create an icon widget.
-                local itemIcon = AceGUI:Create("Icon")
+                local itemIcon = CreateEquipmentSlotIcon()
                 local _, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(itemLink)
                 itemIcon:SetImage(itemTexture or "Interface\\Icons\\INV_Misc_QuestionMark")
-                itemIcon:SetImageSize(IconSize, IconSize)
-                itemIcon:SetWidth(PlayerContainerElementSize)
-                itemIcon:SetHeight(PlayerContainerElementSize)
                 itemIcon:SetCallback("OnEnter", function(widget)
                     GameTooltip:SetOwner(widget.frame, "ANCHOR_TOP")
                     GameTooltip:SetHyperlink(itemLink)
@@ -226,25 +287,12 @@ function UI:UpdateUI()
                     GameTooltip:Hide()
                 end)
                 -- If this item is marked problematic, highlight it.
-                if playerInfo.ProblematicItems and playerInfo.ProblematicItems[itemLink] then
-                    if itemIcon.frame.SetBackdrop then
-                        itemIcon.frame:SetBackdrop({
-                            bgFile = nil,
-                            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-                            tile = false,
-                            edgeSize = 16,
-                        })
-                        itemIcon.frame:SetBackdropBorderColor(1, 0, 0, 1)
-                    end
-                end
+                itemIcon:SetProblematic(playerInfo.ProblematicItems and playerInfo.ProblematicItems[itemLink])
                 itemIconsContainer:AddChild(itemIcon)
             else
                 -- Show placeholder icon.
-                local placeholderIcon = AceGUI:Create("Icon")
+                local placeholderIcon = CreateEquipmentSlotIcon()
                 placeholderIcon:SetImage("Interface\\Icons\\INV_Misc_QuestionMark")
-                placeholderIcon:SetImageSize(IconSize, IconSize)
-                placeholderIcon:SetWidth(PlayerContainerElementSize)
-                placeholderIcon:SetHeight(PlayerContainerElementSize)
                 placeholderIcon:SetCallback("OnEnter", function(widget)
                     GameTooltip:SetOwner(widget.frame, "ANCHOR_TOP")
                     GameTooltip:SetText("Scanning...", 1, 1, 1)
@@ -329,7 +377,7 @@ function UI:ShowUI()
         "debug",
     })
     reportModeDropdown:SetValue(GearPolice.db.global.ReportMode)
-    reportModeDropdown:SetCallback("OnValueChanged", function(widget, event, value)
+    reportModeDropdown:SetCallback("OnValueChanged", function(_widget, _event, value)
         GearPolice.db.global.ReportMode = value
     end)
     self.uiFrame:AddChild(reportModeDropdown)

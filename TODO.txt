@@ -11,10 +11,5 @@ Low priority
 Cleanup
 -------
 
-- Avoid direct AceGUI widget internals where practical.
-  UI.lua mutates widget internals such as playerNameLabel.label and itemIcon.frame
-  backdrop state. AceGUI documentation warns that direct frame mutations can leak
-  through pooled widgets.
-
 - Decide whether Shared.lua should contain shared code or be removed from the
   load list.
