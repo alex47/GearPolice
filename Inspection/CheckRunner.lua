@@ -142,7 +142,23 @@ function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
         return true
     end
 
-    local function ScheduleRemainingSlots(mainHandValue)
+    local function CompleteSecondaryHandAsEmpty()
+        totalSlots = totalSlots + 1
+        playerInfo.pendingChecks = totalSlots - completedSlots
+
+        if not self:SetEquippedSlotValue(
+            playerInfo,
+            "SecondaryHandSlot",
+            GearPolice.InventorySlotEmpty,
+            scanGeneration
+        ) then
+            return
+        end
+
+        CompleteSlot("SecondaryHandSlot", GearPolice.InventorySlotEmpty)
+    end
+
+    local function ScheduleSecondaryHandAfterMainHand(mainHandValue)
         if isUnitCheckComplete or not self:IsCurrentScan(playerInfo, scanGeneration) then
             return
         end
@@ -154,30 +170,26 @@ function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
         end
 
         if skipSecondaryHand then
-            self:SetEquippedSlotValue(
-                playerInfo,
-                "SecondaryHandSlot",
-                GearPolice.InventorySlotEmpty,
-                scanGeneration
-            )
-        end
-
-        for _, slotName in ipairs(GearPolice.Helper:GetInventorySlotNames()) do
-            if slotName ~= "MainHandSlot"
-                and (slotName ~= "SecondaryHandSlot" or not skipSecondaryHand) then
-                ScheduleSlotResolution(slotName)
-            end
+            CompleteSecondaryHandAsEmpty()
+        else
+            ScheduleSlotResolution("SecondaryHandSlot")
         end
 
         isSchedulingSlots = false
         CompleteUnitCheckIfReady()
     end
 
+    for _, slotName in ipairs(GearPolice.Helper:GetInventorySlotNames()) do
+        if slotName ~= "MainHandSlot" and slotName ~= "SecondaryHandSlot" then
+            ScheduleSlotResolution(slotName)
+        end
+    end
+
     local scheduledMainHand = ScheduleSlotResolution("MainHandSlot", function(mainHandValue)
-        ScheduleRemainingSlots(mainHandValue)
+        ScheduleSecondaryHandAfterMainHand(mainHandValue)
     end)
 
-    if not scheduledMainHand then
+    if not scheduledMainHand or isUnitCheckComplete then
         isSchedulingSlots = false
         CompleteUnitCheckIfReady()
     end
