@@ -102,7 +102,17 @@ end
 function Helper:GetUnitIdOfPlayerGuid(playerGuid)
     if UnitGUID("target") == playerGuid then
         return "target"
-    elseif IsInRaid() then
+    end
+
+    local roster = GearPolice.currentRoster
+    if roster and roster.unitIdByGuid then
+        local unitId = roster.unitIdByGuid[playerGuid]
+        if unitId and UnitGUID(unitId) == playerGuid then
+            return unitId
+        end
+    end
+
+    if IsInRaid() then
         for i = 1, 40 do
             local unitId = "raid" .. i
             local playerGuid2 = UnitGUID(unitId)

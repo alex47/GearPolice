@@ -76,6 +76,8 @@ function UI:UpdateUI()
     end
 
     local scrollContainer = self.uiFrame.scrollContainer
+    self.playerUIElements = self.playerUIElements or {}
+    local orderedPlayerGuids = GearPolice:GetOrderedPlayerGuids()
 
     -- AceGUI has no supported single-child removal API; rebuild if the row cache is stale.
     local needsRebuild = false
@@ -86,14 +88,31 @@ function UI:UpdateUI()
         end
     end
 
+    if not needsRebuild then
+        local playerOrder = self.playerOrder or {}
+        if #playerOrder ~= #orderedPlayerGuids then
+            needsRebuild = true
+        else
+            for index, playerGuid in ipairs(orderedPlayerGuids) do
+                if playerOrder[index] ~= playerGuid then
+                    needsRebuild = true
+                    break
+                end
+            end
+        end
+    end
+
     if needsRebuild then
         scrollContainer:ReleaseChildren()
         self.playerUIElements = {}
     end
 
+    self.playerOrder = {}
     local slotOrder = GearPolice.Helper:GetInventorySlotNames()
 
-    for playerGuid, playerInfo in pairs(GearPolice.db.global.PlayerGearInfo) do
+    for _, playerGuid in ipairs(orderedPlayerGuids) do
+        local playerInfo = GearPolice.db.global.PlayerGearInfo[playerGuid]
+        table.insert(self.playerOrder, playerGuid)
         local playerUI = self.playerUIElements[playerGuid]
 
         if not playerUI then
@@ -248,6 +267,7 @@ function UI:ShowUI()
         AceGUI:Release(self.uiFrame)
         self.uiFrame = nil
         self.playerUIElements = nil  -- Clear the cached UI elements
+        self.playerOrder = nil
     end
 
     -- Create a new frame
@@ -257,6 +277,7 @@ function UI:ShowUI()
         AceGUI:Release(widget)
         self.uiFrame = nil
         self.playerUIElements = nil  -- Clear the cached UI elements
+        self.playerOrder = nil
     end)
     self.uiFrame:SetLayout("Flow")
     self.uiFrame:SetWidth(800)  -- Increased from 640
@@ -264,23 +285,16 @@ function UI:ShowUI()
 
     -- Initialize the player UI elements table
     self.playerUIElements = {}
+    self.playerOrder = {}
 
     local clearButton = AceGUI:Create("Button")
     clearButton:SetText("Clear")
     clearButton:SetWidth(100)
     clearButton:SetHeight(24)
     clearButton:SetCallback("OnClick", function()
-        GearPolice:StopAllScans()
-        GearPolice.db.global.PlayerGearInfo = {}
-
-        -- Clear the cached UI elements and release the UI children
-        self.playerUIElements = {}
-        self.uiFrame.scrollContainer:ReleaseChildren()
-
-        -- Update the UI
-        self:UpdateUI()
+        GearPolice:ClearAllTrackedPlayers()
     end)
-    
+
     self.uiFrame:AddChild(clearButton)
 
     local refreshButton = AceGUI:Create("Button")
@@ -288,9 +302,7 @@ function UI:ShowUI()
     refreshButton:SetWidth(100)
     refreshButton:SetHeight(24)
     refreshButton:SetCallback("OnClick", function()
-        GearPolice:StopAllScans()
-        GearPolice.db.global.PlayerGearInfo = {}
-        self:UpdateUI()
+        GearPolice:ClearAllTrackedPlayers()
         GearPolice:StartGearPolicingOfGroup()
     end)
     self.uiFrame:AddChild(refreshButton)

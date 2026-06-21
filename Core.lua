@@ -12,6 +12,7 @@ GearPolice.inspectReadyTimeout = 8
 GearPolice.activeScanGuids = {}
 GearPolice.activeTimers = {}
 GearPolice.activePlayerTimers = {}
+GearPolice.currentRoster = nil
 GearPolice.InventorySlotReady = "READY"
 GearPolice.InventorySlotPending = "PENDING"
 GearPolice.InventorySlotNoEvidence = "NO_EVIDENCE"
@@ -100,6 +101,170 @@ function GearPolice:CancelScanQueueTimer()
     self.scanQueueTimer = nil
 end
 
+function GearPolice:CreateEmptyRosterSnapshot(groupType)
+    return {
+        presentGuids = {},
+        unitIdByGuid = {},
+        sortIndexByGuid = {},
+        orderedGuids = {},
+        groupType = groupType,
+    }
+end
+
+function GearPolice:ResetRosterSnapshot()
+    self.currentRoster = self:CreateEmptyRosterSnapshot(nil)
+end
+
+function GearPolice:BuildGroupRosterSnapshot()
+    local groupType, maxMembers
+    if IsInRaid() then
+        groupType = "raid"
+        maxMembers = 40
+    elseif IsInGroup() then
+        groupType = "party"
+        maxMembers = 4
+    else
+        return self:CreateEmptyRosterSnapshot(nil)
+    end
+
+    local snapshot = self:CreateEmptyRosterSnapshot(groupType)
+
+    for i = 1, maxMembers do
+        local unitId = groupType .. i
+        if UnitExists(unitId) then
+            local playerGuid = UnitGUID(unitId)
+            if playerGuid and not snapshot.presentGuids[playerGuid] then
+                snapshot.presentGuids[playerGuid] = true
+                snapshot.unitIdByGuid[playerGuid] = unitId
+                snapshot.sortIndexByGuid[playerGuid] = i
+                table.insert(snapshot.orderedGuids, playerGuid)
+            end
+        end
+    end
+
+    return snapshot
+end
+
+function GearPolice:ApplyRosterMetadata(playerInfo, playerGuid, unitId, sortIndex, groupType)
+    if not playerInfo then
+        return
+    end
+
+    playerInfo.IsRosterTracked = true
+    playerInfo.CurrentUnitId = unitId
+    playerInfo.RosterSortIndex = sortIndex
+    playerInfo.RosterGroupType = groupType
+    playerInfo.PlayerGuid = playerGuid or playerInfo.PlayerGuid
+end
+
+function GearPolice:ClearRosterMetadata(playerInfo)
+    if not playerInfo then
+        return
+    end
+
+    playerInfo.IsRosterTracked = false
+    playerInfo.CurrentUnitId = nil
+    playerInfo.RosterSortIndex = nil
+    playerInfo.RosterGroupType = nil
+end
+
+function GearPolice:RefreshCurrentRosterSnapshot()
+    if IsInRaid() or IsInGroup() then
+        self.currentRoster = self:BuildGroupRosterSnapshot()
+    else
+        self:ResetRosterSnapshot()
+    end
+
+    return self.currentRoster
+end
+
+function GearPolice:ApplyCurrentRosterMetadata(playerGuid, playerInfo)
+    local roster = self.currentRoster
+    if roster and roster.presentGuids and roster.presentGuids[playerGuid] then
+        self:ApplyRosterMetadata(
+            playerInfo,
+            playerGuid,
+            roster.unitIdByGuid[playerGuid],
+            roster.sortIndexByGuid[playerGuid],
+            roster.groupType
+        )
+    else
+        self:ClearRosterMetadata(playerInfo)
+    end
+end
+
+function GearPolice:RemoveGuidFromCurrentRoster(playerGuid)
+    local roster = self.currentRoster
+    if not playerGuid or not roster then
+        return
+    end
+
+    if roster.presentGuids then
+        roster.presentGuids[playerGuid] = nil
+    end
+    if roster.unitIdByGuid then
+        roster.unitIdByGuid[playerGuid] = nil
+    end
+    if roster.sortIndexByGuid then
+        roster.sortIndexByGuid[playerGuid] = nil
+    end
+    if roster.orderedGuids then
+        for i = #roster.orderedGuids, 1, -1 do
+            if roster.orderedGuids[i] == playerGuid then
+                table.remove(roster.orderedGuids, i)
+            end
+        end
+    end
+end
+
+function GearPolice:GetOrderedPlayerGuids()
+    local orderedGuids = {}
+    local includedGuids = {}
+
+    if not self.db or not self.db.global or type(self.db.global.PlayerGearInfo) ~= "table" then
+        return orderedGuids
+    end
+
+    local playerGearInfo = self.db.global.PlayerGearInfo
+    local roster = self.currentRoster
+
+    if roster and roster.orderedGuids then
+        for _, playerGuid in ipairs(roster.orderedGuids) do
+            if playerGearInfo[playerGuid] then
+                table.insert(orderedGuids, playerGuid)
+                includedGuids[playerGuid] = true
+            end
+        end
+    end
+
+    local nonRosterPlayers = {}
+    for playerGuid, playerInfo in pairs(playerGearInfo) do
+        if not includedGuids[playerGuid] then
+            table.insert(nonRosterPlayers, {
+                playerGuid = playerGuid,
+                playerName = playerInfo.PlayerName or "Unknown",
+            })
+        end
+    end
+
+    table.sort(nonRosterPlayers, function(a, b)
+        local nameA = string.lower(a.playerName or "")
+        local nameB = string.lower(b.playerName or "")
+
+        if nameA == nameB then
+            return (a.playerGuid or "") < (b.playerGuid or "")
+        end
+
+        return nameA < nameB
+    end)
+
+    for _, player in ipairs(nonRosterPlayers) do
+        table.insert(orderedGuids, player.playerGuid)
+    end
+
+    return orderedGuids
+end
+
 function GearPolice:ScheduleScanQueueProcessing(delay)
     if self.currentScan or #self.scanQueue == 0 or self.scanQueueTimer then
         return
@@ -123,6 +288,7 @@ function GearPolice:OnInitialize()
     self.currentScan = nil
     self.scanQueueTimer = nil
     self.isScanning = false
+    self:ResetRosterSnapshot()
 
     if type(GearPolice.db.global.PlayerGearInfo) ~= "table" then
         GearPolice.db.global.PlayerGearInfo = {}
@@ -331,6 +497,20 @@ function GearPolice:ClearScheduledWorkForPlayer(playerGuid)
     self:ClearCurrentScanForPlayer(playerGuid)
 end
 
+function GearPolice:RemovePlayerFromTracking(playerGuid)
+    if not playerGuid or not self.db or not self.db.global then
+        return
+    end
+
+    self:ClearScheduledWorkForPlayer(playerGuid)
+
+    if self.db.global.PlayerGearInfo then
+        self.db.global.PlayerGearInfo[playerGuid] = nil
+    end
+
+    self:RemoveGuidFromCurrentRoster(playerGuid)
+end
+
 function GearPolice:StopAllScans()
     self:CancelAllManagedTimers()
 
@@ -344,6 +524,7 @@ function GearPolice:StopAllScans()
     self.activeScanGuids = {}
     self.isScanning = false
     self.scanQueueTimer = nil
+    self:ResetRosterSnapshot()
 
     if self.db and self.db.global and type(self.db.global.PlayerGearInfo) == "table" then
         for _, playerInfo in pairs(self.db.global.PlayerGearInfo) do
@@ -353,6 +534,17 @@ function GearPolice:StopAllScans()
             playerInfo.ScanGeneration = (playerInfo.ScanGeneration or 0) + 1
         end
     end
+end
+
+function GearPolice:ClearAllTrackedPlayers()
+    self:StopAllScans()
+
+    if self.db and self.db.global then
+        self.db.global.PlayerGearInfo = {}
+    end
+
+    self:ResetRosterSnapshot()
+    self.UI:UpdateUI()
 end
 
 function GearPolice:HasPendingEquippedItems(playerInfo)
@@ -492,47 +684,87 @@ function GearPolice:ScheduleDelayedScanRetry(playerGuid, scanGeneration, reason,
     end, delay, playerGuid)
 end
 
-function GearPolice:UpdatePlayerGearInfoWithGroupMembers()
-    local groupType, maxMembers
-    if IsInRaid() then
-        groupType = "raid"
-        maxMembers = 40
-    elseif IsInGroup() then
-        groupType = "party"
-        maxMembers = 4
-    else
+function GearPolice:ReconcileGroupRoster(snapshot)
+    if not snapshot or not snapshot.groupType then
+        self:ClearAllTrackedPlayers()
         return
     end
 
-    for i = 1, maxMembers do
-        local unitId = groupType .. i
+    local playerGearInfo = self.db.global.PlayerGearInfo
+    local removeGuids = {}
 
-        if UnitExists(unitId) then
-            GearPolice:ProcessGroupMember(unitId)
+    for playerGuid, playerInfo in pairs(playerGearInfo) do
+        if playerInfo.IsRosterTracked ~= false and not snapshot.presentGuids[playerGuid] then
+            table.insert(removeGuids, playerGuid)
         end
     end
+
+    for _, playerGuid in ipairs(removeGuids) do
+        self:RemovePlayerFromTracking(playerGuid)
+    end
+
+    self.currentRoster = snapshot
+
+    for _, playerGuid in ipairs(snapshot.orderedGuids) do
+        local unitId = snapshot.unitIdByGuid[playerGuid]
+        self:ProcessGroupMember(unitId, snapshot.sortIndexByGuid[playerGuid], snapshot.groupType)
+    end
+
+    self.UI:UpdateUI()
+    self:ProcessScanQueue()
 end
 
-function GearPolice:ProcessGroupMember(unitId)
+function GearPolice:UpdatePlayerGearInfoWithGroupMembers()
+    local snapshot = self:BuildGroupRosterSnapshot()
+    if not snapshot.groupType then
+        self:ClearAllTrackedPlayers()
+        return
+    end
+
+    self:ReconcileGroupRoster(snapshot)
+end
+
+function GearPolice:ProcessGroupMember(unitId, sortIndex, groupType)
     if not UnitExists(unitId) then return end
 
     local playerGuid = UnitGUID(unitId)
+    if not playerGuid then return end
+
     local playerName = UnitName(unitId)
-    local isNewPlayer = false
+    local playerInfo = self.db.global.PlayerGearInfo[playerGuid]
+
+    if playerInfo then
+        self:ApplyRosterMetadata(playerInfo, playerGuid, unitId, sortIndex, groupType)
+    end
 
     if not playerName or playerName == "Unknown" then
         self:ScheduleManagedTimer(function()
-            self:ProcessGroupMember(unitId)
+            local roster = self.currentRoster
+            local currentUnitId = roster and roster.unitIdByGuid and roster.unitIdByGuid[playerGuid]
+            if currentUnitId and UnitGUID(currentUnitId) == playerGuid then
+                self:ProcessGroupMember(
+                    currentUnitId,
+                    roster.sortIndexByGuid[playerGuid],
+                    roster.groupType
+                )
+            end
         end, 1, playerGuid)
         return
     end
 
-    if not self.db.global.PlayerGearInfo[playerGuid] then
+    local isNewPlayer = false
+    if not playerInfo then
         self:SetPlayerGuidToDefaultInPlayerGearInfo(playerGuid)
+        playerInfo = self.db.global.PlayerGearInfo[playerGuid]
         isNewPlayer = true
     end
 
-    local playerInfo = self.db.global.PlayerGearInfo[playerGuid]
+    if not playerInfo then
+        return
+    end
+
+    playerInfo.PlayerName = playerName
+    self:ApplyRosterMetadata(playerInfo, playerGuid, unitId, sortIndex, groupType)
 
     if isNewPlayer then
         self:AddToScanQueue(playerGuid, true, "group")
@@ -551,8 +783,6 @@ function GearPolice:ProcessGroupMember(unitId)
     elseif (time() - playerInfo.LastScanTime) > 86400 then
         self:AddToScanQueue(playerGuid, true, "group")
     end
-
-    self.UI:UpdateUI()
 end
 
 function GearPolice:ResetPlayerGearInfo(playerGuid, playerName)
@@ -580,6 +810,7 @@ function GearPolice:ResetPlayerGearInfo(playerGuid, playerName)
     playerInfo.pendingChecks = 0
     playerInfo.ForceScanRequested = true
     playerInfo.ScanGeneration = (playerInfo.ScanGeneration or 0) + 1
+    self:ApplyCurrentRosterMetadata(playerGuid, playerInfo)
 
     self:ClearScheduledWorkForPlayer(playerGuid)
 end
@@ -600,7 +831,8 @@ function GearPolice:SetPlayerGuidToDefaultInPlayerGearInfo(playerGuid)
         ["LastScanTime"] = 0,
         ["retryAttempts"] = 0,
         ["ForceScanRequested"] = true,
-        ["ScanGeneration"] = 0
+        ["ScanGeneration"] = 0,
+        ["IsRosterTracked"] = false
     }
 end
 
@@ -751,7 +983,6 @@ end
 
 function GearPolice:StartGearPolicingOfGroup()
     GearPolice:UpdatePlayerGearInfoWithGroupMembers()
-    GearPolice:ProcessScanQueue()
 end
 
 function GearPolice:StartGearPolicingOfTarget()
@@ -767,6 +998,7 @@ function GearPolice:StartGearPolicingOfTarget()
             return
         end
 
+        GearPolice:RefreshCurrentRosterSnapshot()
         GearPolice:ResetPlayerGearInfo(targetGuid, targetName)
         GearPolice:AddToScanQueue(targetGuid, true, "target", true)
         GearPolice.UI:UpdateUI()
@@ -832,7 +1064,6 @@ end
 
 function GearPolice:UpdateGroupMembers()
     GearPolice:UpdatePlayerGearInfoWithGroupMembers()
-    GearPolice:ProcessScanQueue()  -- Start scanning new/updated players
 end
 
 -- Slash command
