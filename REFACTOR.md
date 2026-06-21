@@ -20,7 +20,8 @@ stabilized.
 ## Progress
 
 - Complete: Phase 1, extract constants and slots.
-- Next: Phase 2, extract rule configuration from `Inspection:CheckUnit`.
+- Complete: Phase 2, extract rule configuration from `Inspection:CheckUnit`.
+- Next: Phase 3, extract timer service.
 
 ## Non-Goals
 

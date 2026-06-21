@@ -320,28 +320,36 @@ function Inspection:ResolveInventorySlotWithRetry(
     end, delay, playerInfo.PlayerGuid)
 end
 
-function Inspection:ApplySlotChecks(playerInfo, slotName, slotValue, slotID, checks, slotConfig, scanGeneration)
+function Inspection:ApplySlotChecks(playerInfo, slotName, slotValue, slotID, scanGeneration)
     if not self:IsCurrentScan(playerInfo, scanGeneration) or not self:IsStoredItemLink(slotValue) then
         return
     end
 
-    local slotChecks = slotConfig[slotName]
-    if not slotChecks then
+    local slotRuleIds = GearPolice.Rules.GetSlotRuleIdsForSlot(slotName)
+    if not slotRuleIds then
         return
     end
 
+    local ruleDefinitions = GearPolice.Rules.GetRuleDefinitions()
     local unitId = GearPolice.Helper:GetUnitIdOfPlayerGuid(playerInfo.PlayerGuid)
-    for _, checkKey in ipairs(slotChecks) do
-        local checkData = checks[checkKey]
-        if checkData then
-            local checkResult = checkData.func(slotValue, unitId, slotID)
+    local context = {
+        playerInfo = playerInfo,
+        slotName = slotName,
+        unitId = unitId,
+        slotID = slotID,
+    }
+
+    for _, ruleId in ipairs(slotRuleIds) do
+        local rule = ruleDefinitions[ruleId]
+        if rule then
+            local checkResult = rule.evaluate(slotValue, context)
             if self:IsItemMetadataPending(checkResult) then
                 self:MarkItemMetadataPending(playerInfo, slotName, slotValue, scanGeneration)
             elseif checkResult then
                 if not playerInfo.ProblematicItems[slotValue] then
                     playerInfo.ProblematicItems[slotValue] = {}
                 end
-                table.insert(playerInfo.ProblematicItems[slotValue], checkData.message)
+                table.insert(playerInfo.ProblematicItems[slotValue], rule.message)
             end
         end
     end
@@ -352,48 +360,6 @@ function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
     playerInfo.ProblematicItems = {}
     playerInfo.PendingItemMetadata = {}
     playerInfo.pendingChecks = 0
-
-    local checks = {
-        gems = {
-            func = function(itemLink) return self:IsItemMissingGems(itemLink) end,
-            message = "Missing Gem"
-        },
-        enchant = {
-            func = function(itemLink) return self:IsItemMissingEnchant(itemLink) end,
-            message = "Missing Enchant"
-        },
-        waistEnchant = {
-            func = function(itemLink) return self:IsWaistMissingExtraGemEnchant(itemLink) end,
-            message = "Missing Extra Waist Gem Enchant"
-        },
-        upgrade = {
-            func = function(itemLink, unitId, slotID) return self:IsItemMissingUpgrade(itemLink, unitId, slotID) end,
-            message = "Missing Upgrade"
-        },
-        ilevel = {
-            func = function(itemLink) return self:IsItemBelowItemLevel(itemLink) end,
-            message = "Low Item Level"
-        },
-    }
-
-    local slotConfig = {
-        HeadSlot          = { "gems",            "ilevel", "upgrade" }, -- Remove head enchant temporarily as there aren't any in the game yet as of MoP Phase 1.
-        NeckSlot          = { "gems",            "ilevel", "upgrade" },
-        ShoulderSlot      = { "gems", "enchant", "ilevel", "upgrade" },
-        BackSlot          = { "gems", "enchant", "ilevel", "upgrade" },
-        ChestSlot         = { "gems", "enchant", "ilevel", "upgrade" },
-        WristSlot         = { "gems", "enchant", "ilevel", "upgrade" },
-        HandsSlot         = { "gems", "enchant", "ilevel", "upgrade" },
-        WaistSlot         = { "gems",            "ilevel", "waistEnchant", "upgrade" },
-        LegsSlot          = { "gems", "enchant", "ilevel", "upgrade" },
-        FeetSlot          = { "gems", "enchant", "ilevel", "upgrade" },
-        Finger0Slot       = { "gems",            "ilevel", "upgrade" },
-        Finger1Slot       = { "gems",            "ilevel", "upgrade" },
-        MainHandSlot      = { "gems", "enchant", "ilevel", "upgrade" },
-        SecondaryHandSlot = { "gems", "enchant", "ilevel", "upgrade" },
-        Trinket0Slot      = { "gems",            "ilevel", "upgrade" },
-        Trinket1Slot      = { "gems",            "ilevel", "upgrade" },
-    }
 
     local totalSlots = 0
     local completedSlots = 0
@@ -413,7 +379,7 @@ function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
             return false
         end
 
-        self:ApplySlotChecks(playerInfo, slotName, slotValue, slotID, checks, slotConfig, scanGeneration)
+        self:ApplySlotChecks(playerInfo, slotName, slotValue, slotID, scanGeneration)
 
         completedSlots = completedSlots + 1
         playerInfo.pendingChecks = totalSlots - completedSlots
@@ -426,8 +392,8 @@ function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
     end
 
     local function ScheduleSlotResolution(slotName, onResolved)
-        local slotChecks = slotConfig[slotName]
-        if not slotChecks then
+        local slotRuleIds = GearPolice.Rules.GetSlotRuleIdsForSlot(slotName)
+        if not slotRuleIds then
             return false
         end
 
