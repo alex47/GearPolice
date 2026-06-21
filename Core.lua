@@ -130,17 +130,26 @@ function GearPolice:BuildGroupRosterSnapshot()
 
     local snapshot = self:CreateEmptyRosterSnapshot(groupType)
 
-    for i = 1, maxMembers do
-        local unitId = groupType .. i
-        if UnitExists(unitId) then
-            local playerGuid = UnitGUID(unitId)
-            if playerGuid and not snapshot.presentGuids[playerGuid] then
-                snapshot.presentGuids[playerGuid] = true
-                snapshot.unitIdByGuid[playerGuid] = unitId
-                snapshot.sortIndexByGuid[playerGuid] = i
-                table.insert(snapshot.orderedGuids, playerGuid)
-            end
+    local function AddUnitToSnapshot(unitId, sortIndex)
+        if not UnitExists(unitId) then
+            return
         end
+
+        local playerGuid = UnitGUID(unitId)
+        if playerGuid and not snapshot.presentGuids[playerGuid] then
+            snapshot.presentGuids[playerGuid] = true
+            snapshot.unitIdByGuid[playerGuid] = unitId
+            snapshot.sortIndexByGuid[playerGuid] = sortIndex
+            table.insert(snapshot.orderedGuids, playerGuid)
+        end
+    end
+
+    if groupType == "party" then
+        AddUnitToSnapshot("player", 0)
+    end
+
+    for i = 1, maxMembers do
+        AddUnitToSnapshot(groupType .. i, i)
     end
 
     return snapshot
@@ -623,6 +632,10 @@ function GearPolice:GetScanUnitId(playerGuid, reason)
     return self.Helper:GetUnitIdOfPlayerGuid(playerGuid)
 end
 
+function GearPolice:IsLocalPlayerGuid(playerGuid)
+    return playerGuid and UnitGUID("player") == playerGuid
+end
+
 function GearPolice:FinishScan(playerGuid, scanGeneration, status, options)
     if not self:IsCurrentScan(playerGuid, scanGeneration) then
         return false
@@ -863,6 +876,62 @@ function GearPolice:ScheduleInspectReadyTimeout(playerGuid, scanGeneration)
     end, self.inspectReadyTimeout, playerGuid)
 end
 
+function GearPolice:RunInspectionChecks(playerGuid, scanGeneration)
+    local playerInfo = GearPolice.db.global.PlayerGearInfo[playerGuid]
+    if not self:IsCurrentScan(playerGuid, scanGeneration) then
+        return
+    end
+
+    if not playerInfo or not playerInfo.CheckRequested then
+        self:FinishScan(playerGuid, scanGeneration, "Failed")
+        return
+    end
+
+    if playerInfo.ScanGeneration ~= scanGeneration then
+        return
+    end
+
+    if self.currentScan.inspectReadyReceived then
+        return
+    end
+
+    self.currentScan.inspectReadyReceived = true
+    playerInfo.CheckStatus = "InProgress"
+    playerInfo.EquippedItems = {}
+    GearPolice.UI:UpdateUI()
+
+    GearPolice.Inspection:CheckUnit(playerInfo, function(updatedPlayerInfo)
+        if not self:IsCurrentScan(playerGuid, scanGeneration)
+            or updatedPlayerInfo.ScanGeneration ~= scanGeneration then
+            return
+        end
+
+        local status
+        if GearPolice:HasPendingEquippedItems(updatedPlayerInfo)
+            or GearPolice:HasPendingItemMetadata(updatedPlayerInfo) then
+            status = "Partial"
+        else
+            status = "Successful"
+        end
+
+        local finished, finishedPlayerInfo, completedScan =
+            self:FinishScan(playerGuid, scanGeneration, status, {
+                updateLastScanTime = true,
+                debugMessage = "Scan completed for: " .. (updatedPlayerInfo.PlayerName or "Unknown"),
+            })
+
+        if finished and status == "Partial" and finishedPlayerInfo and completedScan then
+            self:ScheduleDelayedScanRetry(
+                playerGuid,
+                scanGeneration,
+                completedScan.reason,
+                "Partial",
+                60
+            )
+        end
+    end, scanGeneration)
+end
+
 function GearPolice:StartInspectionOfUnit(unitId, reason, scanGeneration)
     if not self.currentScan then
         return
@@ -908,6 +977,12 @@ function GearPolice:StartInspectionOfUnit(unitId, reason, scanGeneration)
     self.currentScan.reason = reason
     self.currentScan.inspectReadyReceived = false
     self.activeScanGuids[playerGuid] = true
+
+    if self:IsLocalPlayerGuid(playerGuid) then
+        self.UI:UpdatePlayerStatusIcon(playerGuid, "scanning")
+        self:RunInspectionChecks(playerGuid, scanGeneration)
+        return
+    end
 
     if CanInspect(unitId) then
         NotifyInspect(unitId)
@@ -1023,56 +1098,12 @@ end
 function GearPolice:OnInspectReady(eventName, playerGuid)
     if not playerGuid then return end
 
-    local playerInfo = GearPolice.db.global.PlayerGearInfo[playerGuid]
     if not self:IsCurrentScan(playerGuid) then
         return
     end
 
-    if not playerInfo or not playerInfo.CheckRequested then
-        self:FinishScan(playerGuid, self.currentScan.generation, "Failed")
-        return
-    end
-
     local scanGeneration = self.currentScan.generation
-    if playerInfo.ScanGeneration ~= scanGeneration then
-        return
-    end
-
-    self.currentScan.inspectReadyReceived = true
-    playerInfo.CheckStatus = "InProgress"
-    playerInfo.EquippedItems = {}
-    GearPolice.UI:UpdateUI()
-
-    GearPolice.Inspection:CheckUnit(playerInfo, function(updatedPlayerInfo)
-        if not self:IsCurrentScan(playerGuid, scanGeneration)
-            or updatedPlayerInfo.ScanGeneration ~= scanGeneration then
-            return
-        end
-
-        local status
-        if GearPolice:HasPendingEquippedItems(updatedPlayerInfo)
-            or GearPolice:HasPendingItemMetadata(updatedPlayerInfo) then
-            status = "Partial"
-        else
-            status = "Successful"
-        end
-
-        local finished, finishedPlayerInfo, completedScan =
-            self:FinishScan(playerGuid, scanGeneration, status, {
-                updateLastScanTime = true,
-                debugMessage = "Scan completed for: " .. (updatedPlayerInfo.PlayerName or "Unknown"),
-            })
-
-        if finished and status == "Partial" and finishedPlayerInfo and completedScan then
-            self:ScheduleDelayedScanRetry(
-                playerGuid,
-                scanGeneration,
-                completedScan.reason,
-                "Partial",
-                60
-            )
-        end
-    end, scanGeneration)
+    self:RunInspectionChecks(playerGuid, scanGeneration)
 end
 
 function GearPolice:UpdateGroupMembers()

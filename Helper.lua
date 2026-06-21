@@ -100,6 +100,10 @@ function Helper:CanConfirmEmptyInventorySlot(unitId, slotName, noEvidenceCount)
 end
 
 function Helper:GetUnitIdOfPlayerGuid(playerGuid)
+    if UnitGUID("player") == playerGuid then
+        return "player"
+    end
+
     if UnitGUID("target") == playerGuid then
         return "target"
     end

@@ -1,6 +1,15 @@
 GearPolice TODO
 ===============
 
+Medium priority
+---------------
+
+- Clear the tracked list when transitioning from solo to grouped.
+  When GROUP_ROSTER_UPDATE shows the local player went from not grouped to
+  party or raid, clear existing PlayerGearInfo and any queued or active scan
+  work before tracking the new roster, so solo/target data cannot remain
+  visible in the new group scan.
+
 Cleanup
 -------
 
