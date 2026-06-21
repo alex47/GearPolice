@@ -45,6 +45,7 @@ function PlayerStore:SetDefault(playerGuid)
         ["PlayerGuid"] = playerGuid,
         ["CheckRequested"] = true,
         ["CheckStatus"] = "InProgress",
+        ["Problems"] = {},
         ["ProblematicItems"] = {},
         ["PendingItemMetadata"] = {},
         ["LastScanTime"] = 0,
@@ -71,6 +72,7 @@ function PlayerStore:ResetForScan(playerGuid, playerName)
     playerInfo.PlayerGuid = playerGuid
     playerInfo.CheckRequested = true
     playerInfo.CheckStatus = "InProgress"
+    playerInfo.Problems = {}
     playerInfo.ProblematicItems = {}
     playerInfo.EquippedItems = {}
     playerInfo.PendingItemMetadata = {}

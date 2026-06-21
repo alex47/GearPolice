@@ -100,6 +100,12 @@ local function RenderItemSlot(ui, itemIconsContainer, slot)
     itemIcon:SetCallback("OnEnter", function(widget)
         GameTooltip:SetOwner(widget.frame, "ANCHOR_TOP")
         GameTooltip:SetHyperlink(slot.itemLink)
+        if type(slot.problems) == "table" and #slot.problems > 0 then
+            GameTooltip:AddLine(" ")
+            for _, problem in ipairs(slot.problems) do
+                GameTooltip:AddLine(problem.message, 1, 0.25, 0.25, true)
+            end
+        end
         GameTooltip:Show()
     end)
     itemIcon:SetCallback("OnLeave", function()

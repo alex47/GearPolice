@@ -45,3 +45,27 @@ function Inspection:MarkItemMetadataPending(playerInfo, slotName, itemLink, scan
     playerInfo.PendingItemMetadata[slotName] = itemLink or true
     return true
 end
+
+function Inspection:RecordProblem(playerInfo, slotName, itemLink, ruleId, message, scanGeneration)
+    if not self:IsCurrentScan(playerInfo, scanGeneration) then
+        return false
+    end
+
+    if type(playerInfo) ~= "table" or type(itemLink) ~= "string" or type(message) ~= "string" then
+        return false
+    end
+
+    playerInfo.Problems = playerInfo.Problems or {}
+    table.insert(playerInfo.Problems, {
+        slotName = slotName,
+        itemLink = itemLink,
+        ruleId = ruleId,
+        message = message,
+    })
+
+    playerInfo.ProblematicItems = playerInfo.ProblematicItems or {}
+    playerInfo.ProblematicItems[itemLink] = playerInfo.ProblematicItems[itemLink] or {}
+    table.insert(playerInfo.ProblematicItems[itemLink], message)
+
+    return true
+end

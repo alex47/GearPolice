@@ -28,10 +28,7 @@ function Inspection:ApplySlotChecks(playerInfo, slotName, slotValue, slotID, sca
             if self:IsItemMetadataPending(checkResult) then
                 self:MarkItemMetadataPending(playerInfo, slotName, slotValue, scanGeneration)
             elseif checkResult then
-                if not playerInfo.ProblematicItems[slotValue] then
-                    playerInfo.ProblematicItems[slotValue] = {}
-                end
-                table.insert(playerInfo.ProblematicItems[slotValue], rule.message)
+                self:RecordProblem(playerInfo, slotName, slotValue, ruleId, rule.message, scanGeneration)
             end
         end
     end
@@ -39,6 +36,7 @@ end
 
 function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
     playerInfo.ProblematicItems = {}
+    playerInfo.Problems = {}
     playerInfo.PendingItemMetadata = {}
     playerInfo.pendingChecks = 0
 

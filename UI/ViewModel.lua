@@ -6,7 +6,70 @@ UI.ViewModel = UI.ViewModel or {}
 
 local ViewModel = UI.ViewModel
 
-function ViewModel.BuildSlot(playerInfo, slotName)
+local function AddProblem(problemLookup, slotName, itemLink, ruleId, message)
+    if type(message) ~= "string" or message == "" then
+        return
+    end
+
+    local problem = {
+        slotName = slotName,
+        itemLink = itemLink,
+        ruleId = ruleId,
+        message = message,
+    }
+
+    if slotName then
+        problemLookup.bySlot[slotName] = problemLookup.bySlot[slotName] or {}
+        table.insert(problemLookup.bySlot[slotName], problem)
+    end
+
+    if type(itemLink) == "string" then
+        problemLookup.byItemLink[itemLink] = problemLookup.byItemLink[itemLink] or {}
+        table.insert(problemLookup.byItemLink[itemLink], problem)
+    end
+
+    problemLookup.hasProblems = true
+end
+
+function ViewModel.BuildProblemLookup(playerInfo)
+    local problemLookup = {
+        bySlot = {},
+        byItemLink = {},
+        hasProblems = false,
+    }
+
+    if type(playerInfo.Problems) == "table" and #playerInfo.Problems > 0 then
+        for _, problem in ipairs(playerInfo.Problems) do
+            if type(problem) == "table" then
+                AddProblem(
+                    problemLookup,
+                    problem.slotName,
+                    problem.itemLink,
+                    problem.ruleId,
+                    problem.message
+                )
+            end
+        end
+
+        return problemLookup
+    end
+
+    if type(playerInfo.ProblematicItems) == "table" then
+        for itemLink, problems in pairs(playerInfo.ProblematicItems) do
+            if type(problems) == "table" then
+                for _, message in ipairs(problems) do
+                    AddProblem(problemLookup, nil, itemLink, nil, message)
+                end
+            elseif type(problems) == "string" then
+                AddProblem(problemLookup, nil, itemLink, nil, problems)
+            end
+        end
+    end
+
+    return problemLookup
+end
+
+function ViewModel.BuildSlot(playerInfo, slotName, problemLookup)
     local slotValue = playerInfo.EquippedItems and playerInfo.EquippedItems[slotName]
 
     if slotValue == GearPolice.InventorySlotEmpty then
@@ -18,12 +81,15 @@ function ViewModel.BuildSlot(playerInfo, slotName)
 
     if slotValue and slotValue ~= GearPolice.InventorySlotPending then
         local _, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(slotValue)
+        local problems = problemLookup.bySlot[slotName] or problemLookup.byItemLink[slotValue] or {}
+
         return {
             slotName = slotName,
             state = "item",
             itemLink = slotValue,
             texture = itemTexture or UI.QuestionMarkIcon,
-            isProblematic = playerInfo.ProblematicItems and playerInfo.ProblematicItems[slotValue],
+            problems = problems,
+            isProblematic = #problems > 0,
         }
     end
 
@@ -36,8 +102,10 @@ end
 
 function ViewModel.BuildRow(playerGuid, playerInfo, slotOrder)
     local slots = {}
+    local problemLookup = ViewModel.BuildProblemLookup(playerInfo)
+
     for _, slotName in ipairs(slotOrder) do
-        table.insert(slots, ViewModel.BuildSlot(playerInfo, slotName))
+        table.insert(slots, ViewModel.BuildSlot(playerInfo, slotName, problemLookup))
     end
 
     return {
@@ -46,7 +114,7 @@ function ViewModel.BuildRow(playerGuid, playerInfo, slotOrder)
         playerName = playerInfo.PlayerName or "Unknown Player",
         checkStatus = playerInfo.CheckStatus,
         statusTexture = UI:GetCheckStatusTexture(playerInfo.CheckStatus),
-        hasProblems = playerInfo.ProblematicItems and next(playerInfo.ProblematicItems) ~= nil,
+        hasProblems = problemLookup.hasProblems,
         slots = slots,
     }
 end

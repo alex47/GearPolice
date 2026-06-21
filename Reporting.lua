@@ -3,33 +3,62 @@ local GearPolice = GearPolice
 GearPolice.Reporting = GearPolice.Reporting or {}
 local Reporting = GearPolice.Reporting
 
+local function AddReportableProblem(reportableItems, reportableItemsByKey, itemLink, slotName, message)
+    if type(itemLink) ~= "string" or itemLink == "" or type(message) ~= "string" or message == "" then
+        return
+    end
+
+    local key = tostring(slotName or "") .. "\001" .. itemLink
+    local reportableItem = reportableItemsByKey[key]
+    if not reportableItem then
+        reportableItem = {
+            itemLink = itemLink,
+            slotName = slotName,
+            problems = {},
+        }
+        reportableItemsByKey[key] = reportableItem
+        table.insert(reportableItems, reportableItem)
+    end
+
+    table.insert(reportableItem.problems, message)
+end
 
 function Reporting:GetReportableProblematicItems(playerInfo)
     local reportableItems = {}
+    local reportableItemsByKey = {}
 
-    if type(playerInfo) ~= "table" or type(playerInfo.ProblematicItems) ~= "table" then
+    if type(playerInfo) ~= "table" then
+        return reportableItems
+    end
+
+    if type(playerInfo.Problems) == "table" and #playerInfo.Problems > 0 then
+        for _, problem in ipairs(playerInfo.Problems) do
+            if type(problem) == "table" then
+                AddReportableProblem(
+                    reportableItems,
+                    reportableItemsByKey,
+                    problem.itemLink,
+                    problem.slotName,
+                    problem.message
+                )
+            end
+        end
+
+        return reportableItems
+    end
+
+    if type(playerInfo.ProblematicItems) ~= "table" then
         return reportableItems
     end
 
     for itemLink, problems in pairs(playerInfo.ProblematicItems) do
         if type(itemLink) == "string" then
-            local reportableProblems = {}
-
             if type(problems) == "table" then
                 for _, problem in ipairs(problems) do
-                    if type(problem) == "string" and problem ~= "" then
-                        table.insert(reportableProblems, problem)
-                    end
+                    AddReportableProblem(reportableItems, reportableItemsByKey, itemLink, nil, problem)
                 end
             elseif type(problems) == "string" and problems ~= "" then
-                table.insert(reportableProblems, problems)
-            end
-
-            if #reportableProblems > 0 then
-                table.insert(reportableItems, {
-                    itemLink = itemLink,
-                    problems = reportableProblems,
-                })
+                AddReportableProblem(reportableItems, reportableItemsByKey, itemLink, nil, problems)
             end
         end
     end

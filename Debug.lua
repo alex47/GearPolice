@@ -36,9 +36,9 @@ function Debug:PrintInspectionSummary(playerGuid)
     end
 
     local playerName = playerInfo.PlayerName or "Unknown Player"
-    local problems = playerInfo.ProblematicItems
+    local reportableItems = GearPolice.Reporting:GetReportableProblematicItems(playerInfo)
 
-    if not problems or not next(problems) then
+    if #reportableItems == 0 then
         GearPolice:Print(playerName .. ": no gear issues recorded.")
         return
     end
@@ -46,8 +46,12 @@ function Debug:PrintInspectionSummary(playerGuid)
     GearPolice:Print("-------------------------")
     GearPolice:Print(playerName)
 
-    for itemLink, issueList in pairs(problems) do
-        local issues = table.concat(issueList, ", ")
-        GearPolice:Print(itemLink .. " => " .. issues)
+    for _, item in ipairs(reportableItems) do
+        local issues = table.concat(item.problems, ", ")
+        if item.slotName then
+            GearPolice:Print(item.slotName .. " " .. item.itemLink .. " => " .. issues)
+        else
+            GearPolice:Print(item.itemLink .. " => " .. issues)
+        end
     end
 end

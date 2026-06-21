@@ -28,7 +28,8 @@ stabilized.
 - Complete: Phase 7, extract scan session.
 - Complete: Phase 8, split inspection modules.
 - Complete: Phase 9, split UI modules.
-- Next: Phase 10, normalize problem records.
+- Complete: Phase 10, normalize problem records.
+- Next: final refactor audit.
 
 ## Non-Goals
 
