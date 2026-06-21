@@ -18,7 +18,7 @@ function Roster.ResetSnapshot(addon)
     addon.currentRoster = Roster.CreateEmptySnapshot(nil)
 end
 
-function Roster.BuildSnapshot(addon)
+function Roster.BuildSnapshot(_addon)
     local groupType, maxMembers
     if IsInRaid() then
         groupType = "raid"

@@ -102,8 +102,9 @@ local function RenderItemSlot(ui, itemIconsContainer, slot)
         GameTooltip:SetHyperlink(slot.itemLink)
         if type(slot.problems) == "table" and #slot.problems > 0 then
             GameTooltip:AddLine(" ")
+            GameTooltip:AddLine("GearPolice:", 1, 0.82, 0, true)
             for _, problem in ipairs(slot.problems) do
-                GameTooltip:AddLine(problem.message, 1, 0.25, 0.25, true)
+                GameTooltip:AddLine(" - " .. problem.message, 1, 0.25, 0.25, true)
             end
         end
         GameTooltip:Show()

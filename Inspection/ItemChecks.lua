@@ -130,7 +130,7 @@ function Inspection:IsWaistMissingExtraGemEnchant(itemLink)
     return false
 end
 
-function Inspection:IsItemMissingUpgrade(itemLink, unitId, slotID)
+function Inspection:IsItemMissingUpgrade(_itemLink, _unitId, _slotID)
     -- Short-circuit upgrade checks; treat every item as fully upgraded.
     return false
 end

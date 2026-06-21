@@ -59,7 +59,7 @@ function ScanSession.GetUnitId(addon, playerGuid, reason)
     return addon.Helper:GetUnitIdOfPlayerGuid(playerGuid)
 end
 
-function ScanSession.IsLocalPlayer(addon, playerGuid)
+function ScanSession.IsLocalPlayer(_addon, playerGuid)
     return playerGuid and UnitGUID("player") == playerGuid
 end
 
@@ -341,7 +341,7 @@ function ScanSession.RetryInspection(addon, playerGuid, attempt, scanGeneration)
     end, addon.scanInterval * attempt, playerGuid)
 end
 
-function ScanSession.OnInspectReady(addon, eventName, playerGuid)
+function ScanSession.OnInspectReady(addon, _eventName, playerGuid)
     if not playerGuid then return end
 
     if not addon:IsCurrentScan(playerGuid) then

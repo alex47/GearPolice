@@ -61,7 +61,7 @@ end
 
 -- Slash command
 
-function GearPolice:HandleSlashCommands(msg, editbox)
+function GearPolice:HandleSlashCommands(msg, _editbox)
     if (msg == "target") then
         GearPolice:StartGearPolicingOfTarget()
     elseif (msg == "showui") then
