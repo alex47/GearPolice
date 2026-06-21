@@ -7,9 +7,3 @@ Low priority
 - Show problematic item details in the UI.
   Make it visible in the UI which equipped items are problematic and why, for
   example missing gem, missing enchant, low item level, or missing upgrade.
-
-Cleanup
--------
-
-- Decide whether Shared.lua should contain shared code or be removed from the
-  load list.
