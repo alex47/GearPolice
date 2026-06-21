@@ -4,6 +4,23 @@ GearPolice TODO
 Medium priority
 ---------------
 
+- Remove players from the list when they leave the group.
+  GROUP_ROSTER_UPDATE should drop players no longer present, cancel any queued
+  or active scan work for those GUIDs, and refresh the UI so stale players do
+  not remain visible or continue retrying in the background.
+
+- Clear the addon state when the player leaves the group.
+  When GROUP_ROSTER_UPDATE shows the local player is no longer in a party or
+  raid, stop all queued/active scan work and clear PlayerGearInfo so the UI list
+  resets instead of keeping the previous group's data.
+
+- Reflect raid/party position changes in the addon list.
+  Inspection already resolves unit IDs dynamically by GUID, so this is mainly
+  a roster/UI ordering issue. On GROUP_ROSTER_UPDATE, store each present
+  player's current unit token and sort index, validate cached unit tokens
+  against GUID before using them, and render the UI from that ordered roster
+  instead of unordered PlayerGearInfo pairs.
+
 - Treat missing item metadata as pending instead of successful.
   GetDetailedItemLevelInfo, GetItemStats, and GetItemInfo can return nil while
   item data is not cached. The current checks often return false in that case,
