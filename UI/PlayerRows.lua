@@ -57,15 +57,27 @@ local function CreatePlayerRow(scrollContainer)
     statusIcon:SetImage("Interface\\COMMON\\Indicator-Yellow")
     playerContainer:AddChild(statusIcon)
 
+    local statusLabel = AceGUI:Create("Label")
+    statusLabel:SetWidth(UI.PlayerStatusTextWidth)
+    statusLabel:SetHeight(UI.PlayerContainerElementSize)
+    statusLabel:SetJustifyV("MIDDLE")
+    playerContainer:AddChild(statusLabel)
+
     local playerNameLabel = AceGUI:Create("Label")
-    playerNameLabel:SetWidth(100)
+    playerNameLabel:SetWidth(UI.PlayerNameWidth)
     playerNameLabel:SetHeight(UI.PlayerContainerElementSize)
     playerNameLabel:SetJustifyV("MIDDLE")
     playerContainer:AddChild(playerNameLabel)
 
+    local issueSummaryLabel = AceGUI:Create("Label")
+    issueSummaryLabel:SetWidth(UI.PlayerIssueSummaryWidth)
+    issueSummaryLabel:SetHeight(UI.PlayerContainerElementSize)
+    issueSummaryLabel:SetJustifyV("MIDDLE")
+    playerContainer:AddChild(issueSummaryLabel)
+
     local itemIconsContainer = AceGUI:Create("SimpleGroup")
     itemIconsContainer:SetLayout("Flow")
-    itemIconsContainer:SetWidth(500)
+    itemIconsContainer:SetWidth(UI.ItemIconsContainerWidth)
     itemIconsContainer:SetHeight(UI.PlayerContainerElementSize)
     playerContainer:AddChild(itemIconsContainer)
 
@@ -75,17 +87,21 @@ local function CreatePlayerRow(scrollContainer)
         playerContainer = playerContainer,
         reportButton = reportButton,
         statusIcon = statusIcon,
+        statusLabel = statusLabel,
         playerNameLabel = playerNameLabel,
+        issueSummaryLabel = issueSummaryLabel,
         itemIconsContainer = itemIconsContainer,
     }
 end
 
-local function RenderEmptySlot(ui, itemIconsContainer)
+local function RenderEmptySlot(ui, itemIconsContainer, slot)
     local emptyIcon = ui:CreateEquipmentSlotIcon()
     emptyIcon:SetImage(nil)
+    emptyIcon:SetVisualState("empty")
     emptyIcon:SetCallback("OnEnter", function(widget)
         GameTooltip:SetOwner(widget.frame, "ANCHOR_TOP")
-        GameTooltip:SetText("Empty slot", 1, 1, 1)
+        GameTooltip:SetText(slot.slotLabel or "Empty Slot", 1, 1, 1)
+        GameTooltip:AddLine("Empty slot", 0.7, 0.7, 0.7, true)
         GameTooltip:Show()
     end)
     emptyIcon:SetCallback("OnLeave", function()
@@ -112,16 +128,18 @@ local function RenderItemSlot(ui, itemIconsContainer, slot)
     itemIcon:SetCallback("OnLeave", function()
         GameTooltip:Hide()
     end)
-    itemIcon:SetProblematic(slot.isProblematic)
+    itemIcon:SetVisualState(slot.isProblematic and "problem" or "ok")
     itemIconsContainer:AddChild(itemIcon)
 end
 
 local function RenderPendingSlot(ui, itemIconsContainer, slot)
     local placeholderIcon = ui:CreateEquipmentSlotIcon()
     placeholderIcon:SetImage(slot.texture)
+    placeholderIcon:SetVisualState("pending")
     placeholderIcon:SetCallback("OnEnter", function(widget)
         GameTooltip:SetOwner(widget.frame, "ANCHOR_TOP")
-        GameTooltip:SetText("Scanning...", 1, 1, 1)
+        GameTooltip:SetText(slot.slotLabel or "Equipment Slot", 1, 1, 1)
+        GameTooltip:AddLine("Scanning...", 1, 0.82, 0, true)
         GameTooltip:Show()
     end)
     placeholderIcon:SetCallback("OnLeave", function()
@@ -132,7 +150,7 @@ end
 
 local function RenderSlot(ui, itemIconsContainer, slot)
     if slot.state == "empty" then
-        RenderEmptySlot(ui, itemIconsContainer)
+        RenderEmptySlot(ui, itemIconsContainer, slot)
     elseif slot.state == "item" then
         RenderItemSlot(ui, itemIconsContainer, slot)
     else
@@ -147,6 +165,8 @@ local function UpdatePlayerRow(ui, playerUI, row)
 
     GearPolice.Debug:Message("playerInfo.CheckStatus: " .. (row.checkStatus or "nil"))
     playerUI.statusIcon:SetImage(row.statusTexture)
+    playerUI.statusLabel:SetText(row.statusText or "")
+    playerUI.issueSummaryLabel:SetText(row.issueSummary or "")
 
     if row.hasProblems then
         playerUI.playerNameLabel:SetText("|cffFF0000" .. row.playerName .. "|r")
@@ -189,7 +209,11 @@ function UI:UpdateUI()
         return
     end
 
-    local rows = self.ViewModel.BuildRows()
+    local rows, summary = self.ViewModel.BuildRows(self.FilterMode or "all")
+    if self.uiFrame.summaryLabel and summary then
+        self.uiFrame.summaryLabel:SetText(summary.text or "")
+    end
+
     self.PlayerRows.Render(self, self.uiFrame.scrollContainer, rows)
     self.uiFrame:DoLayout()
 end

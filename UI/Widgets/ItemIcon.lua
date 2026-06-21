@@ -3,7 +3,50 @@ local GearPolice = GearPolice
 
 local UI = GearPolice.UI
 
-local ItemIconWidgetVersion = 1
+local ItemIconWidgetVersion = 2
+
+local function ApplyTextureColor(texture, color)
+    if color then
+        texture:SetVertexColor(color[1], color[2], color[3], color[4])
+    else
+        texture:SetVertexColor(1, 1, 1, 1)
+    end
+end
+
+local function ApplyFrameBackdrop(frame, stateConfig)
+    if not frame.SetBackdrop then
+        return
+    end
+
+    frame:SetBackdrop(nil)
+
+    if not stateConfig or (not stateConfig.borderColor and not stateConfig.backgroundColor) then
+        return
+    end
+
+    frame:SetBackdrop({
+        bgFile = stateConfig.backgroundColor and "Interface\\Buttons\\WHITE8X8" or nil,
+        edgeFile = stateConfig.borderColor and "Interface\\Tooltips\\UI-Tooltip-Border" or nil,
+        tile = false,
+        edgeSize = 12,
+        insets = {
+            left = 2,
+            right = 2,
+            top = 2,
+            bottom = 2,
+        },
+    })
+
+    if stateConfig.borderColor and frame.SetBackdropBorderColor then
+        local color = stateConfig.borderColor
+        frame:SetBackdropBorderColor(color[1], color[2], color[3], color[4])
+    end
+
+    if stateConfig.backgroundColor and frame.SetBackdropColor then
+        local color = stateConfig.backgroundColor
+        frame:SetBackdropColor(color[1], color[2], color[3], color[4])
+    end
+end
 
 local function ItemIcon_OnEnter(frame)
     frame.obj:Fire("OnEnter")
@@ -23,13 +66,12 @@ local itemIconMethods = {
         self:SetHeight(UI.PlayerContainerElementSize)
         self:SetImage(nil)
         self:SetImageSize(UI.IconSize, UI.IconSize)
-        self:SetProblematic(false)
-        self.image:SetVertexColor(1, 1, 1, 1)
+        self:SetVisualState("ok")
         self.frame:Enable()
     end,
 
     OnRelease = function(self)
-        self:SetProblematic(false)
+        self:SetVisualState("ok")
         self:SetImage(nil)
     end,
 
@@ -51,24 +93,15 @@ local itemIconMethods = {
         self.image:SetHeight(height)
     end,
 
+    SetVisualState = function(self, state)
+        self.visualState = state or "ok"
+        local stateConfig = UI.ItemIconVisualStates[self.visualState] or UI.ItemIconVisualStates.ok
+        ApplyFrameBackdrop(self.frame, stateConfig)
+        ApplyTextureColor(self.image, stateConfig and stateConfig.imageColor)
+    end,
+
     SetProblematic = function(self, isProblematic)
-        if not self.frame.SetBackdrop then
-            return
-        end
-
-        self.frame:SetBackdrop(nil)
-
-        if isProblematic then
-            self.frame:SetBackdrop({
-                bgFile = nil,
-                edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-                tile = false,
-                edgeSize = 16,
-            })
-            if self.frame.SetBackdropBorderColor then
-                self.frame:SetBackdropBorderColor(1, 0, 0, 1)
-            end
-        end
+        self:SetVisualState(isProblematic and "problem" or "ok")
     end,
 }
 
@@ -110,7 +143,7 @@ function UI:CreateEquipmentSlotIcon()
     icon:SetImageSize(self.IconSize, self.IconSize)
     icon:SetWidth(self.PlayerContainerElementSize)
     icon:SetHeight(self.PlayerContainerElementSize)
-    icon:SetProblematic(false)
+    icon:SetVisualState("ok")
 
     return icon
 end

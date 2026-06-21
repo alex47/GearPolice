@@ -20,11 +20,21 @@ function UI:ShowUI()
         self.playerOrder = nil
     end)
     self.uiFrame:SetLayout("Flow")
-    self.uiFrame:SetWidth(800)
-    self.uiFrame:SetHeight(480)
+    self.uiFrame:SetWidth(900)
+    self.uiFrame:SetHeight(520)
 
     self.playerUIElements = {}
     self.playerOrder = {}
+
+    local toolbar = AceGUI:Create("SimpleGroup")
+    toolbar:SetFullWidth(true)
+    toolbar:SetLayout("Flow")
+    self.uiFrame:AddChild(toolbar)
+
+    local scanActions = AceGUI:Create("SimpleGroup")
+    scanActions:SetWidth(UI.ToolbarActionsWidth)
+    scanActions:SetLayout("Flow")
+    toolbar:AddChild(scanActions)
 
     local clearButton = AceGUI:Create("Button")
     clearButton:SetText("Clear")
@@ -33,7 +43,7 @@ function UI:ShowUI()
     clearButton:SetCallback("OnClick", function()
         GearPolice:ClearAllTrackedPlayers()
     end)
-    self.uiFrame:AddChild(clearButton)
+    scanActions:AddChild(clearButton)
 
     local refreshButton = AceGUI:Create("Button")
     refreshButton:SetText("Refresh")
@@ -43,7 +53,7 @@ function UI:ShowUI()
         GearPolice:ClearAllTrackedPlayers()
         GearPolice:StartGearPolicingOfGroup()
     end)
-    self.uiFrame:AddChild(refreshButton)
+    scanActions:AddChild(refreshButton)
 
     local targetButton = AceGUI:Create("Button")
     targetButton:SetText("Target")
@@ -52,7 +62,7 @@ function UI:ShowUI()
     targetButton:SetCallback("OnClick", function()
         GearPolice:StartGearPolicingOfTarget()
     end)
-    self.uiFrame:AddChild(targetButton)
+    scanActions:AddChild(targetButton)
 
     local reportModeDropdown = AceGUI:Create("Dropdown")
     reportModeDropdown:SetLabel("Report Mode")
@@ -70,7 +80,35 @@ function UI:ShowUI()
     reportModeDropdown:SetCallback("OnValueChanged", function(_widget, _event, value)
         GearPolice.db.global.ReportMode = value
     end)
-    self.uiFrame:AddChild(reportModeDropdown)
+    toolbar:AddChild(reportModeDropdown)
+
+    local filterDropdown = AceGUI:Create("Dropdown")
+    filterDropdown:SetLabel("Filter")
+    filterDropdown:SetWidth(150)
+    filterDropdown:SetList({
+        all = "All",
+        problems = "Problems",
+        scanning = "Scanning",
+        failed_partial = "Failed/Partial",
+    }, {
+        "all",
+        "problems",
+        "scanning",
+        "failed_partial",
+    })
+    filterDropdown:SetValue(self.FilterMode or "all")
+    filterDropdown:SetCallback("OnValueChanged", function(_widget, _event, value)
+        self.FilterMode = value or "all"
+        self:UpdateUI()
+    end)
+    toolbar:AddChild(filterDropdown)
+
+    local summaryLabel = AceGUI:Create("Label")
+    summaryLabel:SetWidth(UI.SummaryTextWidth)
+    summaryLabel:SetHeight(UI.PlayerContainerElementSize)
+    summaryLabel:SetJustifyV("MIDDLE")
+    toolbar:AddChild(summaryLabel)
+    self.uiFrame.summaryLabel = summaryLabel
 
     self.uiFrame.scrollWrapper = AceGUI:Create("SimpleGroup")
     self.uiFrame.scrollWrapper:SetFullWidth(true)
