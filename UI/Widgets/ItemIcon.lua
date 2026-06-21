@@ -4,6 +4,7 @@ local GearPolice = GearPolice
 local UI = GearPolice.UI
 
 local ItemStripWidgetVersion = 1
+local CenteredIconWidgetVersion = 1
 
 local function ApplyTextureColor(texture, color)
     if color then
@@ -103,6 +104,11 @@ end
 
 local function SlotButton_OnLeave()
     GameTooltip:Hide()
+end
+
+local function CenteredIcon_OnClick(frame, button)
+    frame.obj:Fire("OnClick", button)
+    AceGUI:ClearFocus()
 end
 
 local function CreateSlotButton(widget, index)
@@ -230,4 +236,88 @@ function UI:CreateEquipmentIconStrip()
     strip:SetWidth(self:GetEquipmentIconStripWidth(#GearPolice.Helper:GetInventorySlotNames()))
 
     return strip
+end
+
+local centeredIconMethods = {
+    OnAcquire = function(self)
+        self:SetWidth(UI.PlayerContainerElementSize)
+        self:SetHeight(UI.PlayerContainerElementSize)
+        self:SetImage(nil)
+        self.frame:EnableMouse(true)
+        self:SetInteractive(true)
+    end,
+
+    OnRelease = function(self)
+        self:SetImage(nil)
+        self.frame:EnableMouse(true)
+        self:SetInteractive(true)
+    end,
+
+    SetImage = function(self, texture)
+        self.image:SetTexture(texture)
+
+        if self.image:GetTexture() then
+            self.image:SetTexCoord(0, 1, 0, 1)
+        end
+    end,
+
+    SetImageSize = function(self, width, height)
+        self.image:SetWidth(width)
+        self.image:SetHeight(height)
+    end,
+
+    SetInteractive = function(self, interactive)
+        self.interactive = interactive and true or false
+        self.frame:EnableMouse(self.interactive)
+
+        if self.highlight then
+            if self.interactive then
+                self.highlight:SetTexture(136580)
+            else
+                self.highlight:SetTexture(nil)
+            end
+        end
+    end,
+}
+
+local function CreateCenteredIconWidget()
+    local frame = CreateFrame("Button", nil, UIParent)
+    frame:Hide()
+    frame:EnableMouse(true)
+    frame:SetScript("OnClick", CenteredIcon_OnClick)
+
+    local image = frame:CreateTexture(nil, "BACKGROUND")
+    image:SetPoint("CENTER")
+    image:SetWidth(UI.IconSize)
+    image:SetHeight(UI.IconSize)
+
+    local highlight = frame:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints(image)
+    highlight:SetTexture(136580)
+    highlight:SetTexCoord(0, 1, 0.23, 0.77)
+    highlight:SetBlendMode("ADD")
+
+    local widget = {
+        frame = frame,
+        image = image,
+        highlight = highlight,
+        type = UI.CenteredIconWidgetType,
+    }
+
+    for methodName, method in pairs(centeredIconMethods) do
+        widget[methodName] = method
+    end
+
+    return AceGUI:RegisterAsWidget(widget)
+end
+
+AceGUI:RegisterWidgetType(UI.CenteredIconWidgetType, CreateCenteredIconWidget, CenteredIconWidgetVersion)
+
+function UI:CreateCenteredRowIcon()
+    local icon = AceGUI:Create(self.CenteredIconWidgetType)
+    icon:SetWidth(self.PlayerContainerElementSize)
+    icon:SetHeight(self.PlayerContainerElementSize)
+    icon:SetImageSize(self.RowActionIconSize, self.RowActionIconSize)
+
+    return icon
 end

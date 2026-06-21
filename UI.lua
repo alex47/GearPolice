@@ -5,6 +5,7 @@ GearPolice.UI = GearPolice.UI or {}
 local UI = GearPolice.UI
 
 UI.IconSize = 20
+UI.RowActionIconSize = 16
 UI.PlayerContainerElementSize = 24
 UI.PlayerNameWidth = 110
 UI.PlayerStatusTextWidth = 72
@@ -18,6 +19,7 @@ UI.MainWindowHeight = 520
 UI.MinimumWindowWidth = 820
 UI.MinimumWindowHeight = 320
 UI.ItemStripWidgetType = "GearPoliceItemStrip"
+UI.CenteredIconWidgetType = "GearPoliceCenteredIcon"
 UI.QuestionMarkIcon = "Interface\\Icons\\INV_Misc_QuestionMark"
 UI.FilterMode = "all"
 
