@@ -1,14 +1,6 @@
 GearPolice TODO
 ===============
 
-Medium priority
----------------
-
-- Treat missing item metadata as pending instead of successful.
-  GetDetailedItemLevelInfo, GetItemStats, and GetItemInfo can return nil while
-  item data is not cached. The current checks often return false in that case,
-  allowing a scan to pass without actually evaluating the item.
-
 Low priority
 ------------
 

@@ -92,19 +92,46 @@ function Inspection:CanConfirmEmptyInventorySlot(playerInfo, unitId, slotName, n
     return capturedEvidenceCount >= GearPolice.InventorySnapshotEvidenceMinimum
 end
 
+function Inspection:IsItemMetadataPending(checkResult)
+    return checkResult == GearPolice.ItemMetadataPending
+end
+
+function Inspection:MarkItemMetadataPending(playerInfo, slotName, itemLink, scanGeneration)
+    if not self:IsCurrentScan(playerInfo, scanGeneration) then
+        return false
+    end
+
+    playerInfo.PendingItemMetadata = playerInfo.PendingItemMetadata or {}
+    playerInfo.PendingItemMetadata[slotName] = itemLink or true
+    return true
+end
+
+function Inspection:IsItemInfoAvailable(itemLink)
+    if not itemLink then
+        return false
+    end
+
+    local itemName = GetItemInfo(itemLink)
+    return itemName ~= nil
+end
+
 
 function Inspection:IsItemMissingGems(itemLink)
-    if not itemLink then 
-        return false 
+    if not itemLink then
+        return false
     end
 
     local tempTable = {}
 
     local itemStats = GetItemStats(itemLink, tempTable)
 
-    if not itemStats then 
-        return false 
-    end 
+    if not itemStats then
+        if not self:IsItemInfoAvailable(itemLink) then
+            return GearPolice.ItemMetadataPending
+        end
+
+        return false
+    end
 
     local gemSlotCount = 0
 
@@ -114,8 +141,8 @@ function Inspection:IsItemMissingGems(itemLink)
         end
     end
 
-    if gemSlotCount == 0 then 
-        return false 
+    if gemSlotCount == 0 then
+        return false
     end
 
     local socketedGemCount = 0
@@ -131,8 +158,8 @@ function Inspection:IsItemMissingGems(itemLink)
 end
 
 function Inspection:IsItemMissingEnchant(itemLink)
-    if not itemLink then 
-        return false 
+    if not itemLink then
+        return false
     end
 
     local enchantID = select(3, strsplit(":", itemLink))
@@ -148,7 +175,7 @@ function Inspection:IsItemBelowItemLevel(itemLink)
     local itemLevel, _, _ = GetDetailedItemLevelInfo(itemLink)
 
     if not itemLevel then
-        return false
+        return GearPolice.ItemMetadataPending
     end
 
     return itemLevel < ItemLevelThreshold
@@ -159,7 +186,13 @@ function Inspection:IsWaistMissingExtraGemEnchant(itemLink)
 
     local stats = {}
     local itemStats = GetItemStats(itemLink, stats)
-    if not itemStats then return false end
+    if not itemStats then
+        if not self:IsItemInfoAvailable(itemLink) then
+            return GearPolice.ItemMetadataPending
+        end
+
+        return false
+    end
 
     local base = (stats["EMPTY_SOCKET_RED"] or 0)
                + (stats["EMPTY_SOCKET_YELLOW"] or 0)
@@ -189,6 +222,10 @@ function Inspection:IsTwoHandedOrRangedWeaponLink(itemLink)
     end
 
     local _, _, _, _, _, _, _, _, equipLoc = GetItemInfo(itemLink)
+    if not equipLoc then
+        return GearPolice.ItemMetadataPending
+    end
+
     return equipLoc == "INVTYPE_2HWEAPON" or equipLoc == "INVTYPE_RANGED"
 end
 
@@ -276,11 +313,16 @@ function Inspection:ApplySlotChecks(playerInfo, slotName, slotValue, slotID, che
     local unitId = GearPolice.Helper:GetUnitIdOfPlayerGuid(playerInfo.PlayerGuid)
     for _, checkKey in ipairs(slotChecks) do
         local checkData = checks[checkKey]
-        if checkData and checkData.func(slotValue, unitId, slotID) then
-            if not playerInfo.ProblematicItems[slotValue] then
-                playerInfo.ProblematicItems[slotValue] = {}
+        if checkData then
+            local checkResult = checkData.func(slotValue, unitId, slotID)
+            if self:IsItemMetadataPending(checkResult) then
+                self:MarkItemMetadataPending(playerInfo, slotName, slotValue, scanGeneration)
+            elseif checkResult then
+                if not playerInfo.ProblematicItems[slotValue] then
+                    playerInfo.ProblematicItems[slotValue] = {}
+                end
+                table.insert(playerInfo.ProblematicItems[slotValue], checkData.message)
             end
-            table.insert(playerInfo.ProblematicItems[slotValue], checkData.message)
         end
     end
 end
@@ -288,6 +330,7 @@ end
 function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
     -- Reset problematic items and initialize the pending checks counter.
     playerInfo.ProblematicItems = {}
+    playerInfo.PendingItemMetadata = {}
     playerInfo.pendingChecks = 0
 
     local checks = {
@@ -384,6 +427,11 @@ function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
         end
 
         local skipSecondaryHand = self:IsTwoHandedOrRangedWeaponLink(mainHandValue)
+        if self:IsItemMetadataPending(skipSecondaryHand) then
+            self:MarkItemMetadataPending(playerInfo, "MainHandSlot", mainHandValue, scanGeneration)
+            skipSecondaryHand = false
+        end
+
         if skipSecondaryHand then
             self:SetEquippedSlotValue(
                 playerInfo,

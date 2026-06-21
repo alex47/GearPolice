@@ -17,6 +17,7 @@ GearPolice.InventorySlotReady = "READY"
 GearPolice.InventorySlotPending = "PENDING"
 GearPolice.InventorySlotNoEvidence = "NO_EVIDENCE"
 GearPolice.InventorySlotEmpty = "EMPTY"
+GearPolice.ItemMetadataPending = "PENDING_METADATA"
 GearPolice.InventorySlotRetryCount = 6
 GearPolice.InventorySlotRetryDelay = 2
 GearPolice.InventorySlotEmptyConfirmations = 5
@@ -562,6 +563,14 @@ function GearPolice:HasPendingEquippedItems(playerInfo)
     return false
 end
 
+function GearPolice:HasPendingItemMetadata(playerInfo)
+    if not playerInfo or type(playerInfo.PendingItemMetadata) ~= "table" then
+        return false
+    end
+
+    return next(playerInfo.PendingItemMetadata) ~= nil
+end
+
 function GearPolice:IsPlayerScanComplete(playerInfo)
     if not playerInfo then
         return false
@@ -572,6 +581,7 @@ function GearPolice:IsPlayerScanComplete(playerInfo)
     end
 
     return not self:HasPendingEquippedItems(playerInfo)
+        and not self:HasPendingItemMetadata(playerInfo)
 end
 
 function GearPolice:IsCurrentScan(playerGuid, scanGeneration)
@@ -805,6 +815,7 @@ function GearPolice:ResetPlayerGearInfo(playerGuid, playerName)
     playerInfo.CheckStatus = "InProgress"
     playerInfo.ProblematicItems = {}
     playerInfo.EquippedItems = {}
+    playerInfo.PendingItemMetadata = {}
     playerInfo.LastScanTime = 0
     playerInfo.retryAttempts = 0
     playerInfo.pendingChecks = 0
@@ -828,6 +839,7 @@ function GearPolice:SetPlayerGuidToDefaultInPlayerGearInfo(playerGuid)
         ["CheckRequested"] = true,
         ["CheckStatus"] = "InProgress",
         ["ProblematicItems"] = {},
+        ["PendingItemMetadata"] = {},
         ["LastScanTime"] = 0,
         ["retryAttempts"] = 0,
         ["ForceScanRequested"] = true,
@@ -1038,7 +1050,8 @@ function GearPolice:OnInspectReady(eventName, playerGuid)
         end
 
         local status
-        if GearPolice:HasPendingEquippedItems(updatedPlayerInfo) then
+        if GearPolice:HasPendingEquippedItems(updatedPlayerInfo)
+            or GearPolice:HasPendingItemMetadata(updatedPlayerInfo) then
             status = "Partial"
         else
             status = "Successful"
