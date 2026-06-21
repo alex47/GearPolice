@@ -27,7 +27,8 @@ stabilized.
 - Complete: Phase 6, extract scan queue.
 - Complete: Phase 7, extract scan session.
 - Complete: Phase 8, split inspection modules.
-- Next: Phase 9, split UI modules.
+- Complete: Phase 9, split UI modules.
+- Next: Phase 10, normalize problem records.
 
 ## Non-Goals
 

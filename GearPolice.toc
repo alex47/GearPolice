@@ -21,6 +21,10 @@ Inspection\ItemChecks.lua
 Inspection\SlotResolver.lua
 Inspection\CheckRunner.lua
 UI.lua
+UI\ViewModel.lua
+UI\Widgets\ItemIcon.lua
+UI\PlayerRows.lua
+UI\MainWindow.lua
 Helper.lua
 Reporting.lua
 Debug.lua
