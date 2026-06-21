@@ -25,7 +25,8 @@ stabilized.
 - Complete: Phase 4, extract player store.
 - Complete: Phase 5, extract roster service.
 - Complete: Phase 6, extract scan queue.
-- Next: Phase 7, extract scan session.
+- Complete: Phase 7, extract scan session.
+- Next: Phase 8, split inspection modules.
 
 ## Non-Goals
 
