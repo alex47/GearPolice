@@ -103,13 +103,6 @@ function UI:ShowUI()
     end)
     toolbar:AddChild(filterDropdown)
 
-    local summaryLabel = AceGUI:Create("Label")
-    summaryLabel:SetWidth(UI.SummaryTextWidth)
-    summaryLabel:SetHeight(UI.PlayerContainerElementSize)
-    summaryLabel:SetJustifyV("MIDDLE")
-    toolbar:AddChild(summaryLabel)
-    self.uiFrame.summaryLabel = summaryLabel
-
     self.uiFrame.scrollWrapper = AceGUI:Create("SimpleGroup")
     self.uiFrame.scrollWrapper:SetFullWidth(true)
     self.uiFrame.scrollWrapper:SetFullHeight(true)

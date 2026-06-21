@@ -10,7 +10,6 @@ UI.PlayerNameWidth = 110
 UI.PlayerStatusTextWidth = 72
 UI.PlayerIssueSummaryWidth = 84
 UI.ItemIconsContainerWidth = 440
-UI.SummaryTextWidth = 220
 UI.ToolbarActionsWidth = 300
 UI.ItemIconWidgetType = "GearPoliceItemIcon"
 UI.QuestionMarkIcon = "Interface\\Icons\\INV_Misc_QuestionMark"

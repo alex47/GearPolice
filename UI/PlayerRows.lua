@@ -210,8 +210,8 @@ function UI:UpdateUI()
     end
 
     local rows, summary = self.ViewModel.BuildRows(self.FilterMode or "all")
-    if self.uiFrame.summaryLabel and summary then
-        self.uiFrame.summaryLabel:SetText(summary.text or "")
+    if summary then
+        self.uiFrame:SetStatusText(summary.text or "")
     end
 
     self.PlayerRows.Render(self, self.uiFrame.scrollContainer, rows)
