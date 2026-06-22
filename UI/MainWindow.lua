@@ -106,6 +106,15 @@ function UI:ShowUI()
     end)
     toolbar:AddChild(reportOfferCheckbox)
 
+    local hideReportWhispersCheckbox = AceGUI:Create("CheckBox")
+    hideReportWhispersCheckbox:SetLabel("Hide GP Whispers")
+    hideReportWhispersCheckbox:SetWidth(150)
+    hideReportWhispersCheckbox:SetValue(GearPolice.db.global.HideReportOfferWhispers == true)
+    hideReportWhispersCheckbox:SetCallback("OnValueChanged", function(_widget, _event, value)
+        GearPolice.db.global.HideReportOfferWhispers = value == true
+    end)
+    toolbar:AddChild(hideReportWhispersCheckbox)
+
     local filterDropdown = AceGUI:Create("Dropdown")
     filterDropdown:SetLabel("Filter")
     filterDropdown:SetWidth(150)

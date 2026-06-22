@@ -80,25 +80,29 @@ function Reporting:BuildProblemReportMessage(playerInfo, item)
         .. item.itemLink .. ": " .. problemsStr
 end
 
-function Reporting:SendWhisper(recipientName, message)
+function Reporting:SendWhisper(recipientName, message, suppressLocal)
     if type(recipientName) ~= "string" or recipientName == ""
         or type(message) ~= "string" or message == "" then
         return false
+    end
+
+    if suppressLocal and GearPolice.RegisterReportOfferOutgoingWhisper then
+        GearPolice:RegisterReportOfferOutgoingWhisper(message)
     end
 
     SendChatMessage(message, "WHISPER", nil, recipientName)
     return true
 end
 
-function Reporting:SendStatusWhisper(recipientName, statusMessage)
+function Reporting:SendStatusWhisper(recipientName, statusMessage, suppressLocal)
     if type(statusMessage) ~= "string" or statusMessage == "" then
         return false
     end
 
-    return self:SendWhisper(recipientName, ReportPrefix .. " " .. statusMessage)
+    return self:SendWhisper(recipientName, ReportPrefix .. " " .. statusMessage, suppressLocal)
 end
 
-function Reporting:SendProblematicItemsWhisper(playerInfo, recipientName)
+function Reporting:SendProblematicItemsWhisper(playerInfo, recipientName, suppressLocal)
     local reportableItems = self:GetReportableProblematicItems(playerInfo)
 
     if #reportableItems == 0 then
@@ -106,7 +110,7 @@ function Reporting:SendProblematicItemsWhisper(playerInfo, recipientName)
     end
 
     for _, item in ipairs(reportableItems) do
-        self:SendWhisper(recipientName, self:BuildProblemReportMessage(playerInfo, item))
+        self:SendWhisper(recipientName, self:BuildProblemReportMessage(playerInfo, item), suppressLocal)
     end
 
     return true

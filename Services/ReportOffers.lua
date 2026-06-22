@@ -4,6 +4,8 @@ GearPolice.ReportOffers = GearPolice.ReportOffers or {}
 
 local ReportOffers = GearPolice.ReportOffers
 local ReportOfferCooldownSeconds = 12 * 60 * 60
+local ChatFiltersRegistered = false
+local SuppressedOutgoingMessages = {}
 
 local ResponseMessages = {
     SuccessfulClean = "No issues found in your equipped items.",
@@ -18,6 +20,12 @@ local ResponseMessages = {
 
 local function IsKnownPlayerName(playerName)
     return type(playerName) == "string" and playerName ~= "" and playerName ~= "Unknown"
+end
+
+local function ShouldHideReportOfferWhispers()
+    return GearPolice.db
+        and GearPolice.db.global
+        and GearPolice.db.global.HideReportOfferWhispers == true
 end
 
 local function NormalizePlayerName(playerName)
@@ -73,12 +81,70 @@ local function ExtractWhisperSenderGuid(...)
     return nil
 end
 
+local function AddMessageEventFilter(eventName, filterFunc)
+    if ChatFrameUtil and type(ChatFrameUtil.AddMessageEventFilter) == "function" then
+        ChatFrameUtil.AddMessageEventFilter(eventName, filterFunc)
+        return true
+    elseif type(ChatFrame_AddMessageEventFilter) == "function" then
+        ChatFrame_AddMessageEventFilter(eventName, filterFunc)
+        return true
+    end
+
+    return false
+end
+
+local function IncomingWhisperFilter(_frame, _eventName, message)
+    if ShouldHideReportOfferWhispers() and ReportOffers:IsWhisperRequest(message) then
+        return true
+    end
+
+    return false
+end
+
+local function OutgoingWhisperFilter(_frame, _eventName, message)
+    if type(message) ~= "string" then
+        return false
+    end
+
+    local suppressCount = SuppressedOutgoingMessages[message]
+    if type(suppressCount) ~= "number" or suppressCount <= 0 then
+        return false
+    end
+
+    if suppressCount == 1 then
+        SuppressedOutgoingMessages[message] = nil
+    else
+        SuppressedOutgoingMessages[message] = suppressCount - 1
+    end
+
+    return ShouldHideReportOfferWhispers()
+end
+
 function ReportOffers:EnsureHistory()
     if type(GearPolice.db.global.ReportOfferHistory) ~= "table" then
         GearPolice.db.global.ReportOfferHistory = {}
     end
 
     return GearPolice.db.global.ReportOfferHistory
+end
+
+function ReportOffers:RegisterChatFilters()
+    if ChatFiltersRegistered then
+        return
+    end
+
+    local incomingRegistered = AddMessageEventFilter("CHAT_MSG_WHISPER", IncomingWhisperFilter)
+    local outgoingRegistered = AddMessageEventFilter("CHAT_MSG_WHISPER_INFORM", OutgoingWhisperFilter)
+
+    ChatFiltersRegistered = incomingRegistered or outgoingRegistered
+end
+
+function ReportOffers:RegisterOutgoingSuppression(message)
+    if not ShouldHideReportOfferWhispers() or type(message) ~= "string" or message == "" then
+        return
+    end
+
+    SuppressedOutgoingMessages[message] = (SuppressedOutgoingMessages[message] or 0) + 1
 end
 
 function ReportOffers:IsWhisperRequest(message)
@@ -118,12 +184,13 @@ end
 
 function ReportOffers:SendScanResponse(playerInfo, recipientName)
     local reporting = GearPolice.Reporting
+    local suppressLocal = ShouldHideReportOfferWhispers()
     if type(recipientName) ~= "string" or recipientName == "" then
         return false
     end
 
     if type(playerInfo) ~= "table" then
-        return reporting:SendStatusWhisper(recipientName, ResponseMessages.NoScan)
+        return reporting:SendStatusWhisper(recipientName, ResponseMessages.NoScan, suppressLocal)
     end
 
     local status = playerInfo.CheckStatus
@@ -131,23 +198,23 @@ function ReportOffers:SendScanResponse(playerInfo, recipientName)
 
     if status == "Successful" then
         if #reportableItems > 0 then
-            return reporting:SendProblematicItemsWhisper(playerInfo, recipientName)
+            return reporting:SendProblematicItemsWhisper(playerInfo, recipientName, suppressLocal)
         end
 
-        return reporting:SendStatusWhisper(recipientName, ResponseMessages.SuccessfulClean)
+        return reporting:SendStatusWhisper(recipientName, ResponseMessages.SuccessfulClean, suppressLocal)
     elseif status == "Partial" then
-        return reporting:SendStatusWhisper(recipientName, ResponseMessages.Partial)
+        return reporting:SendStatusWhisper(recipientName, ResponseMessages.Partial, suppressLocal)
     elseif status == "InProgress" then
-        return reporting:SendStatusWhisper(recipientName, ResponseMessages.InProgress)
+        return reporting:SendStatusWhisper(recipientName, ResponseMessages.InProgress, suppressLocal)
     elseif status == "TemporaryFailed" then
-        return reporting:SendStatusWhisper(recipientName, ResponseMessages.TemporaryFailed)
+        return reporting:SendStatusWhisper(recipientName, ResponseMessages.TemporaryFailed, suppressLocal)
     elseif status == "Failed" then
-        return reporting:SendStatusWhisper(recipientName, ResponseMessages.Failed)
+        return reporting:SendStatusWhisper(recipientName, ResponseMessages.Failed, suppressLocal)
     elseif status == "Cancelled" then
-        return reporting:SendStatusWhisper(recipientName, ResponseMessages.Cancelled)
+        return reporting:SendStatusWhisper(recipientName, ResponseMessages.Cancelled, suppressLocal)
     end
 
-    return reporting:SendStatusWhisper(recipientName, ResponseMessages.NoScan)
+    return reporting:SendStatusWhisper(recipientName, ResponseMessages.NoScan, suppressLocal)
 end
 
 function ReportOffers:HandleWhisper(message, senderName, senderGuid)
@@ -204,7 +271,7 @@ function ReportOffers:MaybeSendOffer(playerInfo, completedScan, status)
     local offerHistory = self:EnsureHistory()
     local recipientName = GetWhisperRecipientForPlayer(playerInfo)
 
-    GearPolice.Reporting:SendStatusWhisper(recipientName, ResponseMessages.Offer)
+    GearPolice.Reporting:SendStatusWhisper(recipientName, ResponseMessages.Offer, ShouldHideReportOfferWhispers())
     offerHistory[playerGuid] = {
         lastOfferedAt = time(),
         scanGeneration = playerInfo.ScanGeneration,
@@ -221,10 +288,20 @@ function GearPolice:InitializeReportOffers()
     if type(self.db.global.ReportOfferHistory) ~= "table" then
         self.db.global.ReportOfferHistory = {}
     end
+
+    if type(self.db.global.HideReportOfferWhispers) ~= "boolean" then
+        self.db.global.HideReportOfferWhispers = false
+    end
+
+    ReportOffers:RegisterChatFilters()
 end
 
 function GearPolice:MaybeSendReportOffer(playerInfo, completedScan, status)
     return ReportOffers:MaybeSendOffer(playerInfo, completedScan, status)
+end
+
+function GearPolice:RegisterReportOfferOutgoingWhisper(message)
+    return ReportOffers:RegisterOutgoingSuppression(message)
 end
 
 function GearPolice:OnReportOfferWhisperReceived(_eventName, message, senderName, ...)

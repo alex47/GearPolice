@@ -36,6 +36,8 @@ read_globals = {
     "GetItemStats",
 
     -- WoW chat/string/time APIs
+    "ChatFrame_AddMessageEventFilter",
+    "ChatFrameUtil",
     "SendChatMessage",
     "strsplit",
     "time",
