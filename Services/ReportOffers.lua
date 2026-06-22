@@ -8,14 +8,14 @@ local ChatFiltersRegistered = false
 local SuppressedOutgoingMessages = {}
 
 local ResponseMessages = {
-    SuccessfulClean = "No issues found in your equipped items.",
-    Partial = "Your scan is still waiting on some item data. Try !gp again in a moment.",
-    InProgress = "Your gear scan is currently in progress. Try !gp again in a moment.",
-    TemporaryFailed = "I could not inspect you yet. Try !gp again after moving closer or waiting a moment.",
-    Failed = "I could not complete your gear scan.",
-    Cancelled = "Your gear scan was cancelled. Ask for a rescan and try !gp again.",
-    NoScan = "I do not have a scan for you yet.",
-    Offer = "I detected issues with your equipped items. Whisper !gp to get the details.",
+    SuccessfulClean = "No issues found in your equipped gear.",
+    Partial = "Your gear scan is waiting on item data. Try !gp again in a moment.",
+    InProgress = "Your gear scan is still running. Try !gp again in a moment.",
+    TemporaryFailed = "I could not inspect you yet. Move closer or wait a moment, then try !gp again.",
+    Failed = "I could not complete your gear scan. Ask for a rescan if needed.",
+    Cancelled = "Your gear scan was cancelled. Ask for a rescan, then try !gp again.",
+    NoScan = "I do not have a gear scan for you yet.",
+    Offer = "I found issues with your equipped gear. Reply !gp for details.",
 }
 
 local function IsKnownPlayerName(playerName)

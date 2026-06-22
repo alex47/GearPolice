@@ -71,13 +71,17 @@ function Reporting:GetReportPrefix()
     return ReportPrefix
 end
 
-function Reporting:BuildProblemReportMessage(playerInfo, item)
-    local playerName = type(playerInfo) == "table" and type(playerInfo.PlayerName) == "string"
-        and playerInfo.PlayerName or nil
+function Reporting:BuildProblemReportMessage(playerInfo, item, includePlayerName)
     local problemsStr = table.concat(item.problems, ", ")
+    local playerPrefix = ""
 
-    return ReportPrefix .. " " .. (playerName or "Unknown") .. " - "
-        .. item.itemLink .. ": " .. problemsStr
+    if includePlayerName then
+        local playerName = type(playerInfo) == "table" and type(playerInfo.PlayerName) == "string"
+            and playerInfo.PlayerName or nil
+        playerPrefix = (playerName or "Unknown") .. " - "
+    end
+
+    return ReportPrefix .. " " .. playerPrefix .. item.itemLink .. ": " .. problemsStr
 end
 
 function Reporting:SendWhisper(recipientName, message, suppressLocal)
@@ -143,8 +147,8 @@ function Reporting:ReportProblematicItems(playerInfo)
     end
 
     for _, item in ipairs(reportableItems) do
-        local message = self:BuildProblemReportMessage(playerInfo, item)
         local reportMode = GearPolice.db.global.ReportMode
+        local message = self:BuildProblemReportMessage(playerInfo, item, reportMode == "public")
 
         if reportMode == "public" then
             SendChatMessage(message, IsInRaid() and "RAID" or "PARTY")
