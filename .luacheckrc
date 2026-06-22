@@ -23,6 +23,7 @@ read_globals = {
     "NotifyInspect",
     "UnitExists",
     "UnitGUID",
+    "UnitIsPlayer",
     "UnitName",
 
     -- WoW item and inventory APIs

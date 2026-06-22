@@ -35,6 +35,10 @@ function GearPolice:StartGearPolicingOfGroup()
 end
 
 function GearPolice:StartGearPolicingOfTarget()
+    if not UnitExists("target") or not UnitIsPlayer("target") then
+        return
+    end
+
     local targetGuid = UnitGUID("target")
     if targetGuid then
         local targetName = UnitName("target")
