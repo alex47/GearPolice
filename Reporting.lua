@@ -4,6 +4,26 @@ GearPolice.Reporting = GearPolice.Reporting or {}
 local Reporting = GearPolice.Reporting
 local ReportPrefix = "{Square} GearPolice {Cross}"
 
+local function IsKnownPlayerName(playerName)
+    return type(playerName) == "string" and playerName ~= "" and playerName ~= "Unknown"
+end
+
+local function GetWhisperRecipientForPlayer(playerInfo)
+    if type(playerInfo) ~= "table" then
+        return nil
+    end
+
+    if IsKnownPlayerName(playerInfo.PlayerFullName) then
+        return playerInfo.PlayerFullName
+    end
+
+    if IsKnownPlayerName(playerInfo.PlayerName) then
+        return playerInfo.PlayerName
+    end
+
+    return nil
+end
+
 local function AddReportableProblem(reportableItems, reportableItemsByKey, itemLink, slotName, message)
     if type(itemLink) ~= "string" or itemLink == "" or type(message) ~= "string" or message == "" then
         return
@@ -97,7 +117,7 @@ function Reporting:BuildProblemReportMessage(playerInfo, item, includePlayerName
     return ReportPrefix .. " " .. playerPrefix .. item.itemLink .. ": " .. problemsStr
 end
 
-function Reporting:SendWhisper(recipientName, message, suppressLocal)
+function Reporting:SendWhisper(recipientName, message, suppressLocal, priority)
     if type(recipientName) ~= "string" or recipientName == ""
         or type(message) ~= "string" or message == "" then
         return false
@@ -107,19 +127,18 @@ function Reporting:SendWhisper(recipientName, message, suppressLocal)
         GearPolice:RegisterReportOfferOutgoingWhisper(message)
     end
 
-    SendChatMessage(message, "WHISPER", nil, recipientName)
-    return true
+    return GearPolice.ChatThrottle:Send(message, "WHISPER", recipientName, priority or "NORMAL")
 end
 
-function Reporting:SendStatusWhisper(recipientName, statusMessage, suppressLocal)
+function Reporting:SendStatusWhisper(recipientName, statusMessage, suppressLocal, priority)
     if type(statusMessage) ~= "string" or statusMessage == "" then
         return false
     end
 
-    return self:SendWhisper(recipientName, ReportPrefix .. " " .. statusMessage, suppressLocal)
+    return self:SendWhisper(recipientName, ReportPrefix .. " " .. statusMessage, suppressLocal, priority)
 end
 
-function Reporting:SendProblematicItemsWhisper(playerInfo, recipientName, suppressLocal)
+function Reporting:SendProblematicItemsWhisper(playerInfo, recipientName, suppressLocal, priority)
     local reportableItems = self:GetReportableProblematicItems(playerInfo)
 
     if #reportableItems == 0 then
@@ -127,7 +146,7 @@ function Reporting:SendProblematicItemsWhisper(playerInfo, recipientName, suppre
     end
 
     for _, item in ipairs(reportableItems) do
-        self:SendWhisper(recipientName, self:BuildProblemReportMessage(playerInfo, item), suppressLocal)
+        self:SendWhisper(recipientName, self:BuildProblemReportMessage(playerInfo, item), suppressLocal, priority)
     end
 
     return true
@@ -151,8 +170,7 @@ function Reporting:ReportProblematicItems_Print(playerInfo)
 end
 
 function Reporting:ReportProblematicItems(playerInfo)
-    local playerName = type(playerInfo) == "table" and type(playerInfo.PlayerName) == "string"
-        and playerInfo.PlayerName or nil
+    local whisperRecipient = GetWhisperRecipientForPlayer(playerInfo)
     local reportableItems = self:GetReportableProblematicItems(playerInfo)
 
     if #reportableItems == 0 then
@@ -164,11 +182,11 @@ function Reporting:ReportProblematicItems(playerInfo)
         local message = self:BuildProblemReportMessage(playerInfo, item, reportMode == "public")
 
         if reportMode == "public" then
-            SendChatMessage(message, IsInRaid() and "RAID" or "PARTY")
+            GearPolice.ChatThrottle:Send(message, IsInRaid() and "RAID" or "PARTY", nil, "NORMAL")
         elseif reportMode == "debug" then
             GearPolice:Print(message)
-        elseif playerName and playerName ~= "" and playerName ~= "Unknown" then
-            SendChatMessage(message, "WHISPER", nil, playerName)
+        elseif whisperRecipient then
+            GearPolice.ChatThrottle:Send(message, "WHISPER", whisperRecipient, "NORMAL")
         end
     end
 end

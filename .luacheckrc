@@ -47,6 +47,7 @@ read_globals = {
     -- WoW chat/string/time APIs
     "ChatFrame_AddMessageEventFilter",
     "ChatFrameUtil",
+    "ChatThrottleLib",
     "SendChatMessage",
     "strsplit",
     "time",

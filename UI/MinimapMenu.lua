@@ -46,7 +46,12 @@ local function SetReportMode(_button, reportMode)
 
     if reportMode == "public" and previousReportMode ~= "public" then
         local reportPrefix = GearPolice.Reporting:GetReportPrefix()
-        SendChatMessage(reportPrefix .. " " .. PUBLIC_REPORT_MODE_MESSAGE, IsInRaid() and "RAID" or "PARTY")
+        GearPolice.ChatThrottle:Send(
+            reportPrefix .. " " .. PUBLIC_REPORT_MODE_MESSAGE,
+            IsInRaid() and "RAID" or "PARTY",
+            nil,
+            "NORMAL"
+        )
     end
 end
 

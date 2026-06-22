@@ -227,7 +227,8 @@ function ReportOffers:SendOffer(playerInfo)
     GearPolice.Reporting:SendStatusWhisper(
         recipientName,
         BuildOfferMessage(playerInfo),
-        ShouldHideReportOfferWhispers()
+        ShouldHideReportOfferWhispers(),
+        "BULK"
     )
     offerHistory[playerGuid] = {
         lastOfferedAt = time(),
