@@ -28,14 +28,17 @@ function GearPolice:InitializeMinimapIcon()
         type = "launcher",
         text = "GearPolice",
         icon = MINIMAP_ICON_PATH,
-        OnClick = function(_frame, button)
+        OnClick = function(frame, button)
             if button == "LeftButton" then
                 GearPolice.UI:ToggleUI()
+            elseif button == "RightButton" then
+                GearPolice:OpenMinimapDropDown(frame)
             end
         end,
         OnTooltipShow = function(tooltip)
             tooltip:AddLine("GearPolice")
             tooltip:AddLine("Left-click: Toggle window", 1, 1, 1)
+            tooltip:AddLine("Right-click: Options", 1, 1, 1)
         end,
     })
 

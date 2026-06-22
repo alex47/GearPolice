@@ -79,42 +79,6 @@ function UI:ShowUI()
     end)
     scanActions:AddChild(targetButton)
 
-    local reportModeDropdown = AceGUI:Create("Dropdown")
-    reportModeDropdown:SetLabel("Report Mode")
-    reportModeDropdown:SetWidth(160)
-    reportModeDropdown:SetList({
-        whisper = "Whisper",
-        public = "Public",
-        debug = "Debug",
-    }, {
-        "whisper",
-        "public",
-        "debug",
-    })
-    reportModeDropdown:SetValue(GearPolice.db.global.ReportMode)
-    reportModeDropdown:SetCallback("OnValueChanged", function(_widget, _event, value)
-        GearPolice.db.global.ReportMode = value
-    end)
-    toolbar:AddChild(reportModeDropdown)
-
-    local reportOfferCheckbox = AceGUI:Create("CheckBox")
-    reportOfferCheckbox:SetLabel("Report Offers")
-    reportOfferCheckbox:SetWidth(130)
-    reportOfferCheckbox:SetValue(GearPolice.db.global.ReportOfferEnabled == true)
-    reportOfferCheckbox:SetCallback("OnValueChanged", function(_widget, _event, value)
-        GearPolice.db.global.ReportOfferEnabled = value == true
-    end)
-    toolbar:AddChild(reportOfferCheckbox)
-
-    local hideReportWhispersCheckbox = AceGUI:Create("CheckBox")
-    hideReportWhispersCheckbox:SetLabel("Hide GP Whispers")
-    hideReportWhispersCheckbox:SetWidth(150)
-    hideReportWhispersCheckbox:SetValue(GearPolice.db.global.HideReportOfferWhispers == true)
-    hideReportWhispersCheckbox:SetCallback("OnValueChanged", function(_widget, _event, value)
-        GearPolice.db.global.HideReportOfferWhispers = value == true
-    end)
-    toolbar:AddChild(hideReportWhispersCheckbox)
-
     local filterDropdown = AceGUI:Create("Dropdown")
     filterDropdown:SetLabel("Filter")
     filterDropdown:SetWidth(150)

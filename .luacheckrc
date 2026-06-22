@@ -10,8 +10,17 @@ read_globals = {
     -- WoW UI globals
     "_G",
     "CreateFrame",
+    "AddonCompartmentFrame",
+    "CloseDropDownMenus",
+    "DropDownList1",
     "GameTooltip",
     "UIParent",
+    "ToggleDropDownMenu",
+    "UIDROPDOWNMENU_MENU_VALUE",
+    "UIDropDownMenu_AddButton",
+    "UIDropDownMenu_CreateInfo",
+    "UIDropDownMenu_SetDisplayMode",
+    "UIDropDownMenu_SetInitializeFunction",
 
     -- WoW unit and group APIs
     "CanInspect",

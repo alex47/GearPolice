@@ -1,0 +1,9 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <Frame name="GearPoliceMinimapDropDown" inherits="UIDropDownMenuTemplate" clampedToScreen="true" id="1" hidden="true">
+        <Scripts>
+            <OnLoad>
+                GearPolice:InitializeMinimapDropDown(self);
+            </OnLoad>
+        </Scripts>
+    </Frame>
+</Ui>
