@@ -1,6 +1,7 @@
 local GearPolice = GearPolice
 
 local REPORT_MODE_MENU_VALUE = "REPORT_MODE"
+local PUBLIC_REPORT_MODE_MESSAGE = "{Square} GearPolice {Cross} Public Shaming mode: Activated"
 
 local ReportModes = {
     { value = "whisper", label = "Whisper" },
@@ -39,7 +40,13 @@ local function CloseMenu()
 end
 
 local function SetReportMode(_button, reportMode)
+    local previousReportMode = GearPolice.db.global.ReportMode
+
     GearPolice.db.global.ReportMode = reportMode
+
+    if reportMode == "public" and previousReportMode ~= "public" then
+        SendChatMessage(PUBLIC_REPORT_MODE_MESSAGE, IsInRaid() and "RAID" or "PARTY")
+    end
 end
 
 local function ToggleReportOffers()
