@@ -2,6 +2,7 @@ local GearPolice = GearPolice
 
 GearPolice.Reporting = GearPolice.Reporting or {}
 local Reporting = GearPolice.Reporting
+local ReportPrefix = "{Square} GearPolice {Cross}"
 
 local function AddReportableProblem(reportableItems, reportableItemsByKey, itemLink, slotName, message)
     if type(itemLink) ~= "string" or itemLink == "" or type(message) ~= "string" or message == "" then
@@ -66,6 +67,51 @@ function Reporting:GetReportableProblematicItems(playerInfo)
     return reportableItems
 end
 
+function Reporting:GetReportPrefix()
+    return ReportPrefix
+end
+
+function Reporting:BuildProblemReportMessage(playerInfo, item)
+    local playerName = type(playerInfo) == "table" and type(playerInfo.PlayerName) == "string"
+        and playerInfo.PlayerName or nil
+    local problemsStr = table.concat(item.problems, ", ")
+
+    return ReportPrefix .. " " .. (playerName or "Unknown") .. " - "
+        .. item.itemLink .. ": " .. problemsStr
+end
+
+function Reporting:SendWhisper(recipientName, message)
+    if type(recipientName) ~= "string" or recipientName == ""
+        or type(message) ~= "string" or message == "" then
+        return false
+    end
+
+    SendChatMessage(message, "WHISPER", nil, recipientName)
+    return true
+end
+
+function Reporting:SendStatusWhisper(recipientName, statusMessage)
+    if type(statusMessage) ~= "string" or statusMessage == "" then
+        return false
+    end
+
+    return self:SendWhisper(recipientName, ReportPrefix .. " " .. statusMessage)
+end
+
+function Reporting:SendProblematicItemsWhisper(playerInfo, recipientName)
+    local reportableItems = self:GetReportableProblematicItems(playerInfo)
+
+    if #reportableItems == 0 then
+        return false
+    end
+
+    for _, item in ipairs(reportableItems) do
+        self:SendWhisper(recipientName, self:BuildProblemReportMessage(playerInfo, item))
+    end
+
+    return true
+end
+
 function Reporting:ReportProblematicItems_Print(playerInfo)
     local playerName = type(playerInfo) == "table" and type(playerInfo.PlayerName) == "string"
         and playerInfo.PlayerName or nil
@@ -93,9 +139,7 @@ function Reporting:ReportProblematicItems(playerInfo)
     end
 
     for _, item in ipairs(reportableItems) do
-        local problemsStr = table.concat(item.problems, ", ")
-        local message = "{Square} GearPolice {Cross} " .. (playerName or "Unknown") .. " - "
-            .. item.itemLink .. ": " .. problemsStr
+        local message = self:BuildProblemReportMessage(playerInfo, item)
         local reportMode = GearPolice.db.global.ReportMode
 
         if reportMode == "public" then

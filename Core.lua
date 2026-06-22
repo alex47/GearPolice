@@ -21,6 +21,7 @@ function GearPolice:OnInitialize()
         GearPolice.db.global.DebugEnabled = false
     end
 
+    self:InitializeReportOffers()
     self:InitializeMinimapIcon()
 end
 
@@ -28,6 +29,7 @@ function GearPolice:OnEnable()
     self:RegisterEvent("INSPECT_READY", "OnInspectReady")
     self:RegisterEvent("GROUP_ROSTER_UPDATE", "UpdateGroupMembers")
     self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnCombatEnded")
+    self:RegisterEvent("CHAT_MSG_WHISPER", "OnReportOfferWhisperReceived")
 end
 
 function GearPolice:StartGearPolicingOfGroup()

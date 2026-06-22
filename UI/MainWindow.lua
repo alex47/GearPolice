@@ -97,6 +97,15 @@ function UI:ShowUI()
     end)
     toolbar:AddChild(reportModeDropdown)
 
+    local reportOfferCheckbox = AceGUI:Create("CheckBox")
+    reportOfferCheckbox:SetLabel("Report Offers")
+    reportOfferCheckbox:SetWidth(130)
+    reportOfferCheckbox:SetValue(GearPolice.db.global.ReportOfferEnabled == true)
+    reportOfferCheckbox:SetCallback("OnValueChanged", function(_widget, _event, value)
+        GearPolice.db.global.ReportOfferEnabled = value == true
+    end)
+    toolbar:AddChild(reportOfferCheckbox)
+
     local filterDropdown = AceGUI:Create("Dropdown")
     filterDropdown:SetLabel("Filter")
     filterDropdown:SetWidth(150)

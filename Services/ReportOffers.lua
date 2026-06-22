@@ -1,0 +1,233 @@
+local GearPolice = GearPolice
+
+GearPolice.ReportOffers = GearPolice.ReportOffers or {}
+
+local ReportOffers = GearPolice.ReportOffers
+local ReportOfferCooldownSeconds = 12 * 60 * 60
+
+local ResponseMessages = {
+    SuccessfulClean = "No issues found in your equipped items.",
+    Partial = "Your scan is still waiting on some item data. Try !gp again in a moment.",
+    InProgress = "Your gear scan is currently in progress. Try !gp again in a moment.",
+    TemporaryFailed = "I could not inspect you yet. Try !gp again after moving closer or waiting a moment.",
+    Failed = "I could not complete your gear scan.",
+    Cancelled = "Your gear scan was cancelled. Ask for a rescan and try !gp again.",
+    NoScan = "I do not have a scan for you yet.",
+    Offer = "I detected issues with your equipped items. Whisper !gp to get the details.",
+}
+
+local function IsKnownPlayerName(playerName)
+    return type(playerName) == "string" and playerName ~= "" and playerName ~= "Unknown"
+end
+
+local function NormalizePlayerName(playerName)
+    if not IsKnownPlayerName(playerName) then
+        return nil
+    end
+
+    local normalizedName = playerName:match("^([^%-]+)") or playerName
+    return string.lower(normalizedName)
+end
+
+local function IsPlayerGuid(value)
+    return type(value) == "string" and string.find(value, "^Player%-") ~= nil
+end
+
+local function GetWhisperRecipientForPlayer(playerInfo)
+    if type(playerInfo) ~= "table" then
+        return nil
+    end
+
+    local unitId = playerInfo.CurrentUnitId
+    if type(unitId) == "string" and UnitGUID(unitId) == playerInfo.PlayerGuid then
+        local unitName, unitRealm = UnitName(unitId)
+        if IsKnownPlayerName(unitName) then
+            if type(unitRealm) == "string" and unitRealm ~= "" then
+                return unitName .. "-" .. unitRealm
+            end
+
+            return unitName
+        end
+    end
+
+    if IsKnownPlayerName(playerInfo.PlayerName) then
+        return playerInfo.PlayerName
+    end
+
+    return nil
+end
+
+local function ExtractWhisperSenderGuid(...)
+    local expectedGuid = select(10, ...)
+    if IsPlayerGuid(expectedGuid) then
+        return expectedGuid
+    end
+
+    for i = 1, select("#", ...) do
+        local value = select(i, ...)
+        if IsPlayerGuid(value) then
+            return value
+        end
+    end
+
+    return nil
+end
+
+function ReportOffers:EnsureHistory()
+    if type(GearPolice.db.global.ReportOfferHistory) ~= "table" then
+        GearPolice.db.global.ReportOfferHistory = {}
+    end
+
+    return GearPolice.db.global.ReportOfferHistory
+end
+
+function ReportOffers:IsWhisperRequest(message)
+    if type(message) ~= "string" then
+        return false
+    end
+
+    return string.find(string.lower(message), "!gp", 1, true) ~= nil
+end
+
+function ReportOffers:FindPlayerInfo(senderGuid, senderName)
+    if IsPlayerGuid(senderGuid) then
+        local playerInfo = GearPolice.PlayerStore:Get(senderGuid)
+        if playerInfo then
+            return playerInfo
+        end
+    end
+
+    local normalizedSenderName = NormalizePlayerName(senderName)
+    if not normalizedSenderName then
+        return nil
+    end
+
+    local playerGearInfo = GearPolice.PlayerStore:GetAll()
+    if not playerGearInfo then
+        return nil
+    end
+
+    for _, playerInfo in pairs(playerGearInfo) do
+        if NormalizePlayerName(playerInfo.PlayerName) == normalizedSenderName then
+            return playerInfo
+        end
+    end
+
+    return nil
+end
+
+function ReportOffers:SendScanResponse(playerInfo, recipientName)
+    local reporting = GearPolice.Reporting
+    if type(recipientName) ~= "string" or recipientName == "" then
+        return false
+    end
+
+    if type(playerInfo) ~= "table" then
+        return reporting:SendStatusWhisper(recipientName, ResponseMessages.NoScan)
+    end
+
+    local status = playerInfo.CheckStatus
+    local reportableItems = reporting:GetReportableProblematicItems(playerInfo)
+
+    if status == "Successful" then
+        if #reportableItems > 0 then
+            return reporting:SendProblematicItemsWhisper(playerInfo, recipientName)
+        end
+
+        return reporting:SendStatusWhisper(recipientName, ResponseMessages.SuccessfulClean)
+    elseif status == "Partial" then
+        return reporting:SendStatusWhisper(recipientName, ResponseMessages.Partial)
+    elseif status == "InProgress" then
+        return reporting:SendStatusWhisper(recipientName, ResponseMessages.InProgress)
+    elseif status == "TemporaryFailed" then
+        return reporting:SendStatusWhisper(recipientName, ResponseMessages.TemporaryFailed)
+    elseif status == "Failed" then
+        return reporting:SendStatusWhisper(recipientName, ResponseMessages.Failed)
+    elseif status == "Cancelled" then
+        return reporting:SendStatusWhisper(recipientName, ResponseMessages.Cancelled)
+    end
+
+    return reporting:SendStatusWhisper(recipientName, ResponseMessages.NoScan)
+end
+
+function ReportOffers:HandleWhisper(message, senderName, senderGuid)
+    if not self:IsWhisperRequest(message) then
+        return false
+    end
+
+    local playerInfo = self:FindPlayerInfo(senderGuid, senderName)
+    return self:SendScanResponse(playerInfo, senderName)
+end
+
+function ReportOffers:CanSendOffer(playerInfo, completedScan, status)
+    if GearPolice.db.global.ReportOfferEnabled ~= true then
+        return false
+    end
+
+    if status ~= "Successful" or not completedScan then
+        return false
+    end
+
+    if type(playerInfo) ~= "table" or not GetWhisperRecipientForPlayer(playerInfo) then
+        return false
+    end
+
+    local playerGuid = playerInfo.PlayerGuid
+    if not playerGuid or GearPolice:IsLocalPlayerGuid(playerGuid) then
+        return false
+    end
+
+    if not GearPolice.Helper:IsPlayerInGroup(playerGuid) then
+        return false
+    end
+
+    if #GearPolice.Reporting:GetReportableProblematicItems(playerInfo) == 0 then
+        return false
+    end
+
+    local offerHistory = self:EnsureHistory()
+    local lastOffer = offerHistory[playerGuid]
+    local lastOfferedAt = type(lastOffer) == "table" and lastOffer.lastOfferedAt or 0
+    if type(lastOfferedAt) ~= "number" then
+        lastOfferedAt = 0
+    end
+
+    return time() - lastOfferedAt >= ReportOfferCooldownSeconds
+end
+
+function ReportOffers:MaybeSendOffer(playerInfo, completedScan, status)
+    if not self:CanSendOffer(playerInfo, completedScan, status) then
+        return false
+    end
+
+    local playerGuid = playerInfo.PlayerGuid
+    local offerHistory = self:EnsureHistory()
+    local recipientName = GetWhisperRecipientForPlayer(playerInfo)
+
+    GearPolice.Reporting:SendStatusWhisper(recipientName, ResponseMessages.Offer)
+    offerHistory[playerGuid] = {
+        lastOfferedAt = time(),
+        scanGeneration = playerInfo.ScanGeneration,
+    }
+
+    return true
+end
+
+function GearPolice:InitializeReportOffers()
+    if type(self.db.global.ReportOfferEnabled) ~= "boolean" then
+        self.db.global.ReportOfferEnabled = false
+    end
+
+    if type(self.db.global.ReportOfferHistory) ~= "table" then
+        self.db.global.ReportOfferHistory = {}
+    end
+end
+
+function GearPolice:MaybeSendReportOffer(playerInfo, completedScan, status)
+    return ReportOffers:MaybeSendOffer(playerInfo, completedScan, status)
+end
+
+function GearPolice:OnReportOfferWhisperReceived(_eventName, message, senderName, ...)
+    local senderGuid = ExtractWhisperSenderGuid(...)
+    return ReportOffers:HandleWhisper(message, senderName, senderGuid)
+end

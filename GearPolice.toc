@@ -33,4 +33,5 @@ UI\PlayerRows.lua
 UI\MainWindow.lua
 UI\MinimapIcon.lua
 Reporting.lua
+Services\ReportOffers.lua
 Debug.lua
