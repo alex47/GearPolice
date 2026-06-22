@@ -3,6 +3,12 @@ local GearPolice = GearPolice
 
 local UI = GearPolice.UI
 
+local function ClearWindowState(self)
+    self.uiFrame = nil
+    self.playerUIElements = nil
+    self.playerOrder = nil
+end
+
 local function SetResizeBounds(frameWidget)
     local frame = frameWidget and frameWidget.frame
     if not frame then
@@ -18,19 +24,14 @@ end
 
 function UI:ShowUI()
     if self.uiFrame then
-        AceGUI:Release(self.uiFrame)
-        self.uiFrame = nil
-        self.playerUIElements = nil
-        self.playerOrder = nil
+        self:HideUI()
     end
 
     self.uiFrame = AceGUI:Create("Frame")
     self.uiFrame:SetTitle("Gear Police")
     self.uiFrame:SetCallback("OnClose", function(widget)
         AceGUI:Release(widget)
-        self.uiFrame = nil
-        self.playerUIElements = nil
-        self.playerOrder = nil
+        ClearWindowState(self)
     end)
     self.uiFrame:SetLayout("Flow")
     self.uiFrame:SetWidth(UI.MainWindowWidth)
@@ -128,4 +129,21 @@ function UI:ShowUI()
     self.uiFrame.scrollWrapper:AddChild(self.uiFrame.scrollContainer)
 
     self:UpdateUI()
+end
+
+function UI:HideUI()
+    if not self.uiFrame then
+        return
+    end
+
+    AceGUI:Release(self.uiFrame)
+    ClearWindowState(self)
+end
+
+function UI:ToggleUI()
+    if self.uiFrame then
+        self:HideUI()
+    else
+        self:ShowUI()
+    end
 end

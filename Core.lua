@@ -20,6 +20,8 @@ function GearPolice:OnInitialize()
     if type(GearPolice.db.global.DebugEnabled) ~= "boolean" then
         GearPolice.db.global.DebugEnabled = false
     end
+
+    self:InitializeMinimapIcon()
 end
 
 function GearPolice:OnEnable()
