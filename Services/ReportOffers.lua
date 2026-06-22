@@ -4,8 +4,10 @@ GearPolice.ReportOffers = GearPolice.ReportOffers or {}
 
 local ReportOffers = GearPolice.ReportOffers
 local ReportOfferCooldownSeconds = 12 * 60 * 60
+local ReportOfferCombatDelay = 5
 local ChatFiltersRegistered = false
 local SuppressedOutgoingMessages = {}
+local PendingCombatOffers = {}
 
 local ResponseMessages = {
     SuccessfulClean = "No issues found in your equipped gear.",
@@ -126,6 +128,77 @@ function ReportOffers:EnsureHistory()
     end
 
     return GearPolice.db.global.ReportOfferHistory
+end
+
+function ReportOffers:HasPendingCombatOffers()
+    return next(PendingCombatOffers) ~= nil
+end
+
+function ReportOffers:QueueCombatOffer(playerInfo, completedScan, status)
+    if type(playerInfo) ~= "table" or not playerInfo.PlayerGuid then
+        return false
+    end
+
+    PendingCombatOffers[playerInfo.PlayerGuid] = {
+        scanGeneration = playerInfo.ScanGeneration,
+        status = status,
+        reason = completedScan and completedScan.reason,
+    }
+
+    return true
+end
+
+function ReportOffers:SendOffer(playerInfo)
+    local playerGuid = playerInfo.PlayerGuid
+    local offerHistory = self:EnsureHistory()
+    local recipientName = GetWhisperRecipientForPlayer(playerInfo)
+
+    if not recipientName then
+        return false
+    end
+
+    GearPolice.Reporting:SendStatusWhisper(recipientName, ResponseMessages.Offer, ShouldHideReportOfferWhispers())
+    offerHistory[playerGuid] = {
+        lastOfferedAt = time(),
+        scanGeneration = playerInfo.ScanGeneration,
+    }
+
+    return true
+end
+
+function ReportOffers:SendPendingCombatOffers()
+    if InCombatLockdown() then
+        return false
+    end
+
+    for playerGuid, pendingOffer in pairs(PendingCombatOffers) do
+        local playerInfo = GearPolice.PlayerStore:Get(playerGuid)
+        local completedScan = {
+            reason = pendingOffer.reason,
+        }
+
+        PendingCombatOffers[playerGuid] = nil
+
+        if playerInfo and playerInfo.ScanGeneration == pendingOffer.scanGeneration
+            and self:CanSendOffer(playerInfo, completedScan, playerInfo.CheckStatus) then
+            self:SendOffer(playerInfo)
+        end
+    end
+
+    return true
+end
+
+function ReportOffers:SchedulePendingCombatOffers()
+    if GearPolice.reportOfferCombatTimer or not self:HasPendingCombatOffers() or InCombatLockdown() then
+        return false
+    end
+
+    GearPolice.reportOfferCombatTimer = GearPolice:ScheduleManagedTimer(function()
+        GearPolice.reportOfferCombatTimer = nil
+        ReportOffers:SendPendingCombatOffers()
+    end, ReportOfferCombatDelay)
+
+    return GearPolice.reportOfferCombatTimer ~= nil
 end
 
 function ReportOffers:RegisterChatFilters()
@@ -267,17 +340,11 @@ function ReportOffers:MaybeSendOffer(playerInfo, completedScan, status)
         return false
     end
 
-    local playerGuid = playerInfo.PlayerGuid
-    local offerHistory = self:EnsureHistory()
-    local recipientName = GetWhisperRecipientForPlayer(playerInfo)
+    if InCombatLockdown() then
+        return self:QueueCombatOffer(playerInfo, completedScan, status)
+    end
 
-    GearPolice.Reporting:SendStatusWhisper(recipientName, ResponseMessages.Offer, ShouldHideReportOfferWhispers())
-    offerHistory[playerGuid] = {
-        lastOfferedAt = time(),
-        scanGeneration = playerInfo.ScanGeneration,
-    }
-
-    return true
+    return self:SendOffer(playerInfo)
 end
 
 function GearPolice:InitializeReportOffers()
@@ -298,6 +365,10 @@ end
 
 function GearPolice:MaybeSendReportOffer(playerInfo, completedScan, status)
     return ReportOffers:MaybeSendOffer(playerInfo, completedScan, status)
+end
+
+function GearPolice:SchedulePendingReportOffersAfterCombat()
+    return ReportOffers:SchedulePendingCombatOffers()
 end
 
 function GearPolice:RegisterReportOfferOutgoingWhisper(message)

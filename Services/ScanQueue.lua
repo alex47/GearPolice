@@ -199,6 +199,10 @@ function GearPolice:ProcessScanQueue()
 end
 
 function GearPolice:OnCombatEnded()
+    if self.SchedulePendingReportOffersAfterCombat then
+        self:SchedulePendingReportOffersAfterCombat()
+    end
+
     return ScanQueue.OnCombatEnded(self)
 end
 
