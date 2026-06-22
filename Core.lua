@@ -43,7 +43,7 @@ function GearPolice:StartGearPolicingOfTarget()
 
     local targetGuid = UnitGUID("target")
     if targetGuid then
-        local targetName = UnitName("target")
+        local targetName, targetRealm = UnitName("target")
         if not targetName or targetName == "Unknown" then
             self:ScheduleManagedTimer(function()
                 if UnitGUID("target") == targetGuid then
@@ -53,8 +53,13 @@ function GearPolice:StartGearPolicingOfTarget()
             return
         end
 
+        local targetFullName = targetName
+        if type(targetRealm) == "string" and targetRealm ~= "" then
+            targetFullName = targetName .. "-" .. targetRealm
+        end
+
         GearPolice:RefreshCurrentRosterSnapshot()
-        GearPolice:ResetPlayerGearInfo(targetGuid, targetName)
+        GearPolice:ResetPlayerGearInfo(targetGuid, targetName, targetFullName)
         GearPolice:AddToScanQueue(targetGuid, true, "target", true)
         GearPolice.UI:UpdateUI()
 

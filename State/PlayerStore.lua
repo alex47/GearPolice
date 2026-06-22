@@ -39,9 +39,15 @@ function PlayerStore:SetDefault(playerGuid)
         return nil
     end
 
-    local _, _, _, _, _, playerName = GetPlayerInfoByGUID(playerGuid)
+    local _, _, _, _, _, playerName, playerRealm = GetPlayerInfoByGUID(playerGuid)
+    local playerFullName = playerName
+    if type(playerName) == "string" and type(playerRealm) == "string" and playerRealm ~= "" then
+        playerFullName = playerName .. "-" .. playerRealm
+    end
+
     playerGearInfo[playerGuid] = {
         ["PlayerName"] = playerName or "Unknown",
+        ["PlayerFullName"] = playerFullName or playerName or "Unknown",
         ["PlayerGuid"] = playerGuid,
         ["CheckRequested"] = true,
         ["CheckStatus"] = "InProgress",
@@ -62,13 +68,14 @@ function PlayerStore:Ensure(playerGuid)
     return self:Get(playerGuid) or self:SetDefault(playerGuid)
 end
 
-function PlayerStore:ResetForScan(playerGuid, playerName)
+function PlayerStore:ResetForScan(playerGuid, playerName, playerFullName)
     local playerInfo = self:Ensure(playerGuid)
     if not playerInfo then
         return nil
     end
 
     playerInfo.PlayerName = playerName or playerInfo.PlayerName or "Unknown"
+    playerInfo.PlayerFullName = playerFullName or playerInfo.PlayerFullName or playerInfo.PlayerName
     playerInfo.PlayerGuid = playerGuid
     playerInfo.CheckRequested = true
     playerInfo.CheckStatus = "InProgress"
@@ -152,8 +159,8 @@ function GearPolice:SetPlayerGuidToDefaultInPlayerGearInfo(playerGuid)
     return PlayerStore:SetDefault(playerGuid)
 end
 
-function GearPolice:ResetPlayerGearInfo(playerGuid, playerName)
-    local playerInfo = PlayerStore:ResetForScan(playerGuid, playerName)
+function GearPolice:ResetPlayerGearInfo(playerGuid, playerName, playerFullName)
+    local playerInfo = PlayerStore:ResetForScan(playerGuid, playerName, playerFullName)
     if not playerInfo then
         return
     end

@@ -4,6 +4,18 @@ GearPolice.Roster = GearPolice.Roster or {}
 
 local Roster = GearPolice.Roster
 
+local function BuildFullPlayerName(playerName, playerRealm)
+    if type(playerName) ~= "string" or playerName == "" or playerName == "Unknown" then
+        return nil
+    end
+
+    if type(playerRealm) == "string" and playerRealm ~= "" then
+        return playerName .. "-" .. playerRealm
+    end
+
+    return playerName
+end
+
 function Roster.CreateEmptySnapshot(groupType)
     return {
         presentGuids = {},
@@ -230,7 +242,8 @@ function Roster.ProcessGroupMember(addon, unitId, sortIndex, groupType)
     local playerGuid = UnitGUID(unitId)
     if not playerGuid then return end
 
-    local playerName = UnitName(unitId)
+    local playerName, playerRealm = UnitName(unitId)
+    local playerFullName = BuildFullPlayerName(playerName, playerRealm)
     local playerInfo = addon.PlayerStore:Get(playerGuid)
 
     if playerInfo then
@@ -264,6 +277,7 @@ function Roster.ProcessGroupMember(addon, unitId, sortIndex, groupType)
     end
 
     playerInfo.PlayerName = playerName
+    playerInfo.PlayerFullName = playerFullName or playerName
     Roster.ApplyMetadata(playerInfo, playerGuid, unitId, sortIndex, groupType)
 
     if isNewPlayer then

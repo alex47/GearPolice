@@ -17,7 +17,6 @@ local ResponseMessages = {
     Failed = "I could not complete your gear scan. Ask for a rescan if needed.",
     Cancelled = "Your gear scan was cancelled. Ask for a rescan, then try !gp again.",
     NoScan = "I do not have a gear scan for you yet.",
-    Offer = "I found issues with your equipped gear. Reply !gp for details.",
 }
 
 local function IsKnownPlayerName(playerName)
@@ -30,7 +29,15 @@ local function ShouldHideReportOfferWhispers()
         and GearPolice.db.global.HideReportOfferWhispers == true
 end
 
-local function NormalizePlayerName(playerName)
+local function NormalizeFullPlayerName(playerName)
+    if not IsKnownPlayerName(playerName) then
+        return nil
+    end
+
+    return string.lower(playerName)
+end
+
+local function NormalizeShortPlayerName(playerName)
     if not IsKnownPlayerName(playerName) then
         return nil
     end
@@ -41,6 +48,13 @@ end
 
 local function IsPlayerGuid(value)
     return type(value) == "string" and string.find(value, "^Player%-") ~= nil
+end
+
+local function BuildOfferMessage(playerInfo)
+    local issueCount = GearPolice.Reporting:GetReportableIssueCount(playerInfo)
+    local issueWord = issueCount == 1 and "issue" or "issues"
+    return "I found " .. tostring(issueCount) .. " " .. issueWord
+        .. " in your equipped gear. Reply !gp to get the full report."
 end
 
 local function GetWhisperRecipientForPlayer(playerInfo)
@@ -58,6 +72,26 @@ local function GetWhisperRecipientForPlayer(playerInfo)
 
             return unitName
         end
+    end
+
+    if IsKnownPlayerName(playerInfo.PlayerFullName) then
+        return playerInfo.PlayerFullName
+    end
+
+    if IsKnownPlayerName(playerInfo.PlayerName) then
+        return playerInfo.PlayerName
+    end
+
+    return nil
+end
+
+local function GetStoredFullPlayerName(playerInfo)
+    if type(playerInfo) ~= "table" then
+        return nil
+    end
+
+    if IsKnownPlayerName(playerInfo.PlayerFullName) then
+        return playerInfo.PlayerFullName
     end
 
     if IsKnownPlayerName(playerInfo.PlayerName) then
@@ -134,6 +168,39 @@ function ReportOffers:HasPendingCombatOffers()
     return next(PendingCombatOffers) ~= nil
 end
 
+function ReportOffers:CancelCombatOfferTimerIfIdle()
+    if self:HasPendingCombatOffers() or not GearPolice.reportOfferCombatTimer then
+        return
+    end
+
+    GearPolice:CancelTimer(GearPolice.reportOfferCombatTimer)
+    if GearPolice.activeTimers then
+        GearPolice.activeTimers[GearPolice.reportOfferCombatTimer] = nil
+    end
+    GearPolice.reportOfferCombatTimer = nil
+end
+
+function ReportOffers:ClearPendingCombatOffer(playerGuid)
+    if not playerGuid then
+        return
+    end
+
+    PendingCombatOffers[playerGuid] = nil
+    self:CancelCombatOfferTimerIfIdle()
+end
+
+function ReportOffers:ClearPendingCombatOffers()
+    PendingCombatOffers = {}
+
+    if GearPolice.reportOfferCombatTimer then
+        GearPolice:CancelTimer(GearPolice.reportOfferCombatTimer)
+        if GearPolice.activeTimers then
+            GearPolice.activeTimers[GearPolice.reportOfferCombatTimer] = nil
+        end
+        GearPolice.reportOfferCombatTimer = nil
+    end
+end
+
 function ReportOffers:QueueCombatOffer(playerInfo, completedScan, status)
     if type(playerInfo) ~= "table" or not playerInfo.PlayerGuid then
         return false
@@ -157,7 +224,11 @@ function ReportOffers:SendOffer(playerInfo)
         return false
     end
 
-    GearPolice.Reporting:SendStatusWhisper(recipientName, ResponseMessages.Offer, ShouldHideReportOfferWhispers())
+    GearPolice.Reporting:SendStatusWhisper(
+        recipientName,
+        BuildOfferMessage(playerInfo),
+        ShouldHideReportOfferWhispers()
+    )
     offerHistory[playerGuid] = {
         lastOfferedAt = time(),
         scanGeneration = playerInfo.ScanGeneration,
@@ -236,8 +307,8 @@ function ReportOffers:FindPlayerInfo(senderGuid, senderName)
         end
     end
 
-    local normalizedSenderName = NormalizePlayerName(senderName)
-    if not normalizedSenderName then
+    local normalizedFullSenderName = NormalizeFullPlayerName(senderName)
+    if not normalizedFullSenderName then
         return nil
     end
 
@@ -247,9 +318,23 @@ function ReportOffers:FindPlayerInfo(senderGuid, senderName)
     end
 
     for _, playerInfo in pairs(playerGearInfo) do
-        if NormalizePlayerName(playerInfo.PlayerName) == normalizedSenderName then
+        if NormalizeFullPlayerName(GetStoredFullPlayerName(playerInfo)) == normalizedFullSenderName then
             return playerInfo
         end
+    end
+
+    local normalizedShortSenderName = NormalizeShortPlayerName(senderName)
+    local matchedPlayerInfo
+    local matchCount = 0
+    for _, playerInfo in pairs(playerGearInfo) do
+        if NormalizeShortPlayerName(GetStoredFullPlayerName(playerInfo)) == normalizedShortSenderName then
+            matchedPlayerInfo = playerInfo
+            matchCount = matchCount + 1
+        end
+    end
+
+    if matchCount == 1 then
+        return matchedPlayerInfo
     end
 
     return nil
@@ -321,7 +406,7 @@ function ReportOffers:CanSendOffer(playerInfo, completedScan, status)
         return false
     end
 
-    if #GearPolice.Reporting:GetReportableProblematicItems(playerInfo) == 0 then
+    if GearPolice.Reporting:GetReportableIssueCount(playerInfo) == 0 then
         return false
     end
 
@@ -369,6 +454,14 @@ end
 
 function GearPolice:SchedulePendingReportOffersAfterCombat()
     return ReportOffers:SchedulePendingCombatOffers()
+end
+
+function GearPolice:ClearPendingReportOffer(playerGuid)
+    return ReportOffers:ClearPendingCombatOffer(playerGuid)
+end
+
+function GearPolice:ClearPendingReportOffers()
+    return ReportOffers:ClearPendingCombatOffers()
 end
 
 function GearPolice:RegisterReportOfferOutgoingWhisper(message)

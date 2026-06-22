@@ -26,10 +26,16 @@ function RuntimeState.ClearScheduledWorkForPlayer(addon, playerGuid)
     addon:CancelManagedTimersForPlayer(playerGuid)
     addon:RemoveFromScanQueue(playerGuid)
     addon:ClearCurrentScanForPlayer(playerGuid)
+    if addon.ClearPendingReportOffer then
+        addon:ClearPendingReportOffer(playerGuid)
+    end
 end
 
 function RuntimeState.StopAllScans(addon)
     addon:CancelAllManagedTimers()
+    if addon.ClearPendingReportOffers then
+        addon:ClearPendingReportOffers()
+    end
 
     if ClearInspectPlayer then
         ClearInspectPlayer()

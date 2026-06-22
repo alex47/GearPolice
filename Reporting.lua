@@ -67,6 +67,19 @@ function Reporting:GetReportableProblematicItems(playerInfo)
     return reportableItems
 end
 
+function Reporting:GetReportableIssueCount(playerInfo)
+    local issueCount = 0
+    local reportableItems = self:GetReportableProblematicItems(playerInfo)
+
+    for _, item in ipairs(reportableItems) do
+        if type(item.problems) == "table" then
+            issueCount = issueCount + #item.problems
+        end
+    end
+
+    return issueCount
+end
+
 function Reporting:GetReportPrefix()
     return ReportPrefix
 end
