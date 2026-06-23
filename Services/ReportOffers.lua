@@ -10,13 +10,14 @@ local SuppressedOutgoingMessages = {}
 local PendingCombatOffers = {}
 
 local ResponseMessages = {
-    SuccessfulClean = "No issues found in your equipped gear.",
-    Partial = "Your gear scan is waiting on item data. Try !gp again in a moment.",
-    InProgress = "Your gear scan is still running. Try !gp again in a moment.",
-    TemporaryFailed = "I could not inspect you yet. Move closer or wait a moment, then try !gp again.",
-    Failed = "I could not complete your gear scan. Ask for a rescan if needed.",
+    SuccessfulClean = "No issues were found in your equipped gear.",
+    Partial = "Some item data is still pending. Try !gp again in a moment.",
+    InProgress = "Your equipped gear is still being scanned. Try !gp again in a moment.",
+    TemporaryFailed = "Your equipped gear could not be inspected yet. "
+        .. "Move closer or wait a moment, then try !gp again.",
+    Failed = "Your gear scan could not be completed.",
     Cancelled = "Your gear scan was cancelled. Ask for a rescan, then try !gp again.",
-    NoScan = "I do not have a gear scan for you yet.",
+    NoScan = "No gear scan is available for you yet.",
 }
 
 local function IsKnownPlayerName(playerName)
@@ -53,8 +54,9 @@ end
 local function BuildOfferMessage(playerInfo)
     local issueCount = GearPolice.Reporting:GetReportableIssueCount(playerInfo)
     local issueWord = issueCount == 1 and "issue" or "issues"
-    return "I found " .. tostring(issueCount) .. " " .. issueWord
-        .. " in your equipped gear. Reply !gp to get the full report."
+    local verb = issueCount == 1 and "was" or "were"
+    return tostring(issueCount) .. " " .. issueWord
+        .. " " .. verb .. " found in your equipped gear. Whisper me \"!gp\" to get the full report."
 end
 
 local function GetWhisperRecipientForPlayer(playerInfo)
