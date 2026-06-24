@@ -299,7 +299,9 @@ function ReportOffers:IsWhisperRequest(message)
         return false
     end
 
-    return string.find(string.lower(message), "!gp", 1, true) ~= nil
+    local normalizedMessage = string.lower(message)
+    return string.find(normalizedMessage, "!gp", 1, true) ~= nil
+        or string.find(normalizedMessage, "|gp", 1, true) ~= nil
 end
 
 function ReportOffers:FindPlayerInfo(senderGuid, senderName)
