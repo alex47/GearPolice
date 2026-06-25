@@ -75,10 +75,14 @@ end
 -- Slash command
 
 function GearPolice:HandleSlashCommands(msg, _editbox)
+    msg = string.lower(msg or "")
+
     if (msg == "target") then
         GearPolice:StartGearPolicingOfTarget()
     elseif (msg == "showui") then
         GearPolice.UI:ShowUI()
+    elseif (msg == "help") then
+        GearPolice.UI:ShowHelpWindow()
     elseif (msg == "debug") then
         GearPolice.db.global.DebugEnabled = not GearPolice.db.global.DebugEnabled
         GearPolice:Print("Debug mode " .. (GearPolice.db.global.DebugEnabled and "enabled" or "disabled") .. ".")

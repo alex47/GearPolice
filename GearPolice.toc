@@ -32,6 +32,7 @@ UI\ViewModel.lua
 UI\Widgets\ItemIcon.lua
 UI\PlayerRows.lua
 UI\MainWindow.lua
+UI\HelpWindow.lua
 UI\MinimapMenu.lua
 UI\MinimapMenu.xml
 UI\MinimapIcon.lua

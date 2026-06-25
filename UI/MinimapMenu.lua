@@ -35,6 +35,10 @@ local function OpenMainWindow()
     end
 end
 
+local function OpenHelpWindow()
+    GearPolice.UI:ShowHelpWindow()
+end
+
 local function CloseMenu()
     CloseDropDownMenus()
 end
@@ -121,6 +125,7 @@ function GearPolice:InitializeMinimapDropDownItems(_frame, level)
 
     AddTitle("GearPolice")
     AddAction("Open Main Window", OpenMainWindow)
+    AddAction("Help", OpenHelpWindow)
     AddSeparator()
     AddReportModeSubmenu()
     AddToggle("Report Offers", GearPolice.db.global.ReportOfferEnabled == true, ToggleReportOffers)
