@@ -28,7 +28,7 @@ function UI:ShowUI()
     end
 
     self.uiFrame = AceGUI:Create("Frame")
-    self.uiFrame:SetTitle("Gear Police")
+    self.uiFrame:SetTitle("GearPolice")
     self.uiFrame:SetCallback("OnClose", function(widget)
         AceGUI:Release(widget)
         ClearWindowState(self)

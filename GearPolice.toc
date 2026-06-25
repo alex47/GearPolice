@@ -1,8 +1,8 @@
 ## Interface: 50504
 ## Title: GearPolice
 ## Version: 1.2.0
-## Notes: Shame your group members when their gear is missing enchants or gems.
-## Author: Borlandc @ Firemaw-EU
+## Notes: Shame your group members when their gear is missing enchants or gems.|n|cffBBBBBBMade by Borlandc @ Shek'zeer-EU|r
+## Author: Borlandc @ Shek'zeer-EU
 ## IconTexture: Interface\AddOns\GearPolice\Media\GearPoliceIcon.tga
 ## DefaultState: enabled
 ## SavedVariables: GearPoliceDB
