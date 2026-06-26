@@ -6,6 +6,12 @@
 
 - Coordinates automatic report offers between GearPolice users in the same party or raid so only one enabled sender whispers each player.
 
+### Fixes
+
+- Delays automatic report offers briefly after group/option changes so peer coordination can settle before sending.
+- Uses alphabetical character-name priority when choosing a party report-offer coordinator.
+- Splits long chat report messages safely instead of sending oversized lines directly.
+
 ## 1.3.0 - 2026-06-26
 
 Initial CurseForge release.

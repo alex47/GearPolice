@@ -216,7 +216,6 @@ function Roster.Reconcile(addon, snapshot)
     end
 
     addon.UI:UpdateUI()
-    addon:ProcessScanQueue()
 end
 
 function Roster.UpdateGroupMembers(addon)
@@ -240,6 +239,7 @@ function Roster.UpdateGroupMembers(addon)
     if addon.RefreshCommsGroupState then
         addon:RefreshCommsGroupState()
     end
+    addon:ProcessScanQueue()
 end
 
 function Roster.ProcessGroupMember(addon, unitId, sortIndex, groupType)
@@ -342,7 +342,11 @@ function GearPolice:GetOrderedPlayerGuids()
 end
 
 function GearPolice:ReconcileGroupRoster(snapshot)
-    return Roster.Reconcile(self, snapshot)
+    Roster.Reconcile(self, snapshot)
+    if self.RefreshCommsGroupState then
+        self:RefreshCommsGroupState()
+    end
+    return self:ProcessScanQueue()
 end
 
 function GearPolice:UpdatePlayerGearInfoWithGroupMembers()

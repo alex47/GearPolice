@@ -8,6 +8,7 @@ local ReportOfferCombatDelay = 5
 local ChatFiltersRegistered = false
 local SuppressedOutgoingMessages = {}
 local PendingCombatOffers = {}
+local PendingCoordinationOffers = {}
 
 local ResponseMessages = {
     SuccessfulClean = "No issues were found in your equipped gear.",
@@ -182,6 +183,10 @@ function ReportOffers:HasPendingCombatOffers()
     return next(PendingCombatOffers) ~= nil
 end
 
+function ReportOffers:HasPendingCoordinationOffers()
+    return next(PendingCoordinationOffers) ~= nil
+end
+
 function ReportOffers:CancelCombatOfferTimerIfIdle()
     if self:HasPendingCombatOffers() or not GearPolice.reportOfferCombatTimer then
         return
@@ -200,11 +205,13 @@ function ReportOffers:ClearPendingCombatOffer(playerGuid)
     end
 
     PendingCombatOffers[playerGuid] = nil
+    PendingCoordinationOffers[playerGuid] = nil
     self:CancelCombatOfferTimerIfIdle()
 end
 
 function ReportOffers:ClearPendingCombatOffers()
     PendingCombatOffers = {}
+    PendingCoordinationOffers = {}
 
     if GearPolice.reportOfferCombatTimer then
         GearPolice:CancelTimer(GearPolice.reportOfferCombatTimer)
@@ -221,6 +228,20 @@ function ReportOffers:QueueCombatOffer(playerInfo, completedScan, status)
     end
 
     PendingCombatOffers[playerInfo.PlayerGuid] = {
+        scanGeneration = playerInfo.ScanGeneration,
+        status = status,
+        reason = completedScan and completedScan.reason,
+    }
+
+    return true
+end
+
+function ReportOffers:QueueCoordinationOffer(playerInfo, completedScan, status)
+    if type(playerInfo) ~= "table" or not playerInfo.PlayerGuid then
+        return false
+    end
+
+    PendingCoordinationOffers[playerInfo.PlayerGuid] = {
         scanGeneration = playerInfo.ScanGeneration,
         status = status,
         reason = completedScan and completedScan.reason,
@@ -401,7 +422,7 @@ function ReportOffers:HandleWhisper(message, senderName, senderGuid)
     return self:SendScanResponse(playerInfo, senderName)
 end
 
-function ReportOffers:CanSendOffer(playerInfo, completedScan, status)
+function ReportOffers:CanConsiderOffer(playerInfo, completedScan, status)
     if GearPolice.db.global.ReportOfferEnabled ~= true then
         return false
     end
@@ -427,10 +448,19 @@ function ReportOffers:CanSendOffer(playerInfo, completedScan, status)
         return false
     end
 
+    return true
+end
+
+function ReportOffers:CanSendOffer(playerInfo, completedScan, status)
+    if not self:CanConsiderOffer(playerInfo, completedScan, status) then
+        return false
+    end
+
     if GearPolice.IsLocalReportOfferCoordinator and not GearPolice:IsLocalReportOfferCoordinator() then
         return false
     end
 
+    local playerGuid = playerInfo.PlayerGuid
     local offerHistory = self:EnsureHistory()
     local lastOffer = offerHistory[playerGuid]
     local lastOfferedAt = type(lastOffer) == "table" and lastOffer.lastOfferedAt or 0
@@ -442,6 +472,15 @@ function ReportOffers:CanSendOffer(playerInfo, completedScan, status)
 end
 
 function ReportOffers:MaybeSendOffer(playerInfo, completedScan, status)
+    if not self:CanConsiderOffer(playerInfo, completedScan, status) then
+        return false
+    end
+
+    if GearPolice.IsReportOfferCoordinationWarmupActive
+        and GearPolice:IsReportOfferCoordinationWarmupActive() then
+        return self:QueueCoordinationOffer(playerInfo, completedScan, status)
+    end
+
     if not self:CanSendOffer(playerInfo, completedScan, status) then
         return false
     end
@@ -451,6 +490,32 @@ function ReportOffers:MaybeSendOffer(playerInfo, completedScan, status)
     end
 
     return self:SendOffer(playerInfo)
+end
+
+function ReportOffers:SendPendingCoordinationOffers()
+    if not self:HasPendingCoordinationOffers() then
+        return false
+    end
+
+    for playerGuid, pendingOffer in pairs(PendingCoordinationOffers) do
+        local playerInfo = GearPolice.PlayerStore:Get(playerGuid)
+        local completedScan = {
+            reason = pendingOffer.reason,
+        }
+
+        PendingCoordinationOffers[playerGuid] = nil
+
+        if playerInfo and playerInfo.ScanGeneration == pendingOffer.scanGeneration
+            and self:CanSendOffer(playerInfo, completedScan, playerInfo.CheckStatus) then
+            if InCombatLockdown() then
+                self:QueueCombatOffer(playerInfo, completedScan, playerInfo.CheckStatus)
+            else
+                self:SendOffer(playerInfo)
+            end
+        end
+    end
+
+    return true
 end
 
 function GearPolice:InitializeReportOffers()
@@ -477,6 +542,10 @@ end
 
 function GearPolice:SchedulePendingReportOffersAfterCombat()
     return ReportOffers:SchedulePendingCombatOffers()
+end
+
+function GearPolice:SendPendingReportOffersAfterCoordination()
+    return ReportOffers:SendPendingCoordinationOffers()
 end
 
 function GearPolice:ClearPendingReportOffer(playerGuid)

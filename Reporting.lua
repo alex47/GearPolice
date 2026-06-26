@@ -4,6 +4,25 @@ GearPolice.Reporting = GearPolice.Reporting or {}
 local Reporting = GearPolice.Reporting
 local ReportPrefix = "{Square} GearPolice {Cross}"
 
+local SlotLabels = {
+    HeadSlot = "Head",
+    NeckSlot = "Neck",
+    ShoulderSlot = "Shoulder",
+    BackSlot = "Back",
+    ChestSlot = "Chest",
+    WristSlot = "Wrist",
+    HandsSlot = "Hands",
+    WaistSlot = "Waist",
+    LegsSlot = "Legs",
+    FeetSlot = "Feet",
+    Finger0Slot = "Finger 1",
+    Finger1Slot = "Finger 2",
+    MainHandSlot = "Main Hand",
+    SecondaryHandSlot = "Off Hand",
+    Trinket0Slot = "Trinket 1",
+    Trinket1Slot = "Trinket 2",
+}
+
 local function IsKnownPlayerName(playerName)
     return type(playerName) == "string" and playerName ~= "" and playerName ~= "Unknown"
 end
@@ -22,6 +41,59 @@ local function GetWhisperRecipientForPlayer(playerInfo)
     end
 
     return nil
+end
+
+local function GetPlayerPrefix(playerInfo, includePlayerName)
+    if not includePlayerName then
+        return ""
+    end
+
+    local playerName = type(playerInfo) == "table" and type(playerInfo.PlayerName) == "string"
+        and playerInfo.PlayerName or nil
+    return (playerName or "Unknown") .. " - "
+end
+
+local function GetSlotLabel(slotName)
+    return SlotLabels[slotName] or slotName
+end
+
+local function GetItemNameFromLink(itemLink)
+    if type(itemLink) ~= "string" then
+        return "Item"
+    end
+
+    local itemName = GetItemInfo(itemLink)
+    if IsKnownPlayerName(itemName) then
+        return itemName
+    end
+
+    return itemLink:match("%[(.-)%]") or "Item"
+end
+
+local function BuildFallbackItemReference(item)
+    local itemName = GetItemNameFromLink(item.itemLink)
+    local slotLabel = GetSlotLabel(item.slotName)
+
+    if slotLabel then
+        return slotLabel .. " - " .. itemName
+    end
+
+    return itemName
+end
+
+local function RegisterOutgoingWhisperSuppression(message)
+    if not GearPolice.RegisterReportOfferOutgoingWhisper then
+        return
+    end
+
+    if GearPolice.ChatThrottle and GearPolice.ChatThrottle.GetMessageChunks then
+        for _, messageChunk in ipairs(GearPolice.ChatThrottle:GetMessageChunks(message)) do
+            GearPolice:RegisterReportOfferOutgoingWhisper(messageChunk)
+        end
+        return
+    end
+
+    GearPolice:RegisterReportOfferOutgoingWhisper(message)
 end
 
 local function AddReportableProblem(reportableItems, reportableItemsByKey, itemLink, slotName, message)
@@ -104,17 +176,40 @@ function Reporting:GetReportPrefix()
     return ReportPrefix
 end
 
-function Reporting:BuildProblemReportMessage(playerInfo, item, includePlayerName)
+function Reporting:BuildProblemReportMessages(playerInfo, item, includePlayerName)
     local problemsStr = table.concat(item.problems, ", ")
-    local playerPrefix = ""
+    local playerPrefix = GetPlayerPrefix(playerInfo, includePlayerName)
+    local messagePrefix = ReportPrefix .. " " .. playerPrefix
+    local fullMessage = messagePrefix .. item.itemLink .. ": " .. problemsStr
 
-    if includePlayerName then
-        local playerName = type(playerInfo) == "table" and type(playerInfo.PlayerName) == "string"
-            and playerInfo.PlayerName or nil
-        playerPrefix = (playerName or "Unknown") .. " - "
+    local maxMessageLength = GearPolice.ChatThrottle:GetMaxMessageLength()
+    if #fullMessage <= maxMessageLength then
+        return { fullMessage }
     end
 
-    return ReportPrefix .. " " .. playerPrefix .. item.itemLink .. ": " .. problemsStr
+    if #(messagePrefix .. item.itemLink) <= maxMessageLength then
+        return {
+            messagePrefix .. item.itemLink,
+            messagePrefix .. "Issues: " .. problemsStr,
+        }
+    end
+
+    if #item.itemLink <= maxMessageLength then
+        return {
+            messagePrefix .. "Item:",
+            item.itemLink,
+            messagePrefix .. "Issues: " .. problemsStr,
+        }
+    end
+
+    return {
+        messagePrefix .. BuildFallbackItemReference(item),
+        messagePrefix .. "Issues: " .. problemsStr,
+    }
+end
+
+function Reporting:BuildProblemReportMessage(playerInfo, item, includePlayerName)
+    return table.concat(self:BuildProblemReportMessages(playerInfo, item, includePlayerName), " ")
 end
 
 function Reporting:SendWhisper(recipientName, message, suppressLocal, priority)
@@ -124,7 +219,7 @@ function Reporting:SendWhisper(recipientName, message, suppressLocal, priority)
     end
 
     if suppressLocal and GearPolice.RegisterReportOfferOutgoingWhisper then
-        GearPolice:RegisterReportOfferOutgoingWhisper(message)
+        RegisterOutgoingWhisperSuppression(message)
     end
 
     return GearPolice.ChatThrottle:Send(message, "WHISPER", recipientName, priority or "NORMAL")
@@ -146,7 +241,9 @@ function Reporting:SendProblematicItemsWhisper(playerInfo, recipientName, suppre
     end
 
     for _, item in ipairs(reportableItems) do
-        self:SendWhisper(recipientName, self:BuildProblemReportMessage(playerInfo, item), suppressLocal, priority)
+        for _, message in ipairs(self:BuildProblemReportMessages(playerInfo, item)) do
+            self:SendWhisper(recipientName, message, suppressLocal, priority)
+        end
     end
 
     return true
@@ -164,8 +261,9 @@ function Reporting:ReportProblematicItems_Print(playerInfo)
     GearPolice:Print("Player:", playerName or "Unknown")
 
     for _, item in ipairs(reportableItems) do
-        local problemsStr = table.concat(item.problems, ", ")
-        GearPolice:Print(item.itemLink .. ": " .. problemsStr)
+        for _, message in ipairs(self:BuildProblemReportMessages(playerInfo, item)) do
+            GearPolice:Print(message)
+        end
     end
 end
 
@@ -179,14 +277,16 @@ function Reporting:ReportProblematicItems(playerInfo)
 
     for _, item in ipairs(reportableItems) do
         local reportMode = GearPolice.db.global.ReportMode
-        local message = self:BuildProblemReportMessage(playerInfo, item, reportMode == "public")
+        local messages = self:BuildProblemReportMessages(playerInfo, item, reportMode == "public")
 
-        if reportMode == "public" then
-            GearPolice.ChatThrottle:Send(message, IsInRaid() and "RAID" or "PARTY", nil, "NORMAL")
-        elseif reportMode == "debug" then
-            GearPolice:Print(message)
-        elseif whisperRecipient then
-            GearPolice.ChatThrottle:Send(message, "WHISPER", whisperRecipient, "NORMAL")
+        for _, message in ipairs(messages) do
+            if reportMode == "public" then
+                GearPolice.ChatThrottle:Send(message, IsInRaid() and "RAID" or "PARTY", nil, "NORMAL")
+            elseif reportMode == "debug" then
+                GearPolice:Print(message)
+            elseif whisperRecipient then
+                GearPolice.ChatThrottle:Send(message, "WHISPER", whisperRecipient, "NORMAL")
+            end
         end
     end
 end

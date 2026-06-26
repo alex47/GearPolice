@@ -101,7 +101,6 @@ local function UpdatePlayerRow(playerUI, row)
         GearPolice.Reporting:ReportProblematicItems(row.playerInfo)
     end)
 
-    GearPolice.Debug:Message("playerInfo.CheckStatus: " .. (row.checkStatus or "nil"))
     playerUI.statusIcon:SetImage(row.statusTexture)
     playerUI.statusLabel:SetText(row.statusText or "")
     playerUI.issueSummaryLabel:SetText(row.issueSummary or "")

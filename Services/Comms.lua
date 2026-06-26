@@ -2,8 +2,6 @@ local GearPolice = GearPolice
 
 GearPolice.Comms = GearPolice.Comms or {}
 
-local Comms = GearPolice.Comms
-
 local CommPrefix = "GearPolice"
 local ProtocolVersion = "1"
 local StateMessageType = "STATE"
@@ -11,10 +9,52 @@ local HeartbeatInterval = 30
 local PeerExpirySeconds = 90
 local RosterAnnounceMinDelay = 0.5
 local RosterAnnounceMaxDelay = 2.5
+local CoordinationWarmupSeconds = 3
 local CoordinatorUnset = false
 
 local function IsGrouped()
     return IsInRaid() or IsInGroup()
+end
+
+local function IsKnownPlayerName(playerName)
+    return type(playerName) == "string" and playerName ~= "" and playerName ~= "Unknown"
+end
+
+local function NormalizePlayerName(playerName)
+    if not IsKnownPlayerName(playerName) then
+        return nil
+    end
+
+    return string.lower(playerName)
+end
+
+local function BuildFullPlayerName(playerName, playerRealm)
+    if not IsKnownPlayerName(playerName) then
+        return nil
+    end
+
+    if type(playerRealm) == "string" and playerRealm ~= "" then
+        return playerName .. "-" .. playerRealm
+    end
+
+    return playerName
+end
+
+local function GetUnitFullPlayerName(unitId)
+    if not unitId or not UnitExists(unitId) then
+        return nil
+    end
+
+    local playerName, playerRealm = UnitName(unitId)
+    if unitId == "player" and (not playerRealm or playerRealm == "") and type(GetRealmName) == "function" then
+        playerRealm = GetRealmName()
+    end
+
+    return BuildFullPlayerName(playerName, playerRealm)
+end
+
+local function GetLocalPlayerName()
+    return GetUnitFullPlayerName("player")
 end
 
 local function GetCommDistribution()
@@ -76,24 +116,59 @@ local function FindRaidRosterIndex(playerGuid)
     return 999
 end
 
-local function GetCoordinatorRosterIndex(playerGuid)
-    if IsInRaid() then
-        return FindRaidRosterIndex(playerGuid)
+local function GetStoredPlayerName(addon, playerGuid)
+    local playerInfo = addon.PlayerStore and addon.PlayerStore:Get(playerGuid) or nil
+    if not playerInfo then
+        return nil
     end
 
-    -- Party unit ids are client-relative because each client sees themselves as "player".
-    -- GUID tie-break is the stable fallback when leader/assistant rank does not decide.
-    return 999
+    if IsKnownPlayerName(playerInfo.PlayerFullName) then
+        return playerInfo.PlayerFullName
+    end
+
+    if IsKnownPlayerName(playerInfo.PlayerName) then
+        return playerInfo.PlayerName
+    end
+
+    return nil
 end
 
-local function BuildCandidate(playerGuid)
+local function GetCandidateName(addon, playerGuid, peer)
+    if UnitGUID("player") == playerGuid then
+        return GetLocalPlayerName()
+    end
+
+    if peer and IsKnownPlayerName(peer.playerName) then
+        return peer.playerName
+    end
+
+    local storedName = GetStoredPlayerName(addon, playerGuid)
+    if storedName then
+        return storedName
+    end
+
+    local unitId = GetUnitForGuid(playerGuid)
+    local unitName = GetUnitFullPlayerName(unitId)
+    if unitName then
+        return unitName
+    end
+
+    if peer and IsKnownPlayerName(peer.sender) then
+        return peer.sender
+    end
+
+    return tostring(playerGuid or "")
+end
+
+local function BuildCandidate(addon, playerGuid, peer)
     local unitId = GetUnitForGuid(playerGuid)
 
     return {
         playerGuid = playerGuid,
         leaderRank = IsUnitGroupLeader(unitId) and 0 or 1,
         assistantRank = IsUnitGroupAssistant(unitId) and 0 or 1,
-        rosterIndex = GetCoordinatorRosterIndex(playerGuid),
+        rosterIndex = IsInRaid() and FindRaidRosterIndex(playerGuid) or 999,
+        playerName = NormalizePlayerName(GetCandidateName(addon, playerGuid, peer)) or tostring(playerGuid or ""),
         tieBreaker = playerGuid,
     }
 end
@@ -111,8 +186,12 @@ local function CandidateComesBefore(a, b)
         return a.assistantRank < b.assistantRank
     end
 
-    if a.rosterIndex ~= b.rosterIndex then
+    if IsInRaid() and a.rosterIndex ~= b.rosterIndex then
         return a.rosterIndex < b.rosterIndex
+    end
+
+    if not IsInRaid() and a.playerName ~= b.playerName then
+        return a.playerName < b.playerName
     end
 
     return (a.tieBreaker or "") < (b.tieBreaker or "")
@@ -124,28 +203,15 @@ local function GetPlayerDisplayName(addon, playerGuid)
         return playerName or "You"
     end
 
-    local playerInfo = addon.PlayerStore and addon.PlayerStore:Get(playerGuid) or nil
-    if playerInfo and type(playerInfo.PlayerName) == "string" and playerInfo.PlayerName ~= "" then
-        return playerInfo.PlayerName
-    end
-
-    local unitId = GetUnitForGuid(playerGuid)
-    if unitId then
-        local unitName = UnitName(unitId)
-        if type(unitName) == "string" and unitName ~= "" and unitName ~= "Unknown" then
-            return unitName
-        end
-    end
-
-    local peer = addon.commsPeers and addon.commsPeers[playerGuid]
-    if peer and type(peer.sender) == "string" and peer.sender ~= "" then
-        return peer.sender
+    local candidateName = GetCandidateName(addon, playerGuid, addon.commsPeers and addon.commsPeers[playerGuid])
+    if IsKnownPlayerName(candidateName) then
+        return candidateName
     end
 
     return tostring(playerGuid or "none")
 end
 
-function Comms.PrunePeers(addon)
+local function PrunePeers(addon)
     if type(addon.commsPeers) ~= "table" then
         addon.commsPeers = {}
         return
@@ -162,12 +228,12 @@ function Comms.PrunePeers(addon)
     end
 end
 
-function Comms.GetCoordinatorGuid(addon)
+local function GetCoordinatorGuid(addon)
     if not IsGrouped() then
         return nil
     end
 
-    Comms.PrunePeers(addon)
+    PrunePeers(addon)
 
     local selectedCandidate
     local localGuid = UnitGUID("player")
@@ -176,12 +242,12 @@ function Comms.GetCoordinatorGuid(addon)
         and addon.db
         and addon.db.global
         and addon.db.global.ReportOfferEnabled == true then
-        selectedCandidate = BuildCandidate(localGuid)
+        selectedCandidate = BuildCandidate(addon, localGuid)
     end
 
     for playerGuid, peer in pairs(addon.commsPeers or {}) do
         if peer.reportOffersEnabled == true and GearPolice.Helper:IsPlayerInGroup(playerGuid) then
-            local candidate = BuildCandidate(playerGuid)
+            local candidate = BuildCandidate(addon, playerGuid, peer)
             if CandidateComesBefore(candidate, selectedCandidate) then
                 selectedCandidate = candidate
             end
@@ -191,8 +257,8 @@ function Comms.GetCoordinatorGuid(addon)
     return selectedCandidate and selectedCandidate.playerGuid or nil
 end
 
-function Comms.UpdateCoordinatorDebug(addon)
-    local coordinatorGuid = Comms.GetCoordinatorGuid(addon)
+local function UpdateCoordinatorDebug(addon)
+    local coordinatorGuid = GetCoordinatorGuid(addon)
     local previousCoordinatorGuid = addon.commsLastCoordinatorGuid
 
     if previousCoordinatorGuid == coordinatorGuid then
@@ -211,45 +277,90 @@ function Comms.UpdateCoordinatorDebug(addon)
     end
 end
 
-function Comms.StopHeartbeat(addon)
+local function StopHeartbeat(addon)
     if addon.commsHeartbeatTimer then
         addon:CancelTimer(addon.commsHeartbeatTimer)
         addon.commsHeartbeatTimer = nil
     end
 end
 
-function Comms.CancelScheduledAnnouncement(addon)
+local function CancelScheduledAnnouncement(addon)
     if addon.commsAnnounceTimer then
         addon:CancelTimer(addon.commsAnnounceTimer)
         addon.commsAnnounceTimer = nil
     end
 end
 
-function Comms.ClearPeers(addon)
+local function CancelCoordinationWarmup(addon)
+    if addon.commsWarmupTimer then
+        addon:CancelTimer(addon.commsWarmupTimer)
+        addon.commsWarmupTimer = nil
+    end
+
+    addon.commsWarmupActive = false
+end
+
+local function FinishCoordinationWarmup(addon)
+    addon.commsWarmupTimer = nil
+    addon.commsWarmupActive = false
+
+    UpdateCoordinatorDebug(addon)
+
+    if addon.SendPendingReportOffersAfterCoordination then
+        addon:SendPendingReportOffersAfterCoordination()
+    end
+end
+
+local function StartCoordinationWarmup(addon)
+    if not IsGrouped() then
+        CancelCoordinationWarmup(addon)
+        return
+    end
+
+    if addon.commsWarmupTimer then
+        addon:CancelTimer(addon.commsWarmupTimer)
+    end
+
+    addon.commsWarmupActive = true
+    addon.commsWarmupTimer = addon:ScheduleTimer(function()
+        FinishCoordinationWarmup(addon)
+    end, CoordinationWarmupSeconds)
+end
+
+local function ClearPeers(addon)
     addon.commsPeers = {}
 end
 
-function Comms.SendState(addon, priority)
-    local distribution = GetCommDistribution()
-    if not distribution or type(addon.SendCommMessage) ~= "function" then
-        return false
-    end
-
+local function BuildStateMessage(addon)
     local playerGuid = UnitGUID("player")
     if not IsPlayerGuid(playerGuid) then
-        return false
+        return nil
     end
 
     local reportOffersEnabled = addon.db
         and addon.db.global
         and addon.db.global.ReportOfferEnabled == true
-    local message = table.concat({
+
+    return table.concat({
         StateMessageType,
         ProtocolVersion,
         GetAddonVersion(),
         playerGuid,
         reportOffersEnabled and "1" or "0",
+        GetLocalPlayerName() or "",
     }, "\t")
+end
+
+local function SendState(addon, priority)
+    local distribution = GetCommDistribution()
+    if not distribution or type(addon.SendCommMessage) ~= "function" then
+        return false
+    end
+
+    local message = BuildStateMessage(addon)
+    if not message then
+        return false
+    end
 
     local ok = pcall(
         addon.SendCommMessage,
@@ -264,24 +375,24 @@ function Comms.SendState(addon, priority)
     return ok == true
 end
 
-function Comms.StartHeartbeat(addon)
+local function StartHeartbeat(addon)
     if addon.commsHeartbeatTimer or not IsGrouped() then
         return
     end
 
     addon.commsHeartbeatTimer = addon:ScheduleRepeatingTimer(function()
         if not IsGrouped() then
-            Comms.RefreshGroupState(addon)
+            GearPolice:RefreshCommsGroupState()
             return
         end
 
-        Comms.PrunePeers(addon)
-        Comms.SendState(addon, "BULK")
-        Comms.UpdateCoordinatorDebug(addon)
+        PrunePeers(addon)
+        SendState(addon, "BULK")
+        UpdateCoordinatorDebug(addon)
     end, HeartbeatInterval)
 end
 
-function Comms.ScheduleRosterAnnouncement(addon)
+local function ScheduleRosterAnnouncement(addon)
     if addon.commsAnnounceTimer or not IsGrouped() then
         return
     end
@@ -292,35 +403,40 @@ function Comms.ScheduleRosterAnnouncement(addon)
     addon.commsAnnounceTimer = addon:ScheduleTimer(function()
         addon.commsAnnounceTimer = nil
         if IsGrouped() then
-            Comms.SendState(addon, "NORMAL")
-            Comms.UpdateCoordinatorDebug(addon)
+            SendState(addon, "NORMAL")
+            UpdateCoordinatorDebug(addon)
         end
     end, delay)
 end
 
-function Comms.RefreshGroupState(addon, immediate)
+local function RefreshGroupState(addon, immediate, startWarmup)
     if not IsGrouped() then
-        Comms.StopHeartbeat(addon)
-        Comms.CancelScheduledAnnouncement(addon)
-        Comms.ClearPeers(addon)
-        Comms.UpdateCoordinatorDebug(addon)
+        StopHeartbeat(addon)
+        CancelScheduledAnnouncement(addon)
+        CancelCoordinationWarmup(addon)
+        ClearPeers(addon)
+        UpdateCoordinatorDebug(addon)
         return
     end
 
-    Comms.StartHeartbeat(addon)
-    Comms.PrunePeers(addon)
+    StartHeartbeat(addon)
+    PrunePeers(addon)
 
     if immediate then
-        Comms.CancelScheduledAnnouncement(addon)
-        Comms.SendState(addon, "NORMAL")
+        CancelScheduledAnnouncement(addon)
+        SendState(addon, "NORMAL")
     else
-        Comms.ScheduleRosterAnnouncement(addon)
+        ScheduleRosterAnnouncement(addon)
     end
 
-    Comms.UpdateCoordinatorDebug(addon)
+    if startWarmup then
+        StartCoordinationWarmup(addon)
+    end
+
+    UpdateCoordinatorDebug(addon)
 end
 
-function Comms.HandleMessage(addon, prefix, message, distribution, sender)
+local function HandleMessage(addon, prefix, message, distribution, sender)
     if prefix ~= CommPrefix or type(message) ~= "string" or not IsGrouped() then
         return
     end
@@ -329,7 +445,9 @@ function Comms.HandleMessage(addon, prefix, message, distribution, sender)
         return
     end
 
-    local messageType, protocolVersion, addonVersion, playerGuid, enabledFlag = strsplit("\t", message)
+    local messageType, protocolVersion, addonVersion, playerGuid, enabledFlag, playerName =
+        strsplit("\t", message)
+
     if messageType ~= StateMessageType
         or protocolVersion ~= ProtocolVersion
         or not IsPlayerGuid(playerGuid)
@@ -344,37 +462,40 @@ function Comms.HandleMessage(addon, prefix, message, distribution, sender)
         reportOffersEnabled = enabledFlag == "1",
         lastSeenAt = time(),
         sender = sender,
+        playerName = IsKnownPlayerName(playerName) and playerName or nil,
     }
 
-    Comms.PrunePeers(addon)
-    Comms.UpdateCoordinatorDebug(addon)
-end
-
-function Comms.Initialize(addon)
-    addon.commsPeers = {}
-    addon.commsHeartbeatTimer = nil
-    addon.commsAnnounceTimer = nil
-    addon.commsLastCoordinatorGuid = CoordinatorUnset
-
-    if type(addon.RegisterComm) == "function" then
-        addon:RegisterComm(CommPrefix, "OnGearPoliceCommReceived")
-    end
+    PrunePeers(addon)
+    UpdateCoordinatorDebug(addon)
 end
 
 function GearPolice:InitializeComms()
-    return Comms.Initialize(self)
+    self.commsPeers = {}
+    self.commsHeartbeatTimer = nil
+    self.commsAnnounceTimer = nil
+    self.commsWarmupTimer = nil
+    self.commsWarmupActive = false
+    self.commsLastCoordinatorGuid = CoordinatorUnset
+
+    if type(self.RegisterComm) == "function" then
+        self:RegisterComm(CommPrefix, "OnGearPoliceCommReceived")
+    end
 end
 
 function GearPolice:StartComms()
-    return Comms.RefreshGroupState(self, true)
+    return RefreshGroupState(self, true, true)
 end
 
 function GearPolice:RefreshCommsGroupState()
-    return Comms.RefreshGroupState(self, false)
+    return RefreshGroupState(self, false, true)
 end
 
 function GearPolice:AnnounceCommsState()
-    return Comms.RefreshGroupState(self, true)
+    return RefreshGroupState(self, true, true)
+end
+
+function GearPolice:IsReportOfferCoordinationWarmupActive()
+    return self.commsWarmupActive == true
 end
 
 function GearPolice:IsLocalReportOfferCoordinator()
@@ -391,7 +512,7 @@ function GearPolice:IsLocalReportOfferCoordinator()
         return true
     end
 
-    local coordinatorGuid = Comms.GetCoordinatorGuid(self)
+    local coordinatorGuid = GetCoordinatorGuid(self)
     if not coordinatorGuid then
         return true
     end
@@ -400,5 +521,5 @@ function GearPolice:IsLocalReportOfferCoordinator()
 end
 
 function GearPolice:OnGearPoliceCommReceived(prefix, message, distribution, sender)
-    return Comms.HandleMessage(self, prefix, message, distribution, sender)
+    return HandleMessage(self, prefix, message, distribution, sender)
 end
