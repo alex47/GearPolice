@@ -225,6 +225,9 @@ function Roster.UpdateGroupMembers(addon)
     if not snapshot.groupType then
         addon:ClearAllTrackedPlayers()
         addon.wasGrouped = false
+        if addon.RefreshCommsGroupState then
+            addon:RefreshCommsGroupState()
+        end
         return
     end
 
@@ -234,6 +237,9 @@ function Roster.UpdateGroupMembers(addon)
 
     addon.wasGrouped = true
     Roster.Reconcile(addon, snapshot)
+    if addon.RefreshCommsGroupState then
+        addon:RefreshCommsGroupState()
+    end
 end
 
 function Roster.ProcessGroupMember(addon, unitId, sortIndex, groupType)

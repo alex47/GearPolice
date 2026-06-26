@@ -427,6 +427,10 @@ function ReportOffers:CanSendOffer(playerInfo, completedScan, status)
         return false
     end
 
+    if GearPolice.IsLocalReportOfferCoordinator and not GearPolice:IsLocalReportOfferCoordinator() then
+        return false
+    end
+
     local offerHistory = self:EnsureHistory()
     local lastOffer = offerHistory[playerGuid]
     local lastOfferedAt = type(lastOffer) == "table" and lastOffer.lastOfferedAt or 0

@@ -61,6 +61,9 @@ end
 
 local function ToggleReportOffers()
     GearPolice.db.global.ReportOfferEnabled = GearPolice.db.global.ReportOfferEnabled ~= true
+    if GearPolice.AnnounceCommsState then
+        GearPolice:AnnounceCommsState()
+    end
 end
 
 local function ToggleHideReportWhispers()

@@ -41,7 +41,9 @@ local HelpSections = {
         title = "Options",
         body = "Report Offers automatically whispers party or raid members when issues are found. "
             .. "Clean scans do not send an offer. They can whisper you back to request the full report. "
-            .. "GearPolice waits 12 hours before offering the same player again.\n\n"
+            .. "GearPolice waits 12 hours before offering the same player again. If more than one "
+            .. "GearPolice user in the group has Report Offers turned on, GearPolice chooses one sender "
+            .. "automatically so players do not get duplicate offer whispers.\n\n"
             .. "Hide GP Whispers hides GearPolice's automatic offer and reply whispers from your chat "
             .. "window. The whispers are still sent normally.",
     },

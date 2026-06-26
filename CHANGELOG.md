@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+- Coordinates automatic report offers between GearPolice users in the same party or raid so only one enabled sender whispers each player.
+
 ## 1.3.0 - 2026-06-26
 
 Initial CurseForge release.

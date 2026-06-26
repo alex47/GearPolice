@@ -34,6 +34,8 @@ read_globals = {
     "NotifyInspect",
     "UnitExists",
     "UnitGUID",
+    "UnitIsGroupAssistant",
+    "UnitIsGroupLeader",
     "UnitIsPlayer",
     "UnitName",
 

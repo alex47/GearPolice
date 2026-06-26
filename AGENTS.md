@@ -13,7 +13,7 @@
 - `Core.lua` should stay focused on addon bootstrap, event registration, slash commands, and high-level routing.
 - `Config/` owns constants, slot order, and rule configuration.
 - `State/` owns runtime state and saved player records.
-- `Services/` owns timers, roster reconciliation, scan queue, scan session, report offers, and outbound chat throttling.
+- `Services/` owns timers, roster reconciliation, scan queue, scan session, peer communication, report offers, and outbound chat throttling.
 - `Inspection/` owns item checks, slot resolution, and running configured checks.
 - `UI/` owns view models, windows, rows, widgets, minimap UI, and help text.
 - `Reporting.lua` owns report message formatting and delivery.
@@ -47,7 +47,7 @@
 Run these checks after Lua/XML changes:
 
 ```sh
-luac5.1 -p Libs/AceComm-3.0/ChatThrottleLib.lua Core.lua Debug.lua Helper.lua Inspection.lua Reporting.lua UI.lua Config/Constants.lua Config/Slots.lua Config/Rules.lua Util/Tables.lua Util/Units.lua Util/Inventory.lua State/RuntimeState.lua State/PlayerStore.lua Services/Timers.lua Services/Roster.lua Services/ScanQueue.lua Services/ScanSession.lua Services/ReportOffers.lua Services/ChatThrottle.lua Inspection/ItemChecks.lua Inspection/SlotResolver.lua Inspection/CheckRunner.lua UI/ViewModel.lua UI/Widgets/ItemIcon.lua UI/PlayerRows.lua UI/MainWindow.lua UI/HelpWindow.lua UI/MinimapMenu.lua UI/MinimapIcon.lua
+luac5.1 -p Libs/AceComm-3.0/ChatThrottleLib.lua Core.lua Debug.lua Helper.lua Inspection.lua Reporting.lua UI.lua Config/Constants.lua Config/Slots.lua Config/Rules.lua Util/Tables.lua Util/Units.lua Util/Inventory.lua State/RuntimeState.lua State/PlayerStore.lua Services/Timers.lua Services/Roster.lua Services/ScanQueue.lua Services/ScanSession.lua Services/Comms.lua Services/ReportOffers.lua Services/ChatThrottle.lua Inspection/ItemChecks.lua Inspection/SlotResolver.lua Inspection/CheckRunner.lua UI/ViewModel.lua UI/Widgets/ItemIcon.lua UI/PlayerRows.lua UI/MainWindow.lua UI/HelpWindow.lua UI/MinimapMenu.lua UI/MinimapIcon.lua
 git diff --check
 luacheck . --exclude-files Libs
 ```
@@ -66,4 +66,5 @@ When behavior changes, mention which of these need in-game validation:
 - Partial scans retry later without affecting later successful scans.
 - Debug report and whisper/public reports still show full item links.
 - Report offers respect the UI toggle, 12-hour cooldown, combat delay, and hide-whisper setting.
+- When multiple GearPolice users enable Report Offers, only the elected coordinator sends automatic offers.
 - Minimap left-click toggles the main window and right-click opens the menu.

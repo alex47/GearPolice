@@ -23,6 +23,7 @@ State\PlayerStore.lua
 Services\Roster.lua
 Services\ScanQueue.lua
 Services\ScanSession.lua
+Services\Comms.lua
 Inspection.lua
 Inspection\ItemChecks.lua
 Inspection\SlotResolver.lua

@@ -1,4 +1,10 @@
-GearPolice = LibStub("AceAddon-3.0"):NewAddon("GearPolice", "AceConsole-3.0", "AceEvent-3.0", "AceTimer-3.0")
+GearPolice = LibStub("AceAddon-3.0"):NewAddon(
+    "GearPolice",
+    "AceConsole-3.0",
+    "AceEvent-3.0",
+    "AceTimer-3.0",
+    "AceComm-3.0"
+)
 
 GearPolice:RegisterChatCommand("gearpolice", "HandleSlashCommands")
 
@@ -22,6 +28,7 @@ function GearPolice:OnInitialize()
     end
 
     self:InitializeReportOffers()
+    self:InitializeComms()
     self:InitializeMinimapIcon()
 end
 
@@ -30,6 +37,7 @@ function GearPolice:OnEnable()
     self:RegisterEvent("GROUP_ROSTER_UPDATE", "UpdateGroupMembers")
     self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnCombatEnded")
     self:RegisterEvent("CHAT_MSG_WHISPER", "OnReportOfferWhisperReceived")
+    self:StartComms()
 end
 
 function GearPolice:StartGearPolicingOfGroup()
