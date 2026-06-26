@@ -166,6 +166,18 @@ function ReportOffers:EnsureHistory()
     return GearPolice.db.global.ReportOfferHistory
 end
 
+function ReportOffers:PruneExpiredHistory()
+    local offerHistory = self:EnsureHistory()
+    local currentTime = time()
+
+    for playerGuid, historyEntry in pairs(offerHistory) do
+        local lastOfferedAt = type(historyEntry) == "table" and historyEntry.lastOfferedAt or nil
+        if type(lastOfferedAt) ~= "number" or currentTime - lastOfferedAt >= ReportOfferCooldownSeconds then
+            offerHistory[playerGuid] = nil
+        end
+    end
+end
+
 function ReportOffers:HasPendingCombatOffers()
     return next(PendingCombatOffers) ~= nil
 end
@@ -445,6 +457,8 @@ function GearPolice:InitializeReportOffers()
     if type(self.db.global.ReportOfferHistory) ~= "table" then
         self.db.global.ReportOfferHistory = {}
     end
+
+    ReportOffers:PruneExpiredHistory()
 
     if type(self.db.global.HideReportOfferWhispers) ~= "boolean" then
         self.db.global.HideReportOfferWhispers = false
