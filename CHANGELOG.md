@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.2.0 - 2026-06-26
+## 1.3.0 - 2026-06-26
 
 Initial CurseForge release.
 
