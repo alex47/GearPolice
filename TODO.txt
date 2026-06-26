@@ -6,8 +6,6 @@ Low
 
 - Publish GearPolice on CurseForge.
   - Replace public project/TOC wording that says "shame" or "Public Shaming" with more neutral language before submitting.
-  - Decide and add a license.
-  - Add a changelog for the first release.
   - Use `Media/GearPoliceCurseForgeAvatar.png` as the 400x400 project logo/avatar image.
-  - Package the addon as a zip containing the top-level `GearPolice/` folder, including `Libs/`, excluding development-only files such as `.git/`, `.luacheckrc`, `AGENTS.md`, and `TODO.txt`.
-  - Upload the first release manually, then consider `.pkgmeta` or the CurseForge Upload API for automated releases later.
+  - Configure the CurseForge repository webhook with the project ID and API token. Do not commit the token.
+  - Verify the first automatically packaged release contains the top-level `GearPolice/` folder, includes `Libs/`, and excludes development-only files.

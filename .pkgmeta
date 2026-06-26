@@ -1,0 +1,14 @@
+package-as: GearPolice
+
+enable-nolib-creation: no
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
+license-output: LICENSE.txt
+
+ignore:
+  - AGENTS.md
+  - TODO.txt
+  - Media/GearPoliceCurseForgeAvatar.png
