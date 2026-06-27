@@ -68,7 +68,8 @@ local HelpSections = {
     },
     {
         title = "Commands",
-        body = "/gearpolice starts a group scan.\n\n"
+        body = "/gearpolice shows the command list.\n\n"
+            .. "/gearpolice scan starts a group scan.\n\n"
             .. "/gearpolice showui opens the main window.\n\n"
             .. "/gearpolice settings opens the settings window.\n\n"
             .. "/gearpolice target scans your current player target.\n\n"

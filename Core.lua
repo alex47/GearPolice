@@ -77,10 +77,25 @@ end
 
 -- Slash command
 
-function GearPolice:HandleSlashCommands(msg, _editbox)
-    msg = string.lower(msg or "")
+function GearPolice:PrintSlashCommandHelp()
+    GearPolice:Print("Available commands:")
+    GearPolice:Print("/gearpolice - Shows this command list.")
+    GearPolice:Print("/gearpolice scan - Starts a group scan.")
+    GearPolice:Print("/gearpolice showui - Opens the main window.")
+    GearPolice:Print("/gearpolice settings - Opens the settings window.")
+    GearPolice:Print("/gearpolice target - Scans your current player target.")
+    GearPolice:Print("/gearpolice help - Opens the help window.")
+    GearPolice:Print("/gearpolice debug - Toggles debug messages.")
+end
 
-    if (msg == "target") then
+function GearPolice:HandleSlashCommands(msg, _editbox)
+    msg = string.lower((msg or ""):match("^%s*(.-)%s*$"))
+
+    if msg == "" then
+        GearPolice:PrintSlashCommandHelp()
+    elseif (msg == "scan") then
+        GearPolice:StartGearPolicingOfGroup()
+    elseif (msg == "target") then
         GearPolice:StartGearPolicingOfTarget()
     elseif (msg == "showui") then
         GearPolice.UI:ShowUI()
@@ -92,7 +107,6 @@ function GearPolice:HandleSlashCommands(msg, _editbox)
         GearPolice.db.global.DebugEnabled = not GearPolice.db.global.DebugEnabled
         GearPolice:Print("Debug mode " .. (GearPolice.db.global.DebugEnabled and "enabled" or "disabled") .. ".")
     else
-        -- Start scanning group when no argument is provided
-        GearPolice:StartGearPolicingOfGroup()
+        GearPolice:PrintSlashCommandHelp()
     end
 end
