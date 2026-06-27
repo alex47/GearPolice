@@ -16,6 +16,7 @@ function GearPolice:OnInitialize()
     self:InitializeRuntimeState()
     self.PlayerStore:EnsureStorage()
     self:InitializeSettings()
+    self.UI:RegisterAceConfigSettings()
 
     -- Initialize DebugEnabled if it's not set
     if type(GearPolice.db.global.DebugEnabled) ~= "boolean" then

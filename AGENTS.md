@@ -37,7 +37,7 @@
 ## UI Rules
 
 - The main window should stay operational and direct, not a landing page.
-- Keep report mode, report offers, hide-whisper options, check toggles, and minimap visibility in the Settings window.
+- Keep report mode, report offers, hide-whisper options, check toggles, and minimap visibility in the Settings window and generated AceConfig settings page.
 - Keep the minimap right-click menu focused on opening the main window, Settings, Help, and Close.
 - Keep row item tooltips using Blizzard item hyperlinks unchanged, then append GearPolice issue lines below them.
 - Do not prefix item names in tooltips with slot names.
@@ -48,7 +48,7 @@
 Run these checks after Lua/XML changes:
 
 ```sh
-luac5.1 -p Libs/AceComm-3.0/ChatThrottleLib.lua Core.lua Debug.lua Helper.lua Inspection.lua Reporting.lua UI.lua Config/Constants.lua Config/Slots.lua Config/Rules.lua Util/Tables.lua Util/Units.lua Util/Inventory.lua State/RuntimeState.lua State/PlayerStore.lua Services/Timers.lua Services/Settings.lua Services/Roster.lua Services/ScanQueue.lua Services/ScanSession.lua Services/Comms.lua Services/ReportOffers.lua Services/ChatThrottle.lua Inspection/ItemChecks.lua Inspection/SlotResolver.lua Inspection/CheckRunner.lua UI/ViewModel.lua UI/Widgets/ItemIcon.lua UI/PlayerRows.lua UI/MainWindow.lua UI/HelpWindow.lua UI/SettingsWindow.lua UI/MinimapMenu.lua UI/MinimapIcon.lua
+luac5.1 -p Libs/AceComm-3.0/ChatThrottleLib.lua Libs/AceConfig-3.0/AceConfigRegistry-3.0/AceConfigRegistry-3.0.lua Libs/AceConfig-3.0/AceConfigCmd-3.0/AceConfigCmd-3.0.lua Libs/AceConfig-3.0/AceConfigDialog-3.0/AceConfigDialog-3.0.lua Libs/AceConfig-3.0/AceConfig-3.0.lua Core.lua Debug.lua Helper.lua Inspection.lua Reporting.lua UI.lua Config/Constants.lua Config/Slots.lua Config/Rules.lua Util/Tables.lua Util/Units.lua Util/Inventory.lua State/RuntimeState.lua State/PlayerStore.lua Services/Timers.lua Services/Settings.lua Services/Roster.lua Services/ScanQueue.lua Services/ScanSession.lua Services/Comms.lua Services/ReportOffers.lua Services/ChatThrottle.lua Inspection/ItemChecks.lua Inspection/SlotResolver.lua Inspection/CheckRunner.lua UI/ViewModel.lua UI/Widgets/ItemIcon.lua UI/PlayerRows.lua UI/MainWindow.lua UI/HelpWindow.lua UI/SettingsWindow.lua UI/AceConfigOptions.lua UI/MinimapMenu.lua UI/MinimapIcon.lua
 git diff --check
 luacheck . --exclude-files Libs
 ```

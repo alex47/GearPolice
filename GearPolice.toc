@@ -36,6 +36,7 @@ UI\PlayerRows.lua
 UI\MainWindow.lua
 UI\HelpWindow.lua
 UI\SettingsWindow.lua
+UI\AceConfigOptions.lua
 UI\MinimapMenu.lua
 UI\MinimapMenu.xml
 UI\MinimapIcon.lua

@@ -19,7 +19,8 @@ local HelpSections = {
             .. "Use Scan Target to scan your current player target. Scan Target only works on player targets. "
             .. "This can be someone outside your group, but keep them targeted while the scan runs.\n\n"
             .. "Use Clear List to remove everyone from the list and stop active scans.\n\n"
-            .. "Use Settings to change report behavior, minimap visibility, and enabled checks.\n\n"
+            .. "Use Settings to change report behavior, minimap visibility, and enabled checks. "
+            .. "GearPolice also has a generated settings page in the game's AddOns settings list.\n\n"
             .. "Each player row has a small speaker button on the left. Click it to send that player's "
             .. "report using the selected Manual Report Mode.\n\n"
             .. "Hover item icons to see the item and any GearPolice issues found on it.",
@@ -41,7 +42,8 @@ local HelpSections = {
     {
         title = "Options",
         body = "Open Settings to choose manual report mode, auto-whispers, minimap button visibility, and which "
-            .. "gear checks GearPolice should report.\n\n"
+            .. "gear checks GearPolice should report. You can also find GearPolice in the game's AddOns "
+            .. "settings list; that page is generated from the same settings.\n\n"
             .. "Auto-Whisper After Scan Completes automatically whispers party or raid members when issues are found. "
             .. "Clean scans do not send an offer. They can whisper you back to request the full report. "
             .. "GearPolice waits 12 hours before offering the same player again. If more than one "
