@@ -83,6 +83,10 @@ local function AnnouncePublicReportMode()
         return
     end
 
+    if not IsInGroup() then
+        return
+    end
+
     local reportPrefix = GearPolice.Reporting:GetReportPrefix()
     GearPolice.ChatThrottle:Send(
         reportPrefix .. " " .. PUBLIC_REPORT_MODE_MESSAGE,
