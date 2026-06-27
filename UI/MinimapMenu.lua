@@ -30,8 +30,8 @@ local function OpenHelpWindow()
     GearPolice.UI:ShowHelpWindow()
 end
 
-local function OpenSettingsWindow()
-    GearPolice.UI:ShowSettingsWindow()
+local function OpenSettingsPage()
+    GearPolice.UI:OpenAceConfigSettings()
 end
 
 local function CloseMenu()
@@ -62,7 +62,7 @@ function GearPolice:InitializeMinimapDropDownItems(_frame, level)
 
     AddTitle("GearPolice")
     AddAction("Open Main Window", OpenMainWindow)
-    AddAction("Settings", OpenSettingsWindow)
+    AddAction("Settings", OpenSettingsPage)
     AddAction("Help", OpenHelpWindow)
     AddSeparator()
     AddAction("Close", CloseMenu)

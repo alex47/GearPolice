@@ -83,7 +83,7 @@ function GearPolice:PrintSlashCommandHelp()
     GearPolice:Print("/gearpolice - Shows this command list.")
     GearPolice:Print("/gearpolice scan - Starts a group scan.")
     GearPolice:Print("/gearpolice showui - Opens the main window.")
-    GearPolice:Print("/gearpolice settings - Opens the settings window.")
+    GearPolice:Print("/gearpolice settings - Opens the settings page.")
     GearPolice:Print("/gearpolice target - Scans your current player target.")
     GearPolice:Print("/gearpolice help - Opens the help window.")
     GearPolice:Print("/gearpolice debug - Toggles debug messages.")
@@ -101,7 +101,7 @@ function GearPolice:HandleSlashCommands(msg, _editbox)
     elseif (msg == "showui") then
         GearPolice.UI:ShowUI()
     elseif (msg == "settings") then
-        GearPolice.UI:ShowSettingsWindow()
+        GearPolice.UI:OpenAceConfigSettings()
     elseif (msg == "help") then
         GearPolice.UI:ShowHelpWindow()
     elseif (msg == "debug") then

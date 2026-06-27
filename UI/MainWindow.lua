@@ -132,7 +132,7 @@ local function CreateMainToolbar(self)
     self.toolbarFilterLabel = filterLabel
 
     local settingsButton = AddDetachedToolbarWidget(self, CreateToolbarButton(content, "Settings", function()
-        GearPolice.UI:ShowSettingsWindow()
+        GearPolice.UI:OpenAceConfigSettings()
     end))
     settingsButton.frame:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, ToolbarControlTopOffset)
 end

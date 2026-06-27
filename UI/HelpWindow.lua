@@ -19,8 +19,8 @@ local HelpSections = {
             .. "Use Scan Target to scan your current player target. Scan Target only works on player targets. "
             .. "This can be someone outside your group, but keep them targeted while the scan runs.\n\n"
             .. "Use Clear List to remove everyone from the list and stop active scans.\n\n"
-            .. "Use Settings to change report behavior, minimap visibility, and enabled checks. "
-            .. "GearPolice also has a generated settings page in the game's AddOns settings list.\n\n"
+            .. "Use Settings to open the GearPolice page in the game's AddOns settings list. "
+            .. "There you can change report behavior, minimap visibility, and enabled checks.\n\n"
             .. "Each player row has a small speaker button on the left. Click it to send that player's "
             .. "report using the selected Manual Report Mode.\n\n"
             .. "Hover item icons to see the item and any GearPolice issues found on it.",
@@ -42,8 +42,8 @@ local HelpSections = {
     {
         title = "Options",
         body = "Open Settings to choose manual report mode, auto-whispers, minimap button visibility, and which "
-            .. "gear checks GearPolice should report. You can also find GearPolice in the game's AddOns "
-            .. "settings list; that page is generated from the same settings.\n\n"
+            .. "gear checks GearPolice should report. The settings page is generated in the game's AddOns "
+            .. "settings list.\n\n"
             .. "Auto-Whisper After Scan Completes automatically whispers party or raid members when issues are found. "
             .. "Clean scans do not send an offer. They can whisper you back to request the full report. "
             .. "GearPolice waits 12 hours before offering the same player again. If more than one "
@@ -74,7 +74,7 @@ local HelpSections = {
         body = "/gearpolice shows the command list.\n\n"
             .. "/gearpolice scan starts a group scan.\n\n"
             .. "/gearpolice showui opens the main window.\n\n"
-            .. "/gearpolice settings opens the settings window.\n\n"
+            .. "/gearpolice settings opens the settings page.\n\n"
             .. "/gearpolice target scans your current player target.\n\n"
             .. "/gearpolice help opens this help window.\n\n"
             .. "/gearpolice debug toggles debug messages.",
