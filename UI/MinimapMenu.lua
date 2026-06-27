@@ -1,14 +1,5 @@
 local GearPolice = GearPolice
 
-local REPORT_MODE_MENU_VALUE = "REPORT_MODE"
-local PUBLIC_REPORT_MODE_MESSAGE = "Public Shaming mode: Activated"
-
-local ReportModes = {
-    { value = "whisper", label = "Whisper" },
-    { value = "public", label = "Public" },
-    { value = "debug", label = "Debug" },
-}
-
 local function CreateMenuInfo()
     return UIDropDownMenu_CreateInfo()
 end
@@ -39,35 +30,12 @@ local function OpenHelpWindow()
     GearPolice.UI:ShowHelpWindow()
 end
 
+local function OpenSettingsWindow()
+    GearPolice.UI:ShowSettingsWindow()
+end
+
 local function CloseMenu()
     CloseDropDownMenus()
-end
-
-local function SetReportMode(_button, reportMode)
-    local previousReportMode = GearPolice.db.global.ReportMode
-
-    GearPolice.db.global.ReportMode = reportMode
-
-    if reportMode == "public" and previousReportMode ~= "public" then
-        local reportPrefix = GearPolice.Reporting:GetReportPrefix()
-        GearPolice.ChatThrottle:Send(
-            reportPrefix .. " " .. PUBLIC_REPORT_MODE_MESSAGE,
-            IsInRaid() and "RAID" or "PARTY",
-            nil,
-            "NORMAL"
-        )
-    end
-end
-
-local function ToggleReportOffers()
-    GearPolice.db.global.ReportOfferEnabled = GearPolice.db.global.ReportOfferEnabled ~= true
-    if GearPolice.AnnounceCommsState then
-        GearPolice:AnnounceCommsState()
-    end
-end
-
-local function ToggleHideReportWhispers()
-    GearPolice.db.global.HideReportOfferWhispers = GearPolice.db.global.HideReportOfferWhispers ~= true
 end
 
 local function AddAction(text, func)
@@ -76,37 +44,6 @@ local function AddAction(text, func)
     info.func = func
     info.notCheckable = true
     UIDropDownMenu_AddButton(info)
-end
-
-local function AddToggle(text, isChecked, func)
-    local info = CreateMenuInfo()
-    info.text = text
-    info.func = func
-    info.checked = isChecked
-    info.isNotRadio = true
-    info.keepShownOnClick = true
-    UIDropDownMenu_AddButton(info)
-end
-
-local function AddReportModeSubmenu()
-    local info = CreateMenuInfo()
-    info.text = "Report Mode"
-    info.hasArrow = true
-    info.value = REPORT_MODE_MENU_VALUE
-    info.notCheckable = true
-    UIDropDownMenu_AddButton(info)
-end
-
-local function AddReportModeOptions(level)
-    for _, reportMode in ipairs(ReportModes) do
-        local info = CreateMenuInfo()
-        info.text = reportMode.label
-        info.arg1 = reportMode.value
-        info.func = SetReportMode
-        info.checked = GearPolice.db.global.ReportMode == reportMode.value
-        info.level = level
-        UIDropDownMenu_AddButton(info, level)
-    end
 end
 
 function GearPolice:InitializeMinimapDropDown(frame)
@@ -120,19 +57,13 @@ function GearPolice:InitializeMinimapDropDownItems(_frame, level)
     level = level or 1
 
     if level > 1 then
-        if UIDROPDOWNMENU_MENU_VALUE == REPORT_MODE_MENU_VALUE then
-            AddReportModeOptions(level)
-        end
         return
     end
 
     AddTitle("GearPolice")
     AddAction("Open Main Window", OpenMainWindow)
+    AddAction("Settings", OpenSettingsWindow)
     AddAction("Help", OpenHelpWindow)
-    AddSeparator()
-    AddReportModeSubmenu()
-    AddToggle("Report Offers", GearPolice.db.global.ReportOfferEnabled == true, ToggleReportOffers)
-    AddToggle("Hide GP Whispers", GearPolice.db.global.HideReportOfferWhispers == true, ToggleHideReportWhispers)
     AddSeparator()
     AddAction("Close", CloseMenu)
 end

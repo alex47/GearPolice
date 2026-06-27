@@ -26,7 +26,7 @@ local HelpSections = {
     {
         title = "Minimap Button",
         body = "Left-click the GearPolice minimap button to open or close the main window.\n\n"
-            .. "Right-click it to open options, report mode, and this help window.",
+            .. "Right-click it to open Settings, Help, or the main window.",
     },
     {
         title = "Filters And Status",
@@ -39,13 +39,13 @@ local HelpSections = {
     },
     {
         title = "Options",
-        body = "Report Offers automatically whispers party or raid members when issues are found. "
+        body = "Auto-Whisper After Scan Completes automatically whispers party or raid members when issues are found. "
             .. "Clean scans do not send an offer. They can whisper you back to request the full report. "
             .. "GearPolice waits 12 hours before offering the same player again. If more than one "
-            .. "GearPolice user in the group has Report Offers turned on, GearPolice chooses one sender "
+            .. "GearPolice user in the group has auto-whispers turned on, GearPolice chooses one sender "
             .. "automatically so players do not get duplicate offer whispers.\n\n"
-            .. "Hide GP Whispers hides GearPolice's automatic offer and reply whispers from your chat "
-            .. "window. The whispers are still sent normally.",
+            .. "Show Auto-Whispers controls whether GearPolice's automatic offer and reply whispers are shown "
+            .. "in your chat window. The whispers are still sent normally when this is off.",
     },
     {
         title = "Report Modes",
