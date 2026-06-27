@@ -3,10 +3,33 @@ local GearPolice = GearPolice
 
 local UI = GearPolice.UI
 
+local FilterOptions = {
+    all = "All",
+    problems = "Problems",
+    scanning = "Scanning",
+    failed_partial = "Failed/Partial",
+}
+
+local FilterOptionOrder = {
+    "all",
+    "problems",
+    "scanning",
+    "failed_partial",
+}
+
+local ToolbarHeight = 44
+local ToolbarButtonWidth = 100
+local ToolbarButtonHeight = 24
+local ToolbarButtonGap = 4
+local ToolbarFilterGap = 8
+local ToolbarControlTopOffset = -16
+
 local function ClearWindowState(self)
     self.uiFrame = nil
     self.playerUIElements = nil
     self.playerOrder = nil
+    self.detachedToolbarWidgets = nil
+    self.toolbarFilterLabel = nil
 end
 
 local function SetResizeBounds(frameWidget)
@@ -22,13 +45,96 @@ local function SetResizeBounds(frameWidget)
     end
 end
 
-local function CreateToolbarButton(text, onClick)
+local function ReleaseDetachedToolbarWidgets(self)
+    if self.toolbarFilterLabel then
+        self.toolbarFilterLabel:Hide()
+        self.toolbarFilterLabel:ClearAllPoints()
+        self.toolbarFilterLabel = nil
+    end
+
+    if not self.detachedToolbarWidgets then
+        return
+    end
+
+    for _, widget in ipairs(self.detachedToolbarWidgets) do
+        AceGUI:Release(widget)
+    end
+
+    self.detachedToolbarWidgets = nil
+end
+
+local function CreateToolbarButton(parent, text, onClick)
     local button = AceGUI:Create("Button")
     button:SetText(text)
-    button:SetWidth(100)
-    button:SetHeight(24)
+    button:SetWidth(ToolbarButtonWidth)
+    button:SetHeight(ToolbarButtonHeight)
     button:SetCallback("OnClick", onClick)
+    button.frame:SetParent(parent)
+    button.frame:ClearAllPoints()
+    button.frame:Show()
     return button
+end
+
+local function AddDetachedToolbarWidget(self, widget)
+    self.detachedToolbarWidgets[#self.detachedToolbarWidgets + 1] = widget
+    return widget
+end
+
+local function CreateFilterDropdown(self, parent)
+    local dropdown = AceGUI:Create("Dropdown")
+    dropdown:SetLabel("")
+    dropdown:SetWidth(150)
+    dropdown:SetList(FilterOptions, FilterOptionOrder)
+    dropdown:SetValue(self.FilterMode or "all")
+    dropdown:SetCallback("OnValueChanged", function(_widget, _event, value)
+        self.FilterMode = value or "all"
+        self:UpdateUI()
+    end)
+    dropdown.frame:SetParent(parent)
+    dropdown.frame:ClearAllPoints()
+    dropdown.frame:Show()
+    return dropdown
+end
+
+local function CreateMainToolbar(self)
+    local toolbar = AceGUI:Create("SimpleGroup")
+    toolbar:SetFullWidth(true)
+    toolbar:SetHeight(ToolbarHeight)
+    toolbar.noAutoHeight = true
+    toolbar:SetLayout("Fill")
+    self.uiFrame:AddChild(toolbar)
+
+    local content = toolbar.content
+    self.detachedToolbarWidgets = {}
+
+    local clearButton = AddDetachedToolbarWidget(self, CreateToolbarButton(content, "Clear", function()
+        GearPolice:ClearAllTrackedPlayers()
+    end))
+    clearButton.frame:SetPoint("TOPLEFT", content, "TOPLEFT", 0, ToolbarControlTopOffset)
+
+    local refreshButton = AddDetachedToolbarWidget(self, CreateToolbarButton(content, "Refresh", function()
+        GearPolice:ClearAllTrackedPlayers()
+        GearPolice:StartGearPolicingOfGroup()
+    end))
+    refreshButton.frame:SetPoint("TOPLEFT", clearButton.frame, "TOPRIGHT", ToolbarButtonGap, 0)
+
+    local targetButton = AddDetachedToolbarWidget(self, CreateToolbarButton(content, "Target", function()
+        GearPolice:StartGearPolicingOfTarget()
+    end))
+    targetButton.frame:SetPoint("TOPLEFT", refreshButton.frame, "TOPRIGHT", ToolbarButtonGap, 0)
+
+    local filterDropdown = AddDetachedToolbarWidget(self, CreateFilterDropdown(self, content))
+    filterDropdown.frame:SetPoint("TOPLEFT", targetButton.frame, "TOPRIGHT", ToolbarFilterGap, 0)
+
+    local filterLabel = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    filterLabel:SetText("Filter")
+    filterLabel:SetPoint("BOTTOMLEFT", filterDropdown.frame, "TOPLEFT", 0, -1)
+    self.toolbarFilterLabel = filterLabel
+
+    local settingsButton = AddDetachedToolbarWidget(self, CreateToolbarButton(content, "Settings", function()
+        GearPolice.UI:ShowSettingsWindow()
+    end))
+    settingsButton.frame:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, ToolbarControlTopOffset)
 end
 
 function UI:ShowUI()
@@ -39,6 +145,7 @@ function UI:ShowUI()
     self.uiFrame = AceGUI:Create("Frame")
     self.uiFrame:SetTitle("GearPolice")
     self.uiFrame:SetCallback("OnClose", function(widget)
+        ReleaseDetachedToolbarWidgets(self)
         AceGUI:Release(widget)
         ClearWindowState(self)
     end)
@@ -50,66 +157,7 @@ function UI:ShowUI()
     self.playerUIElements = {}
     self.playerOrder = {}
 
-    local toolbar = AceGUI:Create("SimpleGroup")
-    toolbar:SetFullWidth(true)
-    toolbar:SetLayout("Table")
-    toolbar:SetUserData("table", {
-        columns = {
-            { weight = 1 },
-            { width = 100 },
-        },
-        spaceH = 0,
-        spaceV = 0,
-        alignV = "CENTER",
-    })
-    self.uiFrame:AddChild(toolbar)
-
-    local leftControls = AceGUI:Create("SimpleGroup")
-    leftControls:SetFullWidth(true)
-    leftControls:SetLayout("Flow")
-    toolbar:AddChild(leftControls)
-
-    local clearButton = CreateToolbarButton("Clear", function()
-        GearPolice:ClearAllTrackedPlayers()
-    end)
-    leftControls:AddChild(clearButton)
-
-    local refreshButton = CreateToolbarButton("Refresh", function()
-        GearPolice:ClearAllTrackedPlayers()
-        GearPolice:StartGearPolicingOfGroup()
-    end)
-    leftControls:AddChild(refreshButton)
-
-    local targetButton = CreateToolbarButton("Target", function()
-        GearPolice:StartGearPolicingOfTarget()
-    end)
-    leftControls:AddChild(targetButton)
-
-    local filterDropdown = AceGUI:Create("Dropdown")
-    filterDropdown:SetLabel("Filter")
-    filterDropdown:SetWidth(150)
-    filterDropdown:SetList({
-        all = "All",
-        problems = "Problems",
-        scanning = "Scanning",
-        failed_partial = "Failed/Partial",
-    }, {
-        "all",
-        "problems",
-        "scanning",
-        "failed_partial",
-    })
-    filterDropdown:SetValue(self.FilterMode or "all")
-    filterDropdown:SetCallback("OnValueChanged", function(_widget, _event, value)
-        self.FilterMode = value or "all"
-        self:UpdateUI()
-    end)
-    leftControls:AddChild(filterDropdown)
-
-    local settingsButton = CreateToolbarButton("Settings", function()
-        GearPolice.UI:ShowSettingsWindow()
-    end)
-    toolbar:AddChild(settingsButton)
+    CreateMainToolbar(self)
 
     self.uiFrame.scrollWrapper = AceGUI:Create("SimpleGroup")
     self.uiFrame.scrollWrapper:SetFullWidth(true)
@@ -129,6 +177,7 @@ function UI:HideUI()
         return
     end
 
+    ReleaseDetachedToolbarWidgets(self)
     AceGUI:Release(self.uiFrame)
     ClearWindowState(self)
 end
