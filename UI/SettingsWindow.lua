@@ -91,7 +91,7 @@ local function AddCheckboxWithEditBox(
 
     local editBox = AceGUI:Create("EditBox")
     editBox:SetText(editText)
-    editBox:SetWidth(70)
+    editBox:SetWidth(120)
     SetDisabled(editBox, checkboxValue ~= true)
     row:AddChild(editBox)
 

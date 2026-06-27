@@ -18,7 +18,7 @@ local FilterOptionOrder = {
 }
 
 local ToolbarHeight = 44
-local ToolbarButtonWidth = 100
+local ToolbarButtonWidth = 134
 local ToolbarButtonHeight = 24
 local ToolbarButtonGap = 4
 local ToolbarFilterGap = 8
@@ -107,18 +107,18 @@ local function CreateMainToolbar(self)
     local content = toolbar.content
     self.detachedToolbarWidgets = {}
 
-    local clearButton = AddDetachedToolbarWidget(self, CreateToolbarButton(content, "Clear", function()
+    local clearButton = AddDetachedToolbarWidget(self, CreateToolbarButton(content, "Clear List", function()
         GearPolice:ClearAllTrackedPlayers()
     end))
     clearButton.frame:SetPoint("TOPLEFT", content, "TOPLEFT", 0, ToolbarControlTopOffset)
 
-    local refreshButton = AddDetachedToolbarWidget(self, CreateToolbarButton(content, "Refresh", function()
+    local refreshButton = AddDetachedToolbarWidget(self, CreateToolbarButton(content, "Rescan Group", function()
         GearPolice:ClearAllTrackedPlayers()
         GearPolice:StartGearPolicingOfGroup()
     end))
     refreshButton.frame:SetPoint("TOPLEFT", clearButton.frame, "TOPRIGHT", ToolbarButtonGap, 0)
 
-    local targetButton = AddDetachedToolbarWidget(self, CreateToolbarButton(content, "Target", function()
+    local targetButton = AddDetachedToolbarWidget(self, CreateToolbarButton(content, "Scan Target", function()
         GearPolice:StartGearPolicingOfTarget()
     end))
     targetButton.frame:SetPoint("TOPLEFT", refreshButton.frame, "TOPRIGHT", ToolbarButtonGap, 0)
