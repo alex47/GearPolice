@@ -119,6 +119,7 @@ function UI:ShowHelpWindow()
     self.helpFrame:SetWidth(620)
     self.helpFrame:SetHeight(540)
     self.helpFrame:SetLayout("Fill")
+    self.helpFrame:SetStatusText("GearPolice v" .. version .. " | Made by " .. author)
     self.helpFrame:SetCallback("OnClose", function(widget)
         AceGUI:Release(widget)
         self.helpFrame = nil
@@ -127,10 +128,6 @@ function UI:ShowHelpWindow()
     local scroll = AceGUI:Create("ScrollFrame")
     scroll:SetLayout("List")
     self.helpFrame:AddChild(scroll)
-
-    AddText(scroll, "|cff40ff40GearPolice v" .. version .. "|r")
-    AddText(scroll, "|cffBBBBBBMade by " .. author .. "|r")
-    AddSpacer(scroll)
 
     for index, section in ipairs(HelpSections) do
         if index > 1 then
