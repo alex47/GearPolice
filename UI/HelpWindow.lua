@@ -39,13 +39,16 @@ local HelpSections = {
     },
     {
         title = "Options",
-        body = "Auto-Whisper After Scan Completes automatically whispers party or raid members when issues are found. "
+        body = "Open Settings to choose report mode, auto-whispers, minimap button visibility, and which "
+            .. "gear checks GearPolice should report.\n\n"
+            .. "Auto-Whisper After Scan Completes automatically whispers party or raid members when issues are found. "
             .. "Clean scans do not send an offer. They can whisper you back to request the full report. "
             .. "GearPolice waits 12 hours before offering the same player again. If more than one "
             .. "GearPolice user in the group has auto-whispers turned on, GearPolice chooses one sender "
             .. "automatically so players do not get duplicate offer whispers.\n\n"
             .. "Show Auto-Whispers controls whether GearPolice's automatic offer and reply whispers are shown "
-            .. "in your chat window. The whispers are still sent normally when this is off.",
+            .. "in your chat window. The whispers are still sent normally when this is off.\n\n"
+            .. "The Checks section controls which problems are reported on future scans.",
     },
     {
         title = "Report Modes",
@@ -67,6 +70,7 @@ local HelpSections = {
         title = "Commands",
         body = "/gearpolice starts a group scan.\n\n"
             .. "/gearpolice showui opens the main window.\n\n"
+            .. "/gearpolice settings opens the settings window.\n\n"
             .. "/gearpolice target scans your current player target.\n\n"
             .. "/gearpolice help opens this help window.\n\n"
             .. "/gearpolice debug toggles debug messages.",

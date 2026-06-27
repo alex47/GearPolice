@@ -160,7 +160,7 @@ function Inspection:IsItemBelowItemLevel(itemLink)
         return GearPolice.ItemMetadataPending
     end
 
-    return itemLevel < GearPolice.ItemLevelThreshold
+    return itemLevel < GearPolice.Settings:GetItemLevelThreshold()
 end
 
 function Inspection:IsWaistMissingExtraGemEnchant(itemLink)

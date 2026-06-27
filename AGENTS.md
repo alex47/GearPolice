@@ -13,7 +13,7 @@
 - `Core.lua` should stay focused on addon bootstrap, event registration, slash commands, and high-level routing.
 - `Config/` owns constants, slot order, and rule configuration.
 - `State/` owns runtime state and saved player records.
-- `Services/` owns timers, roster reconciliation, scan queue, scan session, peer communication, report offers, and outbound chat throttling.
+- `Services/` owns settings, timers, roster reconciliation, scan queue, scan session, peer communication, report offers, and outbound chat throttling.
 - `Inspection/` owns item checks, slot resolution, and running configured checks.
 - `UI/` owns view models, windows, rows, widgets, minimap UI, and help text.
 - `Reporting.lua` owns report message formatting and delivery.
@@ -37,7 +37,8 @@
 ## UI Rules
 
 - The main window should stay operational and direct, not a landing page.
-- Keep report mode, report offers, hide-whisper options, and Help in the minimap right-click menu.
+- Keep report mode, report offers, hide-whisper options, check toggles, and minimap visibility in the Settings window.
+- Keep the minimap right-click menu focused on opening the main window, Settings, Help, and Close.
 - Keep row item tooltips using Blizzard item hyperlinks unchanged, then append GearPolice issue lines below them.
 - Do not prefix item names in tooltips with slot names.
 - Always review `UI/HelpWindow.lua` when functionality changes. Update the help text for any player-visible behavior, option, command, report flow, scan behavior, or UI interaction that changed.
@@ -47,7 +48,7 @@
 Run these checks after Lua/XML changes:
 
 ```sh
-luac5.1 -p Libs/AceComm-3.0/ChatThrottleLib.lua Core.lua Debug.lua Helper.lua Inspection.lua Reporting.lua UI.lua Config/Constants.lua Config/Slots.lua Config/Rules.lua Util/Tables.lua Util/Units.lua Util/Inventory.lua State/RuntimeState.lua State/PlayerStore.lua Services/Timers.lua Services/Roster.lua Services/ScanQueue.lua Services/ScanSession.lua Services/Comms.lua Services/ReportOffers.lua Services/ChatThrottle.lua Inspection/ItemChecks.lua Inspection/SlotResolver.lua Inspection/CheckRunner.lua UI/ViewModel.lua UI/Widgets/ItemIcon.lua UI/PlayerRows.lua UI/MainWindow.lua UI/HelpWindow.lua UI/MinimapMenu.lua UI/MinimapIcon.lua
+luac5.1 -p Libs/AceComm-3.0/ChatThrottleLib.lua Core.lua Debug.lua Helper.lua Inspection.lua Reporting.lua UI.lua Config/Constants.lua Config/Slots.lua Config/Rules.lua Util/Tables.lua Util/Units.lua Util/Inventory.lua State/RuntimeState.lua State/PlayerStore.lua Services/Timers.lua Services/Settings.lua Services/Roster.lua Services/ScanQueue.lua Services/ScanSession.lua Services/Comms.lua Services/ReportOffers.lua Services/ChatThrottle.lua Inspection/ItemChecks.lua Inspection/SlotResolver.lua Inspection/CheckRunner.lua UI/ViewModel.lua UI/Widgets/ItemIcon.lua UI/PlayerRows.lua UI/MainWindow.lua UI/HelpWindow.lua UI/SettingsWindow.lua UI/MinimapMenu.lua UI/MinimapIcon.lua
 git diff --check
 luacheck . --exclude-files Libs
 ```

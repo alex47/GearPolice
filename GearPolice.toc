@@ -18,6 +18,7 @@ Util\Units.lua
 Util\Inventory.lua
 State\RuntimeState.lua
 Services\Timers.lua
+Services\Settings.lua
 Services\ChatThrottle.lua
 State\PlayerStore.lua
 Services\Roster.lua

@@ -15,9 +15,9 @@ local ReportModeOrder = {
     "debug",
 }
 
-local function SetDisabled(widget)
+local function SetDisabled(widget, disabled)
     if widget and widget.SetDisabled then
-        widget:SetDisabled(true)
+        widget:SetDisabled(disabled == true)
     end
 end
 
@@ -36,26 +36,42 @@ local function AddHeading(container, text)
     AddText(container, "|cffffcc00" .. text .. "|r")
 end
 
-local function AddCheckbox(container, label, value)
+local function AddCheckbox(container, label, value, onValueChanged)
     local checkbox = AceGUI:Create("CheckBox")
     checkbox:SetLabel(label)
     checkbox:SetValue(value == true)
     checkbox:SetFullWidth(true)
-    SetDisabled(checkbox)
+    if onValueChanged then
+        checkbox:SetCallback("OnValueChanged", function(_widget, _event, newValue)
+            onValueChanged(newValue == true)
+        end)
+    end
     container:AddChild(checkbox)
 end
 
-local function AddDropdown(container, label, values, order, value)
+local function AddDropdown(container, label, values, order, value, onValueChanged)
     local dropdown = AceGUI:Create("Dropdown")
     dropdown:SetLabel(label)
     dropdown:SetList(values, order)
     dropdown:SetValue(value)
     dropdown:SetWidth(220)
-    SetDisabled(dropdown)
+    if onValueChanged then
+        dropdown:SetCallback("OnValueChanged", function(_widget, _event, newValue)
+            onValueChanged(newValue)
+        end)
+    end
     container:AddChild(dropdown)
 end
 
-local function AddCheckboxWithEditBox(container, checkboxLabel, checkboxValue, editLabel, editText)
+local function AddCheckboxWithEditBox(
+    container,
+    checkboxLabel,
+    checkboxValue,
+    editLabel,
+    editText,
+    onCheckboxChanged,
+    onEditEntered
+)
     local row = AceGUI:Create("SimpleGroup")
     row:SetFullWidth(true)
     row:SetLayout("Flow")
@@ -65,7 +81,6 @@ local function AddCheckboxWithEditBox(container, checkboxLabel, checkboxValue, e
     checkbox:SetLabel(checkboxLabel)
     checkbox:SetValue(checkboxValue == true)
     checkbox:SetWidth(170)
-    SetDisabled(checkbox)
     row:AddChild(checkbox)
 
     local label = AceGUI:Create("Label")
@@ -77,58 +92,102 @@ local function AddCheckboxWithEditBox(container, checkboxLabel, checkboxValue, e
     local editBox = AceGUI:Create("EditBox")
     editBox:SetText(editText)
     editBox:SetWidth(70)
-    SetDisabled(editBox)
+    SetDisabled(editBox, checkboxValue ~= true)
     row:AddChild(editBox)
-end
 
-local function GetGlobalSetting(settingName)
-    if not GearPolice.db or not GearPolice.db.global then
-        return nil
+    if onCheckboxChanged then
+        checkbox:SetCallback("OnValueChanged", function(_widget, _event, newValue)
+            local enabled = newValue == true
+            onCheckboxChanged(enabled)
+            SetDisabled(editBox, not enabled)
+        end)
     end
 
-    return GearPolice.db.global[settingName]
+    if onEditEntered then
+        editBox:SetCallback("OnTextChanged", function(_widget, _event, newValue)
+            onEditEntered(newValue)
+        end)
+        editBox:SetCallback("OnEnterPressed", function(widget, _event, newValue)
+            onEditEntered(newValue)
+            widget:SetText(tostring(GearPolice.Settings:GetItemLevelThreshold()))
+        end)
+    end
 end
 
 local function IsMinimapButtonShown()
-    local minimapSettings = GetGlobalSetting("MinimapIcon")
-    if type(minimapSettings) ~= "table" then
-        return true
-    end
-
-    return minimapSettings.hide ~= true
+    return GearPolice.Settings:IsMinimapIconShown()
 end
 
 local function AddGeneralSection(container)
     AddHeading(container, "General")
-    AddCheckbox(container, "Show Minimap Button", IsMinimapButtonShown())
+    AddCheckbox(container, "Show Minimap Button", IsMinimapButtonShown(), function(value)
+        GearPolice.Settings:SetMinimapIconShown(value)
+    end)
 end
 
 local function AddReportingSection(container)
-    local reportMode = GetGlobalSetting("ReportMode")
+    local reportMode = GearPolice.Settings:GetReportMode()
     if not ReportModes[reportMode] then
         reportMode = "whisper"
     end
 
     AddHeading(container, "Reporting")
-    AddDropdown(container, "Report Mode", ReportModes, ReportModeOrder, reportMode)
+    AddDropdown(container, "Report Mode", ReportModes, ReportModeOrder, reportMode, function(value)
+        GearPolice.Settings:SetReportMode(value)
+    end)
     AddSpacer(container)
-    AddCheckbox(container, "Auto-Whisper After Scan Completes", GetGlobalSetting("ReportOfferEnabled") == true)
-    AddCheckbox(container, "Show Auto-Whispers", GetGlobalSetting("HideReportOfferWhispers") ~= true)
+    AddCheckbox(
+        container,
+        "Auto-Whisper After Scan Completes",
+        GearPolice.Settings:IsReportOfferEnabled(),
+        function(value)
+            GearPolice.Settings:SetReportOfferEnabled(value)
+        end
+    )
+    AddCheckbox(container, "Show Auto-Whispers", GearPolice.Settings:IsAutoWhispersShown(), function(value)
+        GearPolice.Settings:SetAutoWhispersShown(value)
+    end)
 end
 
 local function AddChecksSection(container)
     AddHeading(container, "Checks")
-    AddCheckbox(container, "Missing Gems", true)
-    AddCheckbox(container, "Missing Enchants", true)
-    AddCheckbox(container, "Missing Upgrades", true)
-    AddCheckbox(container, "Missing Extra Waist Gem Socket", true)
-    AddCheckbox(container, "Missing Enchant On One Ring", true)
+    AddCheckbox(container, "Missing Gems", GearPolice.Settings:IsRuleEnabled("missing_gems"), function(value)
+        GearPolice.Settings:SetRuleEnabled("missing_gems", value)
+    end)
+    AddCheckbox(container, "Missing Enchants", GearPolice.Settings:IsRuleEnabled("missing_enchant"), function(value)
+        GearPolice.Settings:SetRuleEnabled("missing_enchant", value)
+    end)
+    AddCheckbox(container, "Missing Upgrades", GearPolice.Settings:IsRuleEnabled("missing_upgrade"), function(value)
+        GearPolice.Settings:SetRuleEnabled("missing_upgrade", value)
+    end)
+    AddCheckbox(
+        container,
+        "Missing Extra Waist Gem Socket",
+        GearPolice.Settings:IsRuleEnabled("missing_waist_extra_gem"),
+        function(value)
+            GearPolice.Settings:SetRuleEnabled("missing_waist_extra_gem", value)
+        end
+    )
+    AddCheckbox(
+        container,
+        "Missing Enchant On One Ring",
+        GearPolice.Settings:IsRuleEnabled("missing_enchanter_ring_enchant"),
+        function(value)
+            GearPolice.Settings:SetRuleEnabled("missing_enchanter_ring_enchant", value)
+        end
+    )
     AddCheckboxWithEditBox(
         container,
         "Low Item Level",
-        true,
+        GearPolice.Settings:IsRuleEnabled("low_item_level"),
         "Threshold",
-        tostring(GearPolice.ItemLevelThreshold or 450)
+        tostring(GearPolice.Settings:GetItemLevelThreshold()),
+        function(value)
+            GearPolice.Settings:SetRuleEnabled("low_item_level", value)
+        end,
+        function(value)
+            return GearPolice.Settings:SetItemLevelThreshold(value)
+        end
     )
 end
 

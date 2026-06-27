@@ -33,7 +33,7 @@ function Inspection:ApplySlotChecks(playerInfo, slotName, slotValue, slotID, sca
 
     for _, ruleId in ipairs(slotRuleIds) do
         local rule = ruleDefinitions[ruleId]
-        if rule then
+        if rule and GearPolice.Settings:IsRuleEnabled(ruleId) then
             local checkResult = rule.evaluate(slotValue, context)
             if self:IsItemMetadataPending(checkResult) then
                 self:MarkItemMetadataPending(playerInfo, slotName, slotValue, scanGeneration)
@@ -46,6 +46,10 @@ end
 
 function Inspection:ApplyEnchanterRingChecks(playerInfo, scanGeneration)
     if not self:IsCurrentScan(playerInfo, scanGeneration) then
+        return
+    end
+
+    if not GearPolice.Settings:IsRuleEnabled(EnchanterRingEnchantRuleId) then
         return
     end
 

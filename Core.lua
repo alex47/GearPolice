@@ -15,12 +15,7 @@ function GearPolice:OnInitialize()
 
     self:InitializeRuntimeState()
     self.PlayerStore:EnsureStorage()
-
-    if GearPolice.db.global.ReportMode ~= "whisper"
-        and GearPolice.db.global.ReportMode ~= "public"
-        and GearPolice.db.global.ReportMode ~= "debug" then
-        GearPolice.db.global.ReportMode = "whisper"
-    end
+    self:InitializeSettings()
 
     -- Initialize DebugEnabled if it's not set
     if type(GearPolice.db.global.DebugEnabled) ~= "boolean" then
@@ -89,6 +84,8 @@ function GearPolice:HandleSlashCommands(msg, _editbox)
         GearPolice:StartGearPolicingOfTarget()
     elseif (msg == "showui") then
         GearPolice.UI:ShowUI()
+    elseif (msg == "settings") then
+        GearPolice.UI:ShowSettingsWindow()
     elseif (msg == "help") then
         GearPolice.UI:ShowHelpWindow()
     elseif (msg == "debug") then
