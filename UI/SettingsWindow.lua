@@ -132,7 +132,7 @@ local function AddReportingSection(container)
     end
 
     AddHeading(container, "Reporting")
-    AddDropdown(container, "Report Mode", ReportModes, ReportModeOrder, reportMode, function(value)
+    AddDropdown(container, "Manual Report Mode", ReportModes, ReportModeOrder, reportMode, function(value)
         GearPolice.Settings:SetReportMode(value)
     end)
     AddSpacer(container)

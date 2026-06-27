@@ -19,8 +19,9 @@ local HelpSections = {
             .. "Use Target to scan your current player target. Target only works on player targets. "
             .. "This can be someone outside your group, but keep them targeted while the scan runs.\n\n"
             .. "Use Clear to remove everyone from the list and stop active scans.\n\n"
+            .. "Use Settings to change report behavior, minimap visibility, and enabled checks.\n\n"
             .. "Each player row has a small speaker button on the left. Click it to send that player's "
-            .. "report using the selected Report Mode.\n\n"
+            .. "report using the selected Manual Report Mode.\n\n"
             .. "Hover item icons to see the item and any GearPolice issues found on it.",
     },
     {
@@ -39,7 +40,7 @@ local HelpSections = {
     },
     {
         title = "Options",
-        body = "Open Settings to choose report mode, auto-whispers, minimap button visibility, and which "
+        body = "Open Settings to choose manual report mode, auto-whispers, minimap button visibility, and which "
             .. "gear checks GearPolice should report.\n\n"
             .. "Auto-Whisper After Scan Completes automatically whispers party or raid members when issues are found. "
             .. "Clean scans do not send an offer. They can whisper you back to request the full report. "
@@ -51,7 +52,7 @@ local HelpSections = {
             .. "The Checks section controls which problems are reported on future scans.",
     },
     {
-        title = "Report Modes",
+        title = "Manual Report Modes",
         body = "Whisper sends manual reports privately to the player.\n\n"
             .. "Public sends manual reports to party or raid chat.\n\n"
             .. "Debug prints manual reports only in your own chat window.",

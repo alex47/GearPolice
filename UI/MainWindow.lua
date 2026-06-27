@@ -22,6 +22,15 @@ local function SetResizeBounds(frameWidget)
     end
 end
 
+local function CreateToolbarButton(text, onClick)
+    local button = AceGUI:Create("Button")
+    button:SetText(text)
+    button:SetWidth(100)
+    button:SetHeight(24)
+    button:SetCallback("OnClick", onClick)
+    return button
+end
+
 function UI:ShowUI()
     if self.uiFrame then
         self:HideUI()
@@ -43,41 +52,38 @@ function UI:ShowUI()
 
     local toolbar = AceGUI:Create("SimpleGroup")
     toolbar:SetFullWidth(true)
-    toolbar:SetLayout("Flow")
+    toolbar:SetLayout("Table")
+    toolbar:SetUserData("table", {
+        columns = {
+            { weight = 1 },
+            { width = 100 },
+        },
+        spaceH = 0,
+        spaceV = 0,
+        alignV = "CENTER",
+    })
     self.uiFrame:AddChild(toolbar)
 
-    local scanActions = AceGUI:Create("SimpleGroup")
-    scanActions:SetWidth(UI.ToolbarActionsWidth)
-    scanActions:SetLayout("Flow")
-    toolbar:AddChild(scanActions)
+    local leftControls = AceGUI:Create("SimpleGroup")
+    leftControls:SetFullWidth(true)
+    leftControls:SetLayout("Flow")
+    toolbar:AddChild(leftControls)
 
-    local clearButton = AceGUI:Create("Button")
-    clearButton:SetText("Clear")
-    clearButton:SetWidth(100)
-    clearButton:SetHeight(24)
-    clearButton:SetCallback("OnClick", function()
+    local clearButton = CreateToolbarButton("Clear", function()
         GearPolice:ClearAllTrackedPlayers()
     end)
-    scanActions:AddChild(clearButton)
+    leftControls:AddChild(clearButton)
 
-    local refreshButton = AceGUI:Create("Button")
-    refreshButton:SetText("Refresh")
-    refreshButton:SetWidth(100)
-    refreshButton:SetHeight(24)
-    refreshButton:SetCallback("OnClick", function()
+    local refreshButton = CreateToolbarButton("Refresh", function()
         GearPolice:ClearAllTrackedPlayers()
         GearPolice:StartGearPolicingOfGroup()
     end)
-    scanActions:AddChild(refreshButton)
+    leftControls:AddChild(refreshButton)
 
-    local targetButton = AceGUI:Create("Button")
-    targetButton:SetText("Target")
-    targetButton:SetWidth(100)
-    targetButton:SetHeight(24)
-    targetButton:SetCallback("OnClick", function()
+    local targetButton = CreateToolbarButton("Target", function()
         GearPolice:StartGearPolicingOfTarget()
     end)
-    scanActions:AddChild(targetButton)
+    leftControls:AddChild(targetButton)
 
     local filterDropdown = AceGUI:Create("Dropdown")
     filterDropdown:SetLabel("Filter")
@@ -98,7 +104,12 @@ function UI:ShowUI()
         self.FilterMode = value or "all"
         self:UpdateUI()
     end)
-    toolbar:AddChild(filterDropdown)
+    leftControls:AddChild(filterDropdown)
+
+    local settingsButton = CreateToolbarButton("Settings", function()
+        GearPolice.UI:ShowSettingsWindow()
+    end)
+    toolbar:AddChild(settingsButton)
 
     self.uiFrame.scrollWrapper = AceGUI:Create("SimpleGroup")
     self.uiFrame.scrollWrapper:SetFullWidth(true)
