@@ -106,6 +106,10 @@ function Settings:Initialize()
         db.ReportMode = "whisper"
     end
 
+    if type(db.AutoWhisperInRaidOnly) ~= "boolean" then
+        db.AutoWhisperInRaidOnly = true
+    end
+
     EnsureMinimapSettings()
     EnsureEnabledChecks()
 
@@ -164,6 +168,25 @@ function Settings:SetReportOfferEnabled(enabled)
         GearPolice:AnnounceCommsState()
     end
 
+    return true
+end
+
+function Settings:IsAutoWhisperInRaidOnly()
+    local db = GetGlobalDb()
+    if not db or type(db.AutoWhisperInRaidOnly) ~= "boolean" then
+        return true
+    end
+
+    return db.AutoWhisperInRaidOnly == true
+end
+
+function Settings:SetAutoWhisperInRaidOnly(enabled)
+    local db = GetGlobalDb()
+    if not db then
+        return false
+    end
+
+    db.AutoWhisperInRaidOnly = enabled == true
     return true
 end
 

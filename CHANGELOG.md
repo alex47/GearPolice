@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.4.1 - 2026-06-28
+
+### Features
+
+- Added an Auto-Whisper In Raid Only setting for automatic report offers.
+
 ## 1.4.0 - 2026-06-27
 
 ### Features

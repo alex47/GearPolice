@@ -100,11 +100,27 @@ local function BuildOptions()
                             GetSettings():SetReportOfferEnabled(value)
                         end,
                     },
+                    reportOffersRaidOnly = {
+                        type = "toggle",
+                        name = "Auto-Whisper In Raid Only",
+                        desc = "Send automatic report offer whispers only while you are in a raid group.",
+                        order = 30,
+                        width = "full",
+                        disabled = function()
+                            return not GetSettings():IsReportOfferEnabled()
+                        end,
+                        get = function()
+                            return GetSettings():IsAutoWhisperInRaidOnly()
+                        end,
+                        set = function(_info, value)
+                            GetSettings():SetAutoWhisperInRaidOnly(value)
+                        end,
+                    },
                     showAutoWhispers = {
                         type = "toggle",
                         name = "Show Auto-Whispers",
                         desc = "Show GearPolice automatic offer and reply whispers in your local chat window.",
-                        order = 30,
+                        order = 40,
                         width = "full",
                         get = function()
                             return GetSettings():IsAutoWhispersShown()

@@ -427,6 +427,10 @@ function ReportOffers:CanConsiderOffer(playerInfo, completedScan, status)
         return false
     end
 
+    if GearPolice.Settings:IsAutoWhisperInRaidOnly() and not IsInRaid() then
+        return false
+    end
+
     if status ~= "Successful" or not completedScan then
         return false
     end
