@@ -8,5 +8,5 @@ Low
   - Replace TOC/public wording that says "shame" or "Public Shaming" with more neutral language before submitting.
   - Upload `Media/GearPoliceCurseForgeAvatar.png` as the 400x400 project logo/avatar image.
   - Configure the CurseForge repository webhook with the project ID and API token. Do not commit the token.
-  - Push `main` and the local `1.3.0` tag after the webhook is configured.
+  - Push `main` and the local `1.4.0` tag after the webhook is configured.
   - Verify the first automatically packaged release contains the top-level `GearPolice/` folder, includes `Libs/`, and excludes development-only files.

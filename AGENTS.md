@@ -7,6 +7,7 @@
 - Keep `GearPolice.toc` load order explicit. When adding Lua/XML files, add them to the TOC after their dependencies and before callers.
 - Do not edit files under `Libs/` unless the task is explicitly to update bundled libraries.
 - Keep addon-facing branding as `GearPolice`.
+- Keep `CHANGELOG.md` user-facing: describe changes in plain player-facing language and avoid implementation details that only developers care about.
 
 ## Architecture
 

@@ -20,7 +20,8 @@ local HelpSections = {
             .. "This can be someone outside your group, but keep them targeted while the scan runs.\n\n"
             .. "Use Clear List to remove everyone from the list and stop active scans.\n\n"
             .. "Use Settings to open the GearPolice page in the game's AddOns settings list. "
-            .. "There you can change report behavior, minimap visibility, and enabled checks.\n\n"
+            .. "There you can change report behavior, minimap visibility, and enabled checks. "
+            .. "Opening Settings closes the main GearPolice window.\n\n"
             .. "Each player row has a small speaker button on the left. Click it to send that player's "
             .. "report using the selected Manual Report Mode.\n\n"
             .. "Hover item icons to see the item and any GearPolice issues found on it.",

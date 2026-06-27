@@ -2,15 +2,21 @@
 
 ## Unreleased
 
+## 1.4.0 - 2026-06-27
+
 ### Features
 
-- Coordinates automatic report offers between GearPolice users in the same party or raid so only one enabled sender whispers each player.
+- Added a GearPolice page to the game's AddOns settings.
+- Added settings for enabled gear checks and the low item level threshold.
+- Added a Help window with addon version and author information.
+- If multiple GearPolice users have auto-whispers enabled in the same group, GearPolice now chooses one sender so players do not receive duplicate offer whispers.
 
 ### Fixes
 
-- Delays automatic report offers briefly after group/option changes so peer coordination can settle before sending.
-- Uses alphabetical character-name priority when choosing a party report-offer coordinator.
-- Splits long chat report messages safely instead of sending oversized lines directly.
+- Opening Settings now closes the main GearPolice window.
+- Public report mode now announces itself only while you are in a group.
+- Long reports are now split into safe chat-sized messages.
+- Improved main-window toolbar alignment and button labels.
 
 ## 1.3.0 - 2026-06-26
 

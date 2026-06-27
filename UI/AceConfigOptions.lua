@@ -243,6 +243,10 @@ function UI:RegisterAceConfigSettings()
 end
 
 function UI:OpenAceConfigSettings()
+    if self.uiFrame then
+        self:HideUI()
+    end
+
     if not self.AceConfigCategoryId then
         self:RegisterAceConfigSettings()
     end
