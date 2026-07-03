@@ -78,6 +78,7 @@ local function BuildOptions()
                         name = "Manual Report Mode",
                         desc = "Choose where the row report button sends manual reports.",
                         order = 10,
+                        width = "normal",
                         values = ReportModeValues,
                         sorting = ReportModeOrder,
                         get = function()
@@ -85,6 +86,19 @@ local function BuildOptions()
                         end,
                         set = function(_info, value)
                             GetSettings():SetReportMode(value)
+                        end,
+                    },
+                    publicReportAnnouncement = {
+                        type = "toggle",
+                        name = "Announce Changing To Public Report Mode",
+                        desc = "Announce in party or raid chat when Manual Report Mode is changed to Public.",
+                        order = 15,
+                        width = "double",
+                        get = function()
+                            return GetSettings():IsPublicReportAnnouncementEnabled()
+                        end,
+                        set = function(_info, value)
+                            GetSettings():SetPublicReportAnnouncementEnabled(value)
                         end,
                     },
                     reportOffers = {

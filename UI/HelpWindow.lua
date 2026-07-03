@@ -59,6 +59,8 @@ local HelpSections = {
         title = "Manual Report Modes",
         body = "Whisper sends manual reports privately to the player.\n\n"
             .. "Public sends manual reports to party or raid chat.\n\n"
+            .. "Announce Changing To Public Report Mode controls whether GearPolice announces in "
+            .. "party or raid chat when you switch Manual Report Mode to Public.\n\n"
             .. "Debug prints manual reports only in your own chat window.",
     },
     {

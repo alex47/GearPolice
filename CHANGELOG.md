@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.4.2 - 2026-07-03
+
+### Features
+
+- Added a setting to control whether GearPolice announces when Manual Report Mode is changed to Public.
+
 ## 1.4.1 - 2026-06-28
 
 ### Features

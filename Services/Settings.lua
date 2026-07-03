@@ -110,6 +110,10 @@ function Settings:Initialize()
         db.AutoWhisperInRaidOnly = true
     end
 
+    if type(db.PublicReportAnnouncementEnabled) ~= "boolean" then
+        db.PublicReportAnnouncementEnabled = true
+    end
+
     EnsureMinimapSettings()
     EnsureEnabledChecks()
 
@@ -145,10 +149,30 @@ function Settings:SetReportMode(reportMode)
     local previousReportMode = self:GetReportMode()
     db.ReportMode = reportMode
 
-    if reportMode == "public" and previousReportMode ~= "public" then
+    if reportMode == "public" and previousReportMode ~= "public"
+        and self:IsPublicReportAnnouncementEnabled() then
         AnnouncePublicReportMode()
     end
 
+    return true
+end
+
+function Settings:IsPublicReportAnnouncementEnabled()
+    local db = GetGlobalDb()
+    if not db or type(db.PublicReportAnnouncementEnabled) ~= "boolean" then
+        return true
+    end
+
+    return db.PublicReportAnnouncementEnabled == true
+end
+
+function Settings:SetPublicReportAnnouncementEnabled(enabled)
+    local db = GetGlobalDb()
+    if not db then
+        return false
+    end
+
+    db.PublicReportAnnouncementEnabled = enabled == true
     return true
 end
 
