@@ -67,6 +67,18 @@ local function GetCommDistribution()
     return nil
 end
 
+local function IsLocalReportOfferEligible(addon)
+    if not addon.db or not addon.db.global or addon.db.global.ReportOfferEnabled ~= true then
+        return false
+    end
+
+    if IsInRaid() then
+        return true
+    end
+
+    return not (addon.Settings and addon.Settings:IsAutoWhisperInRaidOnly())
+end
+
 local function GetAddonVersion()
     local getter = C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata
     if type(getter) ~= "function" then
@@ -138,8 +150,10 @@ local function GetCandidateName(addon, playerGuid, peer)
         return GetLocalPlayerName()
     end
 
-    if peer and IsKnownPlayerName(peer.playerName) then
-        return peer.playerName
+    local unitId = GetUnitForGuid(playerGuid)
+    local unitName = GetUnitFullPlayerName(unitId)
+    if unitName then
+        return unitName
     end
 
     local storedName = GetStoredPlayerName(addon, playerGuid)
@@ -147,10 +161,8 @@ local function GetCandidateName(addon, playerGuid, peer)
         return storedName
     end
 
-    local unitId = GetUnitForGuid(playerGuid)
-    local unitName = GetUnitFullPlayerName(unitId)
-    if unitName then
-        return unitName
+    if peer and IsKnownPlayerName(peer.playerName) then
+        return peer.playerName
     end
 
     if peer and IsKnownPlayerName(peer.sender) then
@@ -238,15 +250,12 @@ local function GetCoordinatorGuid(addon)
     local selectedCandidate
     local localGuid = UnitGUID("player")
 
-    if IsPlayerGuid(localGuid)
-        and addon.db
-        and addon.db.global
-        and addon.db.global.ReportOfferEnabled == true then
+    if IsPlayerGuid(localGuid) and IsLocalReportOfferEligible(addon) then
         selectedCandidate = BuildCandidate(addon, localGuid)
     end
 
     for playerGuid, peer in pairs(addon.commsPeers or {}) do
-        if peer.reportOffersEnabled == true and GearPolice.Helper:IsPlayerInGroup(playerGuid) then
+        if peer.reportOffersEligible == true and GearPolice.Helper:IsPlayerInGroup(playerGuid) then
             local candidate = BuildCandidate(addon, playerGuid, peer)
             if CandidateComesBefore(candidate, selectedCandidate) then
                 selectedCandidate = candidate
@@ -337,16 +346,14 @@ local function BuildStateMessage(addon)
         return nil
     end
 
-    local reportOffersEnabled = addon.db
-        and addon.db.global
-        and addon.db.global.ReportOfferEnabled == true
+    local reportOffersEligible = IsLocalReportOfferEligible(addon)
 
     return table.concat({
         StateMessageType,
         ProtocolVersion,
         GetAddonVersion(),
         playerGuid,
-        reportOffersEnabled and "1" or "0",
+        reportOffersEligible and "1" or "0",
         GetLocalPlayerName() or "",
     }, "\t")
 end
@@ -436,33 +443,96 @@ local function RefreshGroupState(addon, immediate, startWarmup)
     UpdateCoordinatorDebug(addon)
 end
 
+local function GetSenderRosterSnapshot(addon)
+    if addon.BuildGroupRosterSnapshot then
+        return addon:BuildGroupRosterSnapshot()
+    end
+
+    return addon.currentRoster
+end
+
+local function ResolveCommSender(addon, sender)
+    local normalizedSender = NormalizePlayerName(sender)
+    if not normalizedSender then
+        return nil, nil
+    end
+
+    local snapshot = GetSenderRosterSnapshot(addon)
+    if not snapshot or not snapshot.orderedGuids then
+        return nil, nil
+    end
+
+    local exactGuid
+    local exactName
+    local shortGuid
+    local shortName
+    local shortMatchCount = 0
+    local normalizedSenderShort = NormalizePlayerName(sender:match("^([^%-]+)"))
+
+    for _, rosterGuid in ipairs(snapshot.orderedGuids) do
+        local unitId = snapshot.unitIdByGuid and snapshot.unitIdByGuid[rosterGuid]
+        if unitId and UnitGUID(unitId) == rosterGuid then
+            local unitFullName = GetUnitFullPlayerName(unitId)
+            local normalizedUnitFullName = NormalizePlayerName(unitFullName)
+            if normalizedUnitFullName == normalizedSender then
+                if exactGuid then
+                    return nil, nil
+                end
+
+                exactGuid = rosterGuid
+                exactName = unitFullName
+            end
+
+            local unitName = UnitName(unitId)
+            if NormalizePlayerName(unitName) == normalizedSenderShort then
+                shortGuid = rosterGuid
+                shortName = unitFullName or unitName
+                shortMatchCount = shortMatchCount + 1
+            end
+        end
+    end
+
+    if exactGuid then
+        return exactGuid, exactName
+    end
+
+    if shortMatchCount == 1 then
+        return shortGuid, shortName
+    end
+
+    return nil, nil
+end
+
 local function HandleMessage(addon, prefix, message, distribution, sender)
     if prefix ~= CommPrefix or type(message) ~= "string" or not IsGrouped() then
         return
     end
 
-    if distribution ~= "RAID" and distribution ~= "PARTY" then
+    if distribution ~= GetCommDistribution() then
         return
     end
 
-    local messageType, protocolVersion, addonVersion, playerGuid, enabledFlag, playerName =
+    local messageType, protocolVersion, addonVersion, playerGuid, eligibilityFlag =
         strsplit("\t", message)
+
+    local senderGuid, senderFullName = ResolveCommSender(addon, sender)
 
     if messageType ~= StateMessageType
         or protocolVersion ~= ProtocolVersion
         or not IsPlayerGuid(playerGuid)
         or playerGuid == UnitGUID("player")
-        or (enabledFlag ~= "1" and enabledFlag ~= "0")
-        or not GearPolice.Helper:IsPlayerInGroup(playerGuid) then
+        or (eligibilityFlag ~= "1" and eligibilityFlag ~= "0")
+        or not senderGuid
+        or senderGuid ~= playerGuid then
         return
     end
 
     addon.commsPeers[playerGuid] = {
         addonVersion = addonVersion or "unknown",
-        reportOffersEnabled = enabledFlag == "1",
+        reportOffersEligible = eligibilityFlag == "1",
         lastSeenAt = time(),
         sender = sender,
-        playerName = IsKnownPlayerName(playerName) and playerName or nil,
+        playerName = senderFullName,
     }
 
     PrunePeers(addon)
@@ -503,7 +573,7 @@ function GearPolice:IsLocalReportOfferCoordinator()
         return true
     end
 
-    if not self.db or not self.db.global or self.db.global.ReportOfferEnabled ~= true then
+    if not IsLocalReportOfferEligible(self) then
         return false
     end
 

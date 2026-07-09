@@ -87,7 +87,13 @@ local function CreateFilterDropdown(self, parent)
     dropdown:SetList(FilterOptions, FilterOptionOrder)
     dropdown:SetValue(self.FilterMode or "all")
     dropdown:SetCallback("OnValueChanged", function(_widget, _event, value)
-        self.FilterMode = value or "all"
+        local filterMode = value or "all"
+        if not GearPolice.Settings:SetPlayerListFilterMode(filterMode) then
+            filterMode = "all"
+            GearPolice.Settings:SetPlayerListFilterMode(filterMode)
+        end
+
+        self.FilterMode = filterMode
         self:UpdateUI()
     end)
     dropdown.frame:SetParent(parent)
@@ -113,8 +119,7 @@ local function CreateMainToolbar(self)
     clearButton.frame:SetPoint("TOPLEFT", content, "TOPLEFT", 0, ToolbarControlTopOffset)
 
     local refreshButton = AddDetachedToolbarWidget(self, CreateToolbarButton(content, "Rescan Group", function()
-        GearPolice:ClearAllTrackedPlayers()
-        GearPolice:StartGearPolicingOfGroup()
+        GearPolice:RescanGroup()
     end))
     refreshButton.frame:SetPoint("TOPLEFT", clearButton.frame, "TOPRIGHT", ToolbarButtonGap, 0)
 
@@ -156,6 +161,7 @@ function UI:ShowUI()
 
     self.playerUIElements = {}
     self.playerOrder = {}
+    self.FilterMode = GearPolice.Settings:GetPlayerListFilterMode()
 
     CreateMainToolbar(self)
 

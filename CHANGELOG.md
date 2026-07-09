@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 1.4.3 - 2026-07-10
+
+### Fixes
+
+- Fixed automatic report-offer coordination in parties when Raid Only is enabled.
+- Improved the reliability of report-offer coordination between group members.
+- `/gearpolice scan` now clears the current list and performs a fresh group scan.
+- The selected player-list filter is now remembered automatically.
+
 ## 1.4.2 - 2026-07-03
 
 ### Features

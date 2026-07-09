@@ -40,6 +40,11 @@ function GearPolice:StartGearPolicingOfGroup()
     GearPolice:UpdatePlayerGearInfoWithGroupMembers()
 end
 
+function GearPolice:RescanGroup()
+    GearPolice:ClearAllTrackedPlayers()
+    GearPolice:StartGearPolicingOfGroup()
+end
+
 function GearPolice:StartGearPolicingOfTarget()
     if not UnitExists("target") or not UnitIsPlayer("target") then
         return
@@ -81,7 +86,7 @@ end
 function GearPolice:PrintSlashCommandHelp()
     GearPolice:Print("Available commands:")
     GearPolice:Print("/gearpolice - Shows this command list.")
-    GearPolice:Print("/gearpolice scan - Starts a group scan.")
+    GearPolice:Print("/gearpolice scan - Clears the current list and rescans your group.")
     GearPolice:Print("/gearpolice showui - Opens the main window.")
     GearPolice:Print("/gearpolice settings - Opens the settings page.")
     GearPolice:Print("/gearpolice target - Scans your current player target.")
@@ -95,7 +100,7 @@ function GearPolice:HandleSlashCommands(msg, _editbox)
     if msg == "" then
         GearPolice:PrintSlashCommandHelp()
     elseif (msg == "scan") then
-        GearPolice:StartGearPolicingOfGroup()
+        GearPolice:RescanGroup()
     elseif (msg == "target") then
         GearPolice:StartGearPolicingOfTarget()
     elseif (msg == "showui") then

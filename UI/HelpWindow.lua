@@ -34,7 +34,7 @@ local HelpSections = {
     {
         title = "Filters And Status",
         body = "The Filter menu can show everyone, only players with problems, only players still "
-            .. "scanning, or only failed and partial scans.\n\n"
+            .. "scanning, or only failed and partial scans. Your selected filter is remembered automatically.\n\n"
             .. "Scanning means GearPolice is still checking the player. Done means the scan finished. "
             .. "Partial means some item data is still missing and GearPolice will try again later. "
             .. "Retry means the player could not be inspected yet, usually because inspect data was "
@@ -76,7 +76,7 @@ local HelpSections = {
     {
         title = "Commands",
         body = "/gearpolice shows the command list.\n\n"
-            .. "/gearpolice scan starts a group scan.\n\n"
+            .. "/gearpolice scan clears the current list and performs a fresh group scan.\n\n"
             .. "/gearpolice showui opens the main window.\n\n"
             .. "/gearpolice settings opens the settings page.\n\n"
             .. "/gearpolice target scans your current player target.\n\n"

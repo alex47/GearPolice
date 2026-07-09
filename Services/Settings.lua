@@ -11,6 +11,13 @@ local ReportModes = {
     debug = true,
 }
 
+local PlayerListFilterModes = {
+    all = true,
+    problems = true,
+    scanning = true,
+    failed_partial = true,
+}
+
 local CheckDefaults = {
     missing_gems = true,
     missing_enchant = true,
@@ -114,6 +121,10 @@ function Settings:Initialize()
         db.PublicReportAnnouncementEnabled = true
     end
 
+    if not PlayerListFilterModes[db.PlayerListFilterMode] then
+        db.PlayerListFilterMode = "all"
+    end
+
     EnsureMinimapSettings()
     EnsureEnabledChecks()
 
@@ -211,6 +222,34 @@ function Settings:SetAutoWhisperInRaidOnly(enabled)
     end
 
     db.AutoWhisperInRaidOnly = enabled == true
+    if GearPolice.AnnounceCommsState then
+        GearPolice:AnnounceCommsState()
+    end
+
+    return true
+end
+
+function Settings:GetPlayerListFilterMode()
+    local db = GetGlobalDb()
+    local filterMode = db and db.PlayerListFilterMode or nil
+    if PlayerListFilterModes[filterMode] then
+        return filterMode
+    end
+
+    return "all"
+end
+
+function Settings:SetPlayerListFilterMode(filterMode)
+    if not PlayerListFilterModes[filterMode] then
+        return false
+    end
+
+    local db = GetGlobalDb()
+    if not db then
+        return false
+    end
+
+    db.PlayerListFilterMode = filterMode
     return true
 end
 
