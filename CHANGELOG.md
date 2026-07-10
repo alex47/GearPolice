@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.4.5 - 2026-07-10
+
+### Changes
+
+- Automatic report-offer whispers are now disabled in battlegrounds and arenas.
+
 ## 1.4.4 - 2026-07-10
 
 ### Features

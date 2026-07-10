@@ -31,6 +31,7 @@ read_globals = {
     "GetPlayerInfoByGUID",
     "InCombatLockdown",
     "IsInGroup",
+    "IsInInstance",
     "IsInRaid",
     "NotifyInspect",
     "UnitExists",

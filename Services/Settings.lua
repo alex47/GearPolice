@@ -262,7 +262,16 @@ function Settings:SetAutoWhisperInRaidEnabled(enabled)
     return true
 end
 
+function Settings:IsAutoWhisperAllowedInCurrentInstance()
+    local inInstance, instanceType = IsInInstance()
+    return not inInstance or (instanceType ~= "pvp" and instanceType ~= "arena")
+end
+
 function Settings:IsAutoWhisperEnabledForCurrentGroup()
+    if not self:IsAutoWhisperAllowedInCurrentInstance() then
+        return false
+    end
+
     if IsInRaid() then
         return self:IsAutoWhisperInRaidEnabled()
     elseif IsInGroup() then

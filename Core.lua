@@ -33,6 +33,7 @@ function GearPolice:OnEnable()
     self:RegisterEvent("GROUP_ROSTER_UPDATE", "UpdateGroupMembers")
     self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnCombatEnded")
     self:RegisterEvent("PLAYER_TARGET_CHANGED", "OnPlayerTargetChanged")
+    self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnPlayerEnteringWorld")
     self:RegisterEvent("CHAT_MSG_WHISPER", "OnReportOfferWhisperReceived")
     self:UpdatePlayerGearInfoWithGroupMembers()
     self:StartComms()
@@ -81,6 +82,17 @@ end
 
 function GearPolice:UpdateGroupMembers()
     GearPolice:UpdatePlayerGearInfoWithGroupMembers()
+end
+
+function GearPolice:OnPlayerEnteringWorld()
+    if not self.Settings:IsAutoWhisperAllowedInCurrentInstance()
+        and self.ClearPendingReportOffers then
+        self:ClearPendingReportOffers()
+    end
+
+    if self.AnnounceCommsState then
+        self:AnnounceCommsState()
+    end
 end
 
 -- Slash command

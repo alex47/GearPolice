@@ -34,6 +34,7 @@
 - Use structured problem records when touching item issue handling: `slotName`, `itemLink`, `ruleId`, and `message`.
 - Route player-facing report text through `Reporting.lua` so the `{Square} GearPolice {Cross}` prefix and message style stay unified.
 - Route addon-owned outgoing chat through `Services/ChatThrottle.lua`. Do not call `SendChatMessage` directly for reports or report offers.
+- Automatic report-offer whispers must remain disabled inside battlegrounds and arenas; manual reports and explicit `!gp` replies remain available.
 - Keep `!gp` as the documented whisper request trigger. The hidden `|gp` compatibility trigger should not be mentioned in player help unless requested.
 
 ## UI Rules
