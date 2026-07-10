@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 1.4.4 - 2026-07-10
+
+### Features
+
+- Added separate settings for automatic report offers in parties and raids.
+- Low item level reports now show the configured threshold.
+
+### Fixes
+
+- Fixed off-hand scanning for characters who can dual-wield two-handed weapons.
+- Empty weapon slots no longer keep scans waiting for item data.
+- Unfinished target scans now stop when you change targets.
+- The group list now initializes correctly after login or reload.
+- Retrying scans now show a consistent scanning status.
+
 ## 1.4.3 - 2026-07-10
 
 ### Fixes

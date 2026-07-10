@@ -114,21 +114,51 @@ local function BuildOptions()
                             GetSettings():SetReportOfferEnabled(value)
                         end,
                     },
-                    reportOffersRaidOnly = {
-                        type = "toggle",
-                        name = "Auto-Whisper In Raid Only",
-                        desc = "Send automatic report offer whispers only while you are in a raid group.",
+                    reportOfferScopes = {
+                        type = "group",
+                        name = "",
+                        inline = true,
                         order = 30,
-                        width = "full",
-                        disabled = function()
-                            return not GetSettings():IsReportOfferEnabled()
-                        end,
-                        get = function()
-                            return GetSettings():IsAutoWhisperInRaidOnly()
-                        end,
-                        set = function(_info, value)
-                            GetSettings():SetAutoWhisperInRaidOnly(value)
-                        end,
+                        args = {
+                            indent = {
+                                type = "description",
+                                name = " ",
+                                order = 10,
+                                width = 0.15,
+                            },
+                            party = {
+                                type = "toggle",
+                                name = "Auto-Whisper In Party",
+                                desc = "Send automatic report offer whispers while you are in a party.",
+                                order = 20,
+                                width = "normal",
+                                disabled = function()
+                                    return not GetSettings():IsReportOfferEnabled()
+                                end,
+                                get = function()
+                                    return GetSettings():IsAutoWhisperInPartyEnabled()
+                                end,
+                                set = function(_info, value)
+                                    GetSettings():SetAutoWhisperInPartyEnabled(value)
+                                end,
+                            },
+                            raid = {
+                                type = "toggle",
+                                name = "Auto-Whisper In Raid",
+                                desc = "Send automatic report offer whispers while you are in a raid.",
+                                order = 30,
+                                width = "normal",
+                                disabled = function()
+                                    return not GetSettings():IsReportOfferEnabled()
+                                end,
+                                get = function()
+                                    return GetSettings():IsAutoWhisperInRaidEnabled()
+                                end,
+                                set = function(_info, value)
+                                    GetSettings():SetAutoWhisperInRaidEnabled(value)
+                                end,
+                            },
+                        },
                     },
                     showAutoWhispers = {
                         type = "toggle",

@@ -4,25 +4,6 @@ GearPolice.Reporting = GearPolice.Reporting or {}
 local Reporting = GearPolice.Reporting
 local ReportPrefix = "{Square} GearPolice {Cross}"
 
-local SlotLabels = {
-    HeadSlot = "Head",
-    NeckSlot = "Neck",
-    ShoulderSlot = "Shoulder",
-    BackSlot = "Back",
-    ChestSlot = "Chest",
-    WristSlot = "Wrist",
-    HandsSlot = "Hands",
-    WaistSlot = "Waist",
-    LegsSlot = "Legs",
-    FeetSlot = "Feet",
-    Finger0Slot = "Finger 1",
-    Finger1Slot = "Finger 2",
-    MainHandSlot = "Main Hand",
-    SecondaryHandSlot = "Off Hand",
-    Trinket0Slot = "Trinket 1",
-    Trinket1Slot = "Trinket 2",
-}
-
 local function IsKnownPlayerName(playerName)
     return type(playerName) == "string" and playerName ~= "" and playerName ~= "Unknown"
 end
@@ -54,7 +35,7 @@ local function GetPlayerPrefix(playerInfo, includePlayerName)
 end
 
 local function GetSlotLabel(slotName)
-    return SlotLabels[slotName] or slotName
+    return GearPolice.Slots.GetSlotLabel(slotName)
 end
 
 local function GetItemNameFromLink(itemLink)

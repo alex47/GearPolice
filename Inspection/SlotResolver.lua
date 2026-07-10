@@ -74,6 +74,13 @@ function Inspection:ResolveInventorySlotWithRetry(
         return
     end
 
+    local currentScan = GearPolice.currentScan
+    if currentScan and currentScan.reason == "target"
+        and not GearPolice:IsScanTargetAvailable(playerInfo.PlayerGuid, "target") then
+        GearPolice:OnPlayerTargetChanged()
+        return
+    end
+
     if not retryCount then
         retryCount = GearPolice.InventorySlotRetryCount
     end

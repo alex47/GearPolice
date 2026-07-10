@@ -38,8 +38,15 @@ function ScanQueue.Process(addon)
     addon:CancelScanQueueTimer()
 
     while #addon.scanQueue > 0 do
-        local playerGuid = table.remove(addon.scanQueue, 1)
+        local playerGuid = addon.scanQueue[1]
         local reason = addon.queuedScanReasons[playerGuid] or "group"
+
+        if reason == "target" and not addon:IsScanTargetAvailable(playerGuid, reason) then
+            addon:OnPlayerTargetChanged()
+            return
+        end
+
+        table.remove(addon.scanQueue, 1)
         addon.queuedScanReasons[playerGuid] = nil
 
         if playerGuid then
@@ -66,8 +73,7 @@ function ScanQueue.Process(addon)
                         generation = scanGeneration,
                         reason = reason,
                     }
-                    addon.activeScanGuids[playerGuid] = true
-                    addon.isScanning = true
+                    addon.UI:UpdateUI()
 
                     local unitId = addon:GetScanUnitId(playerGuid, reason)
                     if unitId then
@@ -130,7 +136,6 @@ function ScanQueue.Add(addon, playerGuid, forceScan, reason, addToFront)
         if addon.db and addon.db.global and addon.db.global.PlayerGearInfo then
             local playerInfo = addon.db.global.PlayerGearInfo[playerGuid]
             if playerInfo then
-                playerInfo.QueuedScanReason = reason
                 if forceScan then
                     playerInfo.ForceScanRequested = true
                 end
@@ -153,7 +158,6 @@ function ScanQueue.Add(addon, playerGuid, forceScan, reason, addToFront)
 
             playerInfo.ScanGeneration = (playerInfo.ScanGeneration or 0) + 1
             playerInfo.CheckRequested = true
-            playerInfo.QueuedScanReason = reason
             if forceScan then
                 playerInfo.ForceScanRequested = true
             end

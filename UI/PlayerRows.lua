@@ -10,15 +10,6 @@ local ManualLayoutName = "GearPoliceManual"
 
 AceGUI:RegisterLayout(ManualLayoutName, function(_content, _children) end)
 
-function UI:UpdatePlayerStatusIcon(playerGuid, status)
-    if not self.playerUIElements then return end
-
-    local playerUI = self.playerUIElements[playerGuid]
-    if not playerUI then return end
-
-    playerUI.statusIcon:SetImage(self:GetStatusTexture(status))
-end
-
 local function NeedsRebuild(ui, rows)
     for playerGuid in pairs(ui.playerUIElements) do
         if not GearPolice.db.global.PlayerGearInfo[playerGuid] then

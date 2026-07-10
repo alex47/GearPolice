@@ -113,9 +113,19 @@ function Settings:Initialize()
         db.ReportMode = "whisper"
     end
 
-    if type(db.AutoWhisperInRaidOnly) ~= "boolean" then
-        db.AutoWhisperInRaidOnly = true
+    local previousRaidOnlySetting = db.AutoWhisperInRaidOnly
+    if type(db.AutoWhisperInParty) ~= "boolean" then
+        if type(previousRaidOnlySetting) == "boolean" then
+            db.AutoWhisperInParty = not previousRaidOnlySetting
+        else
+            db.AutoWhisperInParty = false
+        end
     end
+
+    if type(db.AutoWhisperInRaid) ~= "boolean" then
+        db.AutoWhisperInRaid = true
+    end
+    db.AutoWhisperInRaidOnly = nil
 
     if type(db.PublicReportAnnouncementEnabled) ~= "boolean" then
         db.PublicReportAnnouncementEnabled = true
@@ -206,27 +216,60 @@ function Settings:SetReportOfferEnabled(enabled)
     return true
 end
 
-function Settings:IsAutoWhisperInRaidOnly()
+function Settings:IsAutoWhisperInPartyEnabled()
     local db = GetGlobalDb()
-    if not db or type(db.AutoWhisperInRaidOnly) ~= "boolean" then
-        return true
+    if not db or type(db.AutoWhisperInParty) ~= "boolean" then
+        return false
     end
 
-    return db.AutoWhisperInRaidOnly == true
+    return db.AutoWhisperInParty == true
 end
 
-function Settings:SetAutoWhisperInRaidOnly(enabled)
+function Settings:SetAutoWhisperInPartyEnabled(enabled)
     local db = GetGlobalDb()
     if not db then
         return false
     end
 
-    db.AutoWhisperInRaidOnly = enabled == true
+    db.AutoWhisperInParty = enabled == true
     if GearPolice.AnnounceCommsState then
         GearPolice:AnnounceCommsState()
     end
 
     return true
+end
+
+function Settings:IsAutoWhisperInRaidEnabled()
+    local db = GetGlobalDb()
+    if not db or type(db.AutoWhisperInRaid) ~= "boolean" then
+        return true
+    end
+
+    return db.AutoWhisperInRaid == true
+end
+
+function Settings:SetAutoWhisperInRaidEnabled(enabled)
+    local db = GetGlobalDb()
+    if not db then
+        return false
+    end
+
+    db.AutoWhisperInRaid = enabled == true
+    if GearPolice.AnnounceCommsState then
+        GearPolice:AnnounceCommsState()
+    end
+
+    return true
+end
+
+function Settings:IsAutoWhisperEnabledForCurrentGroup()
+    if IsInRaid() then
+        return self:IsAutoWhisperInRaidEnabled()
+    elseif IsInGroup() then
+        return self:IsAutoWhisperInPartyEnabled()
+    end
+
+    return false
 end
 
 function Settings:GetPlayerListFilterMode()

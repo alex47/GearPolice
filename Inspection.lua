@@ -5,7 +5,15 @@ GearPolice.Inspection = GearPolice.Inspection or {}
 local Inspection = GearPolice.Inspection
 
 function Inspection:IsCurrentScan(playerInfo, scanGeneration)
-    return not scanGeneration or (playerInfo and playerInfo.ScanGeneration == scanGeneration)
+    if not playerInfo or not playerInfo.PlayerGuid then
+        return false
+    end
+
+    if scanGeneration and playerInfo.ScanGeneration ~= scanGeneration then
+        return false
+    end
+
+    return GearPolice:IsCurrentScan(playerInfo.PlayerGuid, scanGeneration)
 end
 
 function Inspection:IsStoredItemLink(slotValue)

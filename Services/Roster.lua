@@ -305,24 +305,12 @@ function Roster.ProcessGroupMember(addon, unitId, sortIndex, groupType)
     end
 end
 
-function GearPolice:CreateEmptyRosterSnapshot(groupType)
-    return Roster.CreateEmptySnapshot(groupType)
-end
-
 function GearPolice:ResetRosterSnapshot()
     return Roster.ResetSnapshot(self)
 end
 
 function GearPolice:BuildGroupRosterSnapshot()
     return Roster.BuildSnapshot(self)
-end
-
-function GearPolice:ApplyRosterMetadata(playerInfo, playerGuid, unitId, sortIndex, groupType)
-    return Roster.ApplyMetadata(playerInfo, playerGuid, unitId, sortIndex, groupType)
-end
-
-function GearPolice:ClearRosterMetadata(playerInfo)
-    return Roster.ClearMetadata(playerInfo)
 end
 
 function GearPolice:RefreshCurrentRosterSnapshot()
@@ -341,18 +329,6 @@ function GearPolice:GetOrderedPlayerGuids()
     return Roster.GetOrderedPlayerGuids(self)
 end
 
-function GearPolice:ReconcileGroupRoster(snapshot)
-    Roster.Reconcile(self, snapshot)
-    if self.RefreshCommsGroupState then
-        self:RefreshCommsGroupState()
-    end
-    return self:ProcessScanQueue()
-end
-
 function GearPolice:UpdatePlayerGearInfoWithGroupMembers()
     return Roster.UpdateGroupMembers(self)
-end
-
-function GearPolice:ProcessGroupMember(unitId, sortIndex, groupType)
-    return Roster.ProcessGroupMember(self, unitId, sortIndex, groupType)
 end

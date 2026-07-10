@@ -10,10 +10,6 @@ function ScanSession.ClearCurrent(addon, playerGuid)
     end
 
     addon.currentScan = nil
-    addon.isScanning = false
-    if addon.activeScanGuids then
-        addon.activeScanGuids[playerGuid] = nil
-    end
 
     if ClearInspectPlayer then
         ClearInspectPlayer()
@@ -63,6 +59,74 @@ function ScanSession.IsLocalPlayer(_addon, playerGuid)
     return playerGuid and UnitGUID("player") == playerGuid
 end
 
+local function IsCurrentRosterPlayer(addon, playerGuid)
+    local roster = addon.currentRoster
+    if not roster or not roster.presentGuids or not roster.presentGuids[playerGuid] then
+        return false
+    end
+
+    local unitId = roster.unitIdByGuid and roster.unitIdByGuid[playerGuid]
+    return unitId and UnitGUID(unitId) == playerGuid
+end
+
+local function ReconcileObsoleteTargetWork(addon, playerGuids)
+    local changed = false
+
+    for playerGuid in pairs(playerGuids) do
+        local playerInfo = addon.PlayerStore:Get(playerGuid)
+        local isRosterPlayer = IsCurrentRosterPlayer(addon, playerGuid)
+
+        addon:ClearScheduledWorkForPlayer(playerGuid)
+
+        if isRosterPlayer then
+            playerInfo = playerInfo or addon.PlayerStore:Ensure(playerGuid)
+            if playerInfo then
+                addon:ApplyCurrentRosterMetadata(playerGuid, playerInfo)
+                playerInfo.retryAttempts = 0
+                addon:AddToScanQueue(playerGuid, true, "group", true)
+            end
+        else
+            addon:RemovePlayerFromTracking(playerGuid)
+        end
+
+        changed = true
+    end
+
+    if changed then
+        addon.UI:UpdateUI()
+        addon:ProcessScanQueue()
+    end
+
+    return changed
+end
+
+function ScanSession.HandleTargetChanged(addon)
+    addon:RefreshCurrentRosterSnapshot()
+
+    local currentTargetGuid = UnitGUID("target")
+    local obsoletePlayerGuids = {}
+    local currentScan = addon.currentScan
+
+    if currentScan and currentScan.reason == "target"
+        and currentScan.playerGuid ~= currentTargetGuid then
+        obsoletePlayerGuids[currentScan.playerGuid] = true
+    end
+
+    for playerGuid, reason in pairs(addon.queuedScanReasons or {}) do
+        if reason == "target" and playerGuid ~= currentTargetGuid then
+            obsoletePlayerGuids[playerGuid] = true
+        end
+    end
+
+    for playerGuid, retry in pairs(addon.delayedScanRetries or {}) do
+        if retry.reason == "target" and playerGuid ~= currentTargetGuid then
+            obsoletePlayerGuids[playerGuid] = true
+        end
+    end
+
+    return ReconcileObsoleteTargetWork(addon, obsoletePlayerGuids)
+end
+
 function ScanSession.Finish(addon, playerGuid, scanGeneration, status, options)
     if not addon:IsCurrentScan(playerGuid, scanGeneration) then
         return false
@@ -77,13 +141,12 @@ function ScanSession.Finish(addon, playerGuid, scanGeneration, status, options)
     end
 
     addon:CancelManagedTimersForPlayer(playerGuid)
+    if addon.delayedScanRetries then
+        addon.delayedScanRetries[playerGuid] = nil
+    end
     addon:RemoveFromScanQueue(playerGuid)
 
-    if addon.activeScanGuids then
-        addon.activeScanGuids[playerGuid] = nil
-    end
     addon.currentScan = nil
-    addon.isScanning = false
 
     if ClearInspectPlayer then
         ClearInspectPlayer()
@@ -113,7 +176,26 @@ end
 function ScanSession.ScheduleDelayedRetry(addon, playerGuid, scanGeneration, reason, expectedStatus, delay)
     reason = addon:NormalizeScanReason(reason)
 
-    addon:ScheduleManagedTimer(function()
+    addon.delayedScanRetries = addon.delayedScanRetries or {}
+    local retryRecord = {
+        generation = scanGeneration,
+        reason = reason,
+        expectedStatus = expectedStatus,
+    }
+    addon.delayedScanRetries[playerGuid] = retryRecord
+
+    local timerHandle
+    timerHandle = addon:ScheduleManagedTimer(function()
+        if addon.delayedScanRetries[playerGuid] ~= retryRecord then
+            return
+        end
+
+        if reason == "target" and not addon:IsScanTargetAvailable(playerGuid, reason) then
+            addon:OnPlayerTargetChanged()
+            return
+        end
+
+        addon.delayedScanRetries[playerGuid] = nil
         local playerInfo = addon.db.global.PlayerGearInfo[playerGuid]
         if not playerInfo then
             return
@@ -132,6 +214,13 @@ function ScanSession.ScheduleDelayedRetry(addon, playerGuid, scanGeneration, rea
         addon.UI:UpdateUI()
         addon:ProcessScanQueue()
     end, delay, playerGuid)
+
+    retryRecord.timerHandle = timerHandle
+    if not timerHandle and addon.delayedScanRetries[playerGuid] == retryRecord then
+        addon.delayedScanRetries[playerGuid] = nil
+    end
+
+    return timerHandle
 end
 
 function ScanSession.ScheduleInspectReadyTimeout(addon, playerGuid, scanGeneration)
@@ -253,10 +342,8 @@ function ScanSession.StartInspection(addon, unitId, reason, scanGeneration)
     addon.currentScan.unitId = unitId
     addon.currentScan.reason = reason
     addon.currentScan.inspectReadyReceived = false
-    addon.activeScanGuids[playerGuid] = true
 
     if addon:IsLocalPlayerGuid(playerGuid) then
-        addon.UI:UpdatePlayerStatusIcon(playerGuid, "scanning")
         addon:RunInspectionChecks(playerGuid, scanGeneration)
         return
     end
@@ -264,7 +351,6 @@ function ScanSession.StartInspection(addon, unitId, reason, scanGeneration)
     if CanInspect(unitId) then
         NotifyInspect(unitId)
         addon:ScheduleInspectReadyTimeout(playerGuid, scanGeneration)
-        addon.UI:UpdatePlayerStatusIcon(playerGuid, "scanning")
     else
         addon:RetryInspection(playerGuid, 1, scanGeneration)
     end
@@ -295,6 +381,11 @@ function ScanSession.RetryInspection(addon, playerGuid, attempt, scanGeneration)
     end
 
     if not addon:IsScanTargetAvailable(playerGuid, reason) then
+        if reason == "target" then
+            addon:OnPlayerTargetChanged()
+            return
+        end
+
         addon:FinishScan(playerGuid, scanGeneration, "Failed")
         return
     end
@@ -402,4 +493,8 @@ end
 
 function GearPolice:OnInspectReady(eventName, playerGuid)
     return ScanSession.OnInspectReady(self, eventName, playerGuid)
+end
+
+function GearPolice:OnPlayerTargetChanged()
+    return ScanSession.HandleTargetChanged(self)
 end

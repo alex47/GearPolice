@@ -227,16 +227,3 @@ function Inspection:IsItemMissingUpgrade(itemLink, unitId, slotID)
 
     return currentUpgrade < maximumUpgrade
 end
-
-function Inspection:IsTwoHandedOrRangedWeaponLink(itemLink)
-    if not itemLink then
-        return false
-    end
-
-    local _, _, _, _, _, _, _, _, equipLoc = GetItemInfo(itemLink)
-    if not equipLoc then
-        return GearPolice.ItemMetadataPending
-    end
-
-    return equipLoc == "INVTYPE_2HWEAPON" or equipLoc == "INVTYPE_RANGED"
-end

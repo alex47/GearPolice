@@ -17,7 +17,9 @@ local HelpSections = {
             .. "removed from the list.\n\n"
             .. "Use Rescan Group to clear the current list and scan your group again.\n\n"
             .. "Use Scan Target to scan your current player target. Scan Target only works on player targets. "
-            .. "This can be someone outside your group, but keep them targeted while the scan runs.\n\n"
+            .. "This can be someone outside your group, but keep them targeted while the scan runs. Changing "
+            .. "targets stops unfinished target work. Outside-group targets are removed from the list, while "
+            .. "group members return to normal group scanning.\n\n"
             .. "Use Clear List to remove everyone from the list and stop active scans.\n\n"
             .. "Use Settings to open the GearPolice page in the game's AddOns settings list. "
             .. "There you can change report behavior, minimap visibility, and enabled checks. "
@@ -49,11 +51,12 @@ local HelpSections = {
             .. "Clean scans do not send an offer. They can whisper you back to request the full report. "
             .. "GearPolice waits 12 hours before offering the same player again. If more than one "
             .. "GearPolice user in the group has auto-whispers turned on, GearPolice chooses one sender "
-            .. "automatically so players do not get duplicate offer whispers. Auto-Whisper In Raid Only "
-            .. "limits these automatic offers to raid groups.\n\n"
+            .. "automatically so players do not get duplicate offer whispers. Auto-Whisper In Party and "
+            .. "Auto-Whisper In Raid choose which group types can receive automatic offers.\n\n"
             .. "Show Auto-Whispers controls whether GearPolice's automatic offer and reply whispers are shown "
             .. "in your chat window. The whispers are still sent normally when this is off.\n\n"
-            .. "The Checks section controls which problems are reported on future scans.",
+            .. "The Checks section controls which problems are reported on future scans. Low Item Level "
+            .. "issues include the threshold that was used for the scan.",
     },
     {
         title = "Manual Report Modes",

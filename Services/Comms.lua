@@ -72,11 +72,7 @@ local function IsLocalReportOfferEligible(addon)
         return false
     end
 
-    if IsInRaid() then
-        return true
-    end
-
-    return not (addon.Settings and addon.Settings:IsAutoWhisperInRaidOnly())
+    return addon.Settings and addon.Settings:IsAutoWhisperEnabledForCurrentGroup()
 end
 
 local function GetAddonVersion()

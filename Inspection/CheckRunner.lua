@@ -38,7 +38,12 @@ function Inspection:ApplySlotChecks(playerInfo, slotName, slotValue, slotID, sca
             if self:IsItemMetadataPending(checkResult) then
                 self:MarkItemMetadataPending(playerInfo, slotName, slotValue, scanGeneration)
             elseif checkResult then
-                self:RecordProblem(playerInfo, slotName, slotValue, ruleId, rule.message, scanGeneration)
+                local problemMessage = rule.message
+                if type(rule.buildMessage) == "function" then
+                    problemMessage = rule.buildMessage(slotValue, context)
+                end
+
+                self:RecordProblem(playerInfo, slotName, slotValue, ruleId, problemMessage, scanGeneration)
             end
         end
     end
@@ -130,7 +135,7 @@ function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
         return true
     end
 
-    local function ScheduleSlotResolution(slotName, onResolved)
+    local function ScheduleSlotResolution(slotName)
         local slotRuleIds = GearPolice.Rules.GetSlotRuleIdsForSlot(slotName)
         if not slotRuleIds then
             return false
@@ -139,62 +144,15 @@ function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
         totalSlots = totalSlots + 1
         playerInfo.pendingChecks = totalSlots - completedSlots
         self:ResolveInventorySlotWithRetry(playerInfo, slotName, nil, function(resolvedSlotName, slotValue, slotID)
-            if CompleteSlot(resolvedSlotName, slotValue, slotID) and onResolved then
-                onResolved(slotValue)
-            end
+            CompleteSlot(resolvedSlotName, slotValue, slotID)
         end, nil, scanGeneration)
         return true
     end
 
-    local function CompleteSecondaryHandAsEmpty()
-        totalSlots = totalSlots + 1
-        playerInfo.pendingChecks = totalSlots - completedSlots
-
-        if not self:SetEquippedSlotValue(
-            playerInfo,
-            "SecondaryHandSlot",
-            GearPolice.InventorySlotEmpty,
-            scanGeneration
-        ) then
-            return
-        end
-
-        CompleteSlot("SecondaryHandSlot", GearPolice.InventorySlotEmpty)
-    end
-
-    local function ScheduleSecondaryHandAfterMainHand(mainHandValue)
-        if isUnitCheckComplete or not self:IsCurrentScan(playerInfo, scanGeneration) then
-            return
-        end
-
-        local skipSecondaryHand = self:IsTwoHandedOrRangedWeaponLink(mainHandValue)
-        if self:IsItemMetadataPending(skipSecondaryHand) then
-            self:MarkItemMetadataPending(playerInfo, "MainHandSlot", mainHandValue, scanGeneration)
-            skipSecondaryHand = false
-        end
-
-        if skipSecondaryHand then
-            CompleteSecondaryHandAsEmpty()
-        else
-            ScheduleSlotResolution("SecondaryHandSlot")
-        end
-
-        isSchedulingSlots = false
-        CompleteUnitCheckIfReady()
-    end
-
     for _, slotName in ipairs(GearPolice.Helper:GetInventorySlotNames()) do
-        if slotName ~= "MainHandSlot" and slotName ~= "SecondaryHandSlot" then
-            ScheduleSlotResolution(slotName)
-        end
+        ScheduleSlotResolution(slotName)
     end
 
-    local scheduledMainHand = ScheduleSlotResolution("MainHandSlot", function(mainHandValue)
-        ScheduleSecondaryHandAfterMainHand(mainHandValue)
-    end)
-
-    if not scheduledMainHand or isUnitCheckComplete then
-        isSchedulingSlots = false
-        CompleteUnitCheckIfReady()
-    end
+    isSchedulingSlots = false
+    CompleteUnitCheckIfReady()
 end
