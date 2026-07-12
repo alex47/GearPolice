@@ -58,6 +58,36 @@ local function FormatIssueSummary(problemCount, hasPendingSlots)
     return "|cffaaaaaaNo issues|r"
 end
 
+local function NormalizePlayerSortName(playerName)
+    if type(playerName) ~= "string" or playerName == ""
+        or playerName == "Unknown" or playerName == "Unknown Player" then
+        return nil
+    end
+
+    return string.lower(playerName)
+end
+
+local function PlayerRowComesBefore(rowA, rowB)
+    local nameA = NormalizePlayerSortName(rowA.playerName)
+    local nameB = NormalizePlayerSortName(rowB.playerName)
+
+    if (nameA ~= nil) ~= (nameB ~= nil) then
+        return nameA ~= nil
+    end
+
+    if nameA ~= nameB then
+        return (nameA or "") < (nameB or "")
+    end
+
+    local fullNameA = NormalizePlayerSortName(rowA.playerInfo and rowA.playerInfo.PlayerFullName) or nameA
+    local fullNameB = NormalizePlayerSortName(rowB.playerInfo and rowB.playerInfo.PlayerFullName) or nameB
+    if fullNameA ~= fullNameB then
+        return (fullNameA or "") < (fullNameB or "")
+    end
+
+    return tostring(rowA.playerGuid or "") < tostring(rowB.playerGuid or "")
+end
+
 local function RowMatchesFilter(row, filterMode)
     if filterMode == "problems" then
         return row.hasProblems
@@ -209,13 +239,13 @@ end
 function ViewModel.BuildRows(filterMode)
     local rows = {}
     local slotOrder = GearPolice.Helper:GetInventorySlotNames()
+    local playerGearInfo = GearPolice.PlayerStore:GetAll()
 
-    for _, playerGuid in ipairs(GearPolice:GetOrderedPlayerGuids()) do
-        local playerInfo = GearPolice.db.global.PlayerGearInfo[playerGuid]
-        if playerInfo then
-            table.insert(rows, ViewModel.BuildRow(playerGuid, playerInfo, slotOrder))
-        end
+    for playerGuid, playerInfo in pairs(playerGearInfo or {}) do
+        table.insert(rows, ViewModel.BuildRow(playerGuid, playerInfo, slotOrder))
     end
+
+    table.sort(rows, PlayerRowComesBefore)
 
     local summary = BuildSummary(rows)
     local filteredRows = {}

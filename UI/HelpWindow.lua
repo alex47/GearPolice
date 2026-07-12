@@ -35,8 +35,9 @@ local HelpSections = {
     },
     {
         title = "Filters And Status",
-        body = "The Filter menu can show everyone, only players with problems, only players still "
-            .. "scanning, or only failed and partial scans. Your selected filter is remembered automatically.\n\n"
+        body = "Players are listed alphabetically. The Filter menu can show everyone, only players with "
+            .. "problems, only players still scanning, or only failed and partial scans. Your selected "
+            .. "filter is remembered automatically.\n\n"
             .. "Scanning means GearPolice is still checking the player. Done means the scan finished. "
             .. "Partial means some item data is still missing and GearPolice will try again later. "
             .. "Retry means the player could not be inspected yet, usually because inspect data was "

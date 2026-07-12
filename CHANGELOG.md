@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.4.6 - 2026-07-12
+
+### Changes
+
+- The player list is now displayed alphabetically.
+
 ## 1.4.5 - 2026-07-10
 
 ### Changes

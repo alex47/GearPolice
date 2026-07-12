@@ -141,54 +141,6 @@ function Roster.RemoveGuidFromCurrent(addon, playerGuid)
     end
 end
 
-function Roster.GetOrderedPlayerGuids(addon)
-    local orderedGuids = {}
-    local includedGuids = {}
-    local playerGearInfo = addon.PlayerStore:GetAll()
-
-    if not playerGearInfo then
-        return orderedGuids
-    end
-
-    local roster = addon.currentRoster
-
-    if roster and roster.orderedGuids then
-        for _, playerGuid in ipairs(roster.orderedGuids) do
-            if playerGearInfo[playerGuid] then
-                table.insert(orderedGuids, playerGuid)
-                includedGuids[playerGuid] = true
-            end
-        end
-    end
-
-    local nonRosterPlayers = {}
-    for playerGuid, playerInfo in pairs(playerGearInfo) do
-        if not includedGuids[playerGuid] then
-            table.insert(nonRosterPlayers, {
-                playerGuid = playerGuid,
-                playerName = playerInfo.PlayerName or "Unknown",
-            })
-        end
-    end
-
-    table.sort(nonRosterPlayers, function(a, b)
-        local nameA = string.lower(a.playerName or "")
-        local nameB = string.lower(b.playerName or "")
-
-        if nameA == nameB then
-            return (a.playerGuid or "") < (b.playerGuid or "")
-        end
-
-        return nameA < nameB
-    end)
-
-    for _, player in ipairs(nonRosterPlayers) do
-        table.insert(orderedGuids, player.playerGuid)
-    end
-
-    return orderedGuids
-end
-
 function Roster.Reconcile(addon, snapshot)
     if not snapshot or not snapshot.groupType then
         addon:ClearAllTrackedPlayers()
@@ -323,10 +275,6 @@ end
 
 function GearPolice:RemoveGuidFromCurrentRoster(playerGuid)
     return Roster.RemoveGuidFromCurrent(self, playerGuid)
-end
-
-function GearPolice:GetOrderedPlayerGuids()
-    return Roster.GetOrderedPlayerGuids(self)
 end
 
 function GearPolice:UpdatePlayerGearInfoWithGroupMembers()
