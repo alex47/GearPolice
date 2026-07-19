@@ -31,6 +31,7 @@ end
 function GearPolice:OnEnable()
     self:RegisterEvent("INSPECT_READY", "OnInspectReady")
     self:RegisterEvent("GROUP_ROSTER_UPDATE", "UpdateGroupMembers")
+    self:RegisterEvent("PLAYER_REGEN_DISABLED", "OnCombatStarted")
     self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnCombatEnded")
     self:RegisterEvent("PLAYER_TARGET_CHANGED", "OnPlayerTargetChanged")
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnPlayerEnteringWorld")

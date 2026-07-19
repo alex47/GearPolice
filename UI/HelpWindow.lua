@@ -14,7 +14,8 @@ local HelpSections = {
         title = "How To Use",
         body = "GearPolice automatically watches your party or raid. When you join a group, it starts "
             .. "a fresh list and begins scanning the group, including you. When players leave, they are "
-            .. "removed from the list.\n\n"
+            .. "removed from the list. Players who are currently close enough to inspect are scanned first. "
+            .. "Out-of-range players remain waiting and are checked again periodically.\n\n"
             .. "Use Rescan Group to clear the current list and scan your group again.\n\n"
             .. "Use Scan Target to scan your current player target. Scan Target only works on player targets. "
             .. "This can be someone outside your group, but keep them targeted while the scan runs. Changing "
@@ -76,8 +77,8 @@ local HelpSections = {
     },
     {
         title = "Combat",
-        body = "GearPolice pauses group scanning during combat and continues afterward. Automatic report "
-            .. "offer whispers also wait until combat is over.",
+        body = "GearPolice pauses all active and queued gear inspection during combat and continues afterward. "
+            .. "Automatic report offer whispers also wait until combat is over.",
     },
     {
         title = "Commands",

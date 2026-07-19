@@ -74,6 +74,11 @@ function Inspection:ResolveInventorySlotWithRetry(
         return
     end
 
+    if InCombatLockdown() then
+        GearPolice:PauseCurrentScanForCombat(playerInfo.PlayerGuid, scanGeneration)
+        return
+    end
+
     local currentScan = GearPolice.currentScan
     if currentScan and currentScan.reason == "target"
         and not GearPolice:IsScanTargetAvailable(playerInfo.PlayerGuid, "target") then

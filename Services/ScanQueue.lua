@@ -4,6 +4,52 @@ GearPolice.ScanQueue = GearPolice.ScanQueue or {}
 
 local ScanQueue = GearPolice.ScanQueue
 
+local function RemoveQueueEntryAt(addon, index, playerGuid)
+    table.remove(addon.scanQueue, index)
+    if playerGuid then
+        addon.queuedScanReasons[playerGuid] = nil
+    end
+end
+
+local function FindNextInspectableEntry(addon)
+    local index = 1
+
+    while index <= #addon.scanQueue do
+        local playerGuid = addon.scanQueue[index]
+        local reason = addon.queuedScanReasons[playerGuid] or "group"
+
+        if reason == "target" and not addon:IsScanTargetAvailable(playerGuid, reason) then
+            addon:OnPlayerTargetChanged()
+            return nil, nil, nil, nil, true
+        end
+
+        local playerInfo = addon.db.global.PlayerGearInfo[playerGuid]
+        if not playerInfo then
+            addon:SetPlayerGuidToDefaultInPlayerGearInfo(playerGuid)
+            playerInfo = addon.db.global.PlayerGearInfo[playerGuid]
+        end
+
+        if not playerInfo then
+            RemoveQueueEntryAt(addon, index, playerGuid)
+        elseif addon:IsPlayerScanComplete(playerInfo) and not playerInfo.ForceScanRequested then
+            playerInfo.CheckRequested = false
+            RemoveQueueEntryAt(addon, index, playerGuid)
+        elseif playerInfo.CheckStatus == "Failed" then
+            playerInfo.CheckRequested = false
+            RemoveQueueEntryAt(addon, index, playerGuid)
+        else
+            local unitId = addon:GetScanUnitId(playerGuid, reason)
+            if unitId and (addon:IsLocalPlayerGuid(playerGuid) or CanInspect(unitId)) then
+                return index, playerGuid, playerInfo, unitId, false
+            end
+
+            index = index + 1
+        end
+    end
+
+    return nil, nil, nil, nil, false
+end
+
 function ScanQueue.CancelQueueTimer(addon)
     if not addon.scanQueueTimer then
         return
@@ -37,55 +83,33 @@ function ScanQueue.Process(addon)
 
     addon:CancelScanQueueTimer()
 
-    while #addon.scanQueue > 0 do
-        local playerGuid = addon.scanQueue[1]
-        local reason = addon.queuedScanReasons[playerGuid] or "group"
-
-        if reason == "target" and not addon:IsScanTargetAvailable(playerGuid, reason) then
-            addon:OnPlayerTargetChanged()
-            return
-        end
-
-        table.remove(addon.scanQueue, 1)
-        addon.queuedScanReasons[playerGuid] = nil
-
-        if playerGuid then
-            local playerInfo = addon.db.global.PlayerGearInfo[playerGuid]
-            if not playerInfo then
-                addon:SetPlayerGuidToDefaultInPlayerGearInfo(playerGuid)
-                playerInfo = addon.db.global.PlayerGearInfo[playerGuid]
-            end
-
-            if playerInfo then
-                if addon:IsPlayerScanComplete(playerInfo) and not playerInfo.ForceScanRequested then
-                    playerInfo.CheckRequested = false
-                elseif playerInfo.CheckStatus == "Failed" then
-                    playerInfo.CheckRequested = false
-                else
-                    playerInfo.CheckRequested = true
-                    playerInfo.CheckStatus = "InProgress"
-                    playerInfo.pendingChecks = 0
-                    playerInfo.retryAttempts = playerInfo.retryAttempts or 0
-
-                    local scanGeneration = playerInfo.ScanGeneration or 0
-                    addon.currentScan = {
-                        playerGuid = playerGuid,
-                        generation = scanGeneration,
-                        reason = reason,
-                    }
-                    addon.UI:UpdateUI()
-
-                    local unitId = addon:GetScanUnitId(playerGuid, reason)
-                    if unitId then
-                        addon:StartInspectionOfUnit(unitId, reason, scanGeneration)
-                    else
-                        addon:RetryInspection(playerGuid, 1, scanGeneration)
-                    end
-                    return
-                end
-            end
-        end
+    local queueIndex, playerGuid, playerInfo, unitId, targetChanged =
+        FindNextInspectableEntry(addon)
+    if targetChanged then
+        return
     end
+
+    if not playerGuid then
+        addon:ScheduleScanQueueProcessing(addon.scanQueueAvailabilityInterval)
+        return
+    end
+
+    local reason = addon.queuedScanReasons[playerGuid] or "group"
+    RemoveQueueEntryAt(addon, queueIndex, playerGuid)
+
+    playerInfo.CheckRequested = true
+    playerInfo.CheckStatus = "InProgress"
+    playerInfo.pendingChecks = 0
+    playerInfo.retryAttempts = playerInfo.retryAttempts or 0
+
+    local scanGeneration = playerInfo.ScanGeneration or 0
+    addon.currentScan = {
+        playerGuid = playerGuid,
+        generation = scanGeneration,
+        reason = reason,
+    }
+    addon.UI:UpdateUI()
+    addon:StartInspectionOfUnit(unitId, reason, scanGeneration)
 end
 
 function ScanQueue.OnCombatEnded(addon)

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.4.8 - 2026-07-19
+
+### Changes
+
+- Group scans now prioritize players who are close enough to inspect, so out-of-range players no longer delay nearby players.
+- Active gear inspection now pauses completely during combat and resumes afterward.
+
 ## 1.4.7 - 2026-07-19
 
 ### Changes

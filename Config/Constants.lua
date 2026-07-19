@@ -11,6 +11,7 @@ Constants.InventorySlotEmpty = "EMPTY"
 Constants.ItemMetadataPending = "PENDING_METADATA"
 
 Constants.ScanInterval = 2
+Constants.ScanQueueAvailabilityInterval = 10
 Constants.InspectReadyTimeout = 8
 
 Constants.InventorySlotRetryCount = 6
@@ -28,6 +29,7 @@ GearPolice.InventorySlotEmpty = Constants.InventorySlotEmpty
 GearPolice.ItemMetadataPending = Constants.ItemMetadataPending
 
 GearPolice.scanInterval = Constants.ScanInterval
+GearPolice.scanQueueAvailabilityInterval = Constants.ScanQueueAvailabilityInterval
 GearPolice.inspectReadyTimeout = Constants.InspectReadyTimeout
 
 GearPolice.InventorySlotRetryCount = Constants.InventorySlotRetryCount

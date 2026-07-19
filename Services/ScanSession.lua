@@ -4,6 +4,29 @@ GearPolice.ScanSession = GearPolice.ScanSession or {}
 
 local ScanSession = GearPolice.ScanSession
 
+local function ClearCurrentScanWork(addon, playerGuid)
+    addon:CancelManagedTimersForPlayer(playerGuid)
+    addon:ClearCurrentScanForPlayer(playerGuid)
+end
+
+local function RequeueCurrentScan(addon, playerGuid, scanGeneration, reason, addToFront)
+    if not addon:IsCurrentScan(playerGuid, scanGeneration) then
+        return false
+    end
+
+    local playerInfo = addon.db.global.PlayerGearInfo[playerGuid]
+    if not playerInfo or playerInfo.ScanGeneration ~= scanGeneration then
+        return false
+    end
+
+    ClearCurrentScanWork(addon, playerGuid)
+
+    playerInfo.retryAttempts = 0
+    addon:AddToScanQueue(playerGuid, true, reason, addToFront)
+    addon.UI:UpdateUI()
+    return true
+end
+
 function ScanSession.ClearCurrent(addon, playerGuid)
     if not playerGuid or not addon.currentScan or addon.currentScan.playerGuid ~= playerGuid then
         return
@@ -57,6 +80,67 @@ end
 
 function ScanSession.IsLocalPlayer(_addon, playerGuid)
     return playerGuid and UnitGUID("player") == playerGuid
+end
+
+function ScanSession.DeferUntilInspectable(addon, playerGuid, scanGeneration)
+    if not addon:IsCurrentScan(playerGuid, scanGeneration) then
+        return false
+    end
+
+    local reason = addon:NormalizeScanReason(addon.currentScan.reason)
+    if not addon:IsScanTargetAvailable(playerGuid, reason) then
+        if reason == "target" then
+            addon:OnPlayerTargetChanged()
+        else
+            addon:FinishScan(playerGuid, scanGeneration, "Failed")
+        end
+        return false
+    end
+
+    local requeued = RequeueCurrentScan(
+        addon,
+        playerGuid,
+        scanGeneration,
+        reason,
+        reason == "target"
+    )
+    if not requeued and addon:IsCurrentScan(playerGuid, scanGeneration) then
+        ClearCurrentScanWork(addon, playerGuid)
+        addon.UI:UpdateUI()
+    end
+
+    if requeued and not InCombatLockdown() then
+        addon:ProcessScanQueue()
+    elseif not addon.currentScan and not InCombatLockdown() then
+        addon:ProcessScanQueue()
+    end
+
+    return requeued
+end
+
+function ScanSession.PauseForCombat(addon, playerGuid, scanGeneration)
+    local currentScan = addon.currentScan
+    if not currentScan then
+        return false
+    end
+
+    playerGuid = playerGuid or currentScan.playerGuid
+    scanGeneration = scanGeneration or currentScan.generation
+    local reason = addon:NormalizeScanReason(currentScan.reason)
+    local requeued = RequeueCurrentScan(addon, playerGuid, scanGeneration, reason, true)
+    if not requeued and addon:IsCurrentScan(playerGuid, scanGeneration) then
+        ClearCurrentScanWork(addon, playerGuid)
+        addon.UI:UpdateUI()
+    end
+
+    if requeued then
+        addon.Debug:Message("Active scan paused while in combat.")
+    end
+    return requeued
+end
+
+function ScanSession.OnCombatStarted(addon)
+    return ScanSession.PauseForCombat(addon)
 end
 
 local function IsCurrentRosterPlayer(addon, playerGuid)
@@ -244,6 +328,11 @@ function ScanSession.RunChecks(addon, playerGuid, scanGeneration)
         return
     end
 
+    if InCombatLockdown() then
+        addon:PauseCurrentScanForCombat(playerGuid, scanGeneration)
+        return
+    end
+
     if not playerInfo or not playerInfo.CheckRequested then
         addon:FinishScan(playerGuid, scanGeneration, "Failed")
         return
@@ -311,7 +400,7 @@ function ScanSession.StartInspection(addon, unitId, reason, scanGeneration)
     end
 
     if not unitId or not UnitExists(unitId) or UnitGUID(unitId) ~= playerGuid then
-        addon:RetryInspection(playerGuid, 1, scanGeneration)
+        addon:DeferCurrentScanUntilInspectable(playerGuid, scanGeneration)
         return
     end
 
@@ -327,9 +416,7 @@ function ScanSession.StartInspection(addon, unitId, reason, scanGeneration)
     end
 
     if InCombatLockdown() then
-        addon.Debug:Message("Cannot inspect in combat; queued scan for later.")
-        addon:ClearCurrentScanForPlayer(playerGuid)
-        addon:AddToScanQueue(playerGuid, true, reason, true)
+        addon:PauseCurrentScanForCombat(playerGuid, scanGeneration)
         return
     end
 
@@ -352,7 +439,7 @@ function ScanSession.StartInspection(addon, unitId, reason, scanGeneration)
         NotifyInspect(unitId)
         addon:ScheduleInspectReadyTimeout(playerGuid, scanGeneration)
     else
-        addon:RetryInspection(playerGuid, 1, scanGeneration)
+        addon:DeferCurrentScanUntilInspectable(playerGuid, scanGeneration)
     end
 end
 
@@ -361,6 +448,11 @@ function ScanSession.RetryInspection(addon, playerGuid, attempt, scanGeneration)
     attempt = attempt or 1
 
     if not addon:IsCurrentScan(playerGuid, scanGeneration) then
+        return
+    end
+
+    if InCombatLockdown() then
+        addon:PauseCurrentScanForCombat(playerGuid, scanGeneration)
         return
     end
 
@@ -390,6 +482,12 @@ function ScanSession.RetryInspection(addon, playerGuid, attempt, scanGeneration)
         return
     end
 
+    local unitId = addon:GetScanUnitId(playerGuid, reason)
+    if not addon:IsLocalPlayerGuid(playerGuid) and (not unitId or not CanInspect(unitId)) then
+        addon:DeferCurrentScanUntilInspectable(playerGuid, scanGeneration)
+        return
+    end
+
     playerInfo.retryAttempts = playerInfo.retryAttempts or 0
 
     if playerInfo.retryAttempts >= maxAttempts then
@@ -413,6 +511,11 @@ function ScanSession.RetryInspection(addon, playerGuid, attempt, scanGeneration)
             return
         end
 
+        if InCombatLockdown() then
+            addon:PauseCurrentScanForCombat(playerGuid, scanGeneration)
+            return
+        end
+
         if addon.currentScan.inspectReadyReceived then
             return
         end
@@ -427,12 +530,13 @@ function ScanSession.RetryInspection(addon, playerGuid, attempt, scanGeneration)
             return
         end
 
-        local unitId = addon:GetScanUnitId(playerGuid, addon.currentScan.reason)
-        if unitId then
-            addon:StartInspectionOfUnit(unitId, addon.currentScan.reason, scanGeneration)
-        else
-            addon:RetryInspection(playerGuid, attempt + 1, scanGeneration)
+        local currentUnitId = addon:GetScanUnitId(playerGuid, addon.currentScan.reason)
+        if not currentUnitId then
+            addon:DeferCurrentScanUntilInspectable(playerGuid, scanGeneration)
+            return
         end
+
+        addon:StartInspectionOfUnit(currentUnitId, addon.currentScan.reason, scanGeneration)
     end, addon.scanInterval * attempt, playerGuid)
 end
 
@@ -465,6 +569,18 @@ end
 
 function GearPolice:IsLocalPlayerGuid(playerGuid)
     return ScanSession.IsLocalPlayer(self, playerGuid)
+end
+
+function GearPolice:DeferCurrentScanUntilInspectable(playerGuid, scanGeneration)
+    return ScanSession.DeferUntilInspectable(self, playerGuid, scanGeneration)
+end
+
+function GearPolice:PauseCurrentScanForCombat(playerGuid, scanGeneration)
+    return ScanSession.PauseForCombat(self, playerGuid, scanGeneration)
+end
+
+function GearPolice:OnCombatStarted()
+    return ScanSession.OnCombatStarted(self)
 end
 
 function GearPolice:FinishScan(playerGuid, scanGeneration, status, options)

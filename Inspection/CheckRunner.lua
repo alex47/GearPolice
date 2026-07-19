@@ -99,6 +99,11 @@ function Inspection:ApplyEnchanterRingChecks(playerInfo, scanGeneration)
 end
 
 function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
+    if InCombatLockdown() then
+        GearPolice:PauseCurrentScanForCombat(playerInfo.PlayerGuid, scanGeneration)
+        return
+    end
+
     playerInfo.ProblematicItems = {}
     playerInfo.Problems = {}
     playerInfo.PendingItemMetadata = {}
