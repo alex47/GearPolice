@@ -16,6 +16,7 @@ read_globals = {
     "DropDownList1",
     "GameTooltip",
     "UIParent",
+    "UISpecialFrames",
     "GetAddOnMetadata",
     "GetRealmName",
     "ToggleDropDownMenu",

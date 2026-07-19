@@ -23,6 +23,20 @@ local ToolbarButtonHeight = 24
 local ToolbarButtonGap = 4
 local ToolbarFilterGap = 8
 local ToolbarControlTopOffset = -16
+local EscapeFrameName = "GearPoliceMainWindowEscapeFrame"
+
+local escapeFrame = CreateFrame("Frame", EscapeFrameName, UIParent)
+escapeFrame:Hide()
+
+local function RegisterEscapeFrame()
+    for _, frameName in ipairs(UISpecialFrames) do
+        if frameName == EscapeFrameName then
+            return
+        end
+    end
+
+    table.insert(UISpecialFrames, EscapeFrameName)
+end
 
 local function ClearWindowState(self)
     self.uiFrame = nil
@@ -30,6 +44,7 @@ local function ClearWindowState(self)
     self.playerOrder = nil
     self.detachedToolbarWidgets = nil
     self.toolbarFilterLabel = nil
+    escapeFrame:Hide()
 end
 
 local function SetResizeBounds(frameWidget)
@@ -175,6 +190,7 @@ function UI:ShowUI()
     self.uiFrame.scrollContainer:SetLayout("List")
     self.uiFrame.scrollWrapper:AddChild(self.uiFrame.scrollContainer)
 
+    escapeFrame:Show()
     self:UpdateUI()
 end
 
@@ -195,3 +211,11 @@ function UI:ToggleUI()
         self:ShowUI()
     end
 end
+
+escapeFrame:SetScript("OnHide", function()
+    if UI.uiFrame then
+        UI:HideUI()
+    end
+end)
+
+RegisterEscapeFrame()

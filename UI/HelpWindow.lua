@@ -21,6 +21,7 @@ local HelpSections = {
             .. "targets stops unfinished target work. Outside-group targets are removed from the list, while "
             .. "group members return to normal group scanning.\n\n"
             .. "Use Clear List to remove everyone from the list and stop active scans.\n\n"
+            .. "Press Escape while the main GearPolice window is open to close it.\n\n"
             .. "Use Settings to open the GearPolice page in the game's AddOns settings list. "
             .. "There you can change report behavior, minimap visibility, and enabled checks. "
             .. "Opening Settings closes the main GearPolice window.\n\n"

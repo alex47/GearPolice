@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.4.7 - 2026-07-19
+
+### Changes
+
+- The main GearPolice window can now be closed with the Escape key.
+
 ## 1.4.6 - 2026-07-12
 
 ### Changes
