@@ -60,7 +60,8 @@ local HelpSections = {
             .. "Show Auto-Whispers controls whether GearPolice's automatic offer and reply whispers are shown "
             .. "in your chat window. The whispers are still sent normally when this is off.\n\n"
             .. "The Checks section controls which problems are reported on future scans. Low Item Level "
-            .. "issues include the threshold that was used for the scan.",
+            .. "issues include the threshold that was used for the scan. Missing Upgrade issues show the "
+            .. "item's current and maximum upgrade levels.",
     },
     {
         title = "Manual Report Modes",

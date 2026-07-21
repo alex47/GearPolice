@@ -211,7 +211,7 @@ function Inspection:GetInventorySlotUpgradeLevel(unitId, slotID)
     return nil, nil, nil
 end
 
-function Inspection:IsItemMissingUpgrade(itemLink, unitId, slotID)
+function Inspection:GetMissingUpgradeResult(itemLink, unitId, slotID)
     if not itemLink then
         return false
     end
@@ -225,5 +225,12 @@ function Inspection:IsItemMissingUpgrade(itemLink, unitId, slotID)
         return false
     end
 
-    return currentUpgrade < maximumUpgrade
+    if currentUpgrade >= maximumUpgrade then
+        return false
+    end
+
+    return {
+        currentUpgrade = currentUpgrade,
+        maximumUpgrade = maximumUpgrade,
+    }
 end

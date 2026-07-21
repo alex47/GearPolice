@@ -40,7 +40,7 @@ function Inspection:ApplySlotChecks(playerInfo, slotName, slotValue, slotID, sca
             elseif checkResult then
                 local problemMessage = rule.message
                 if type(rule.buildMessage) == "function" then
-                    problemMessage = rule.buildMessage(slotValue, context)
+                    problemMessage = rule.buildMessage(slotValue, context, checkResult)
                 end
 
                 self:RecordProblem(playerInfo, slotName, slotValue, ruleId, problemMessage, scanGeneration)

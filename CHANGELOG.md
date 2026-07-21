@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.4.9 - 2026-07-21
+
+### Changes
+
+- Missing upgrade issues now show the item's current and maximum upgrade levels.
+
 ## 1.4.8 - 2026-07-19
 
 ### Changes

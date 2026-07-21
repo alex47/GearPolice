@@ -26,7 +26,20 @@ local RuleDefinitions = {
     missing_upgrade = {
         message = "Missing Upgrade",
         evaluate = function(itemLink, context)
-            return GearPolice.Inspection:IsItemMissingUpgrade(itemLink, context.unitId, context.slotID)
+            return GearPolice.Inspection:GetMissingUpgradeResult(itemLink, context.unitId, context.slotID)
+        end,
+        buildMessage = function(_, _, checkResult)
+            if type(checkResult) ~= "table" then
+                return "Missing Upgrade"
+            end
+
+            local currentUpgrade = tonumber(checkResult.currentUpgrade)
+            local maximumUpgrade = tonumber(checkResult.maximumUpgrade)
+            if not currentUpgrade or not maximumUpgrade then
+                return "Missing Upgrade"
+            end
+
+            return ("Missing Upgrade (%d/%d)"):format(currentUpgrade, maximumUpgrade)
         end,
     },
     low_item_level = {
