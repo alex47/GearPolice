@@ -2,18 +2,13 @@
 
 ## Unreleased
 
-## 1.4.9 - 2026-07-21
-
-### Changes
-
-- Missing upgrade issues now show the item's current and maximum upgrade levels.
-
 ## 1.4.8 - 2026-07-19
 
 ### Changes
 
 - Group scans now prioritize players who are close enough to inspect, so out-of-range players no longer delay nearby players.
 - Active gear inspection now pauses completely during combat and resumes afterward.
+- Missing upgrade issues now show the item's current and maximum upgrade levels.
 
 ## 1.4.7 - 2026-07-19
 

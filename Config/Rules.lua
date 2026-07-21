@@ -48,7 +48,7 @@ local RuleDefinitions = {
             return GearPolice.Inspection:IsItemBelowItemLevel(itemLink)
         end,
         buildMessage = function()
-            return "Low Item Level (below "
+            return "Low Item Level (Below "
                 .. tostring(GearPolice.Settings:GetItemLevelThreshold())
                 .. ")"
         end,
