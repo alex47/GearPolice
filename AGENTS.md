@@ -15,7 +15,7 @@
 - `Core.lua` should stay focused on addon bootstrap, event registration, slash commands, and high-level routing.
 - `Config/` owns constants, slot order, and rule configuration.
 - `State/` owns runtime state and saved player records.
-- `Services/` owns settings, timers, roster reconciliation, scan queue, scan session, peer communication, report offers, public scan announcements, and outbound chat throttling.
+- `Services/` owns settings, timers, roster reconciliation, scan queue, scan session, peer communication, report offers, automatic scan announcements, and outbound chat throttling.
 - `Inspection/` owns item checks, slot resolution, and running configured checks.
 - `UI/` owns view models, windows, rows, widgets, minimap UI, and help text.
 - `Reporting.lua` owns report message formatting and delivery.
@@ -33,8 +33,8 @@
 - Target scans only apply to player targets.
 - Use structured problem records when touching item issue handling: `slotName`, `itemLink`, `ruleId`, and `message`.
 - Route player-facing report text through `Reporting.lua` so the `{Square} GearPolice {Cross}` prefix and message style stay unified.
-- Route addon-owned outgoing chat through `Services/ChatThrottle.lua`. Do not call `SendChatMessage` directly for reports, report offers, or public scan summaries.
-- Automatic report-offer whispers and public scan summaries must remain disabled inside battlegrounds and arenas; manual reports and explicit `!gp` replies remain available.
+- Route addon-owned outgoing chat through `Services/ChatThrottle.lua`. Do not call `SendChatMessage` directly for reports, report offers, or automatic scan summaries.
+- Automatic report-offer whispers and automatic scan summaries must remain disabled inside battlegrounds and arenas; manual reports and explicit `!gp` replies remain available.
 - Keep `!gp` as the documented whisper request trigger. The hidden `|gp` compatibility trigger should not be mentioned in player help unless requested.
 
 ## UI Rules
@@ -68,8 +68,8 @@ When behavior changes, mention which of these need in-game validation:
 - Target scan clears old target item data and scans only player targets.
 - Completed scans do not revert from green/done to scanning.
 - Partial scans retry later without affecting later successful scans.
-- Debug report and whisper/public reports still show full item links.
+- Debug report and whisper/announcement reports still show full item links.
 - Report offers respect the UI toggle, 12-hour cooldown, combat delay, and hide-whisper setting.
 - When multiple GearPolice users enable Report Offers, only the elected coordinator sends automatic offers.
-- Public scan summaries announce only successful grouped players with issues, respect party/raid scope and the 12-hour cooldown, and use one elected announcer.
+- Automatic scan summaries announce only successful grouped players with issues, respect party/raid scope and the 12-hour cooldown, and use one elected announcer.
 - Minimap left-click toggles the main window and right-click opens the menu.

@@ -6,7 +6,7 @@ local AddonName = "GearPolice"
 
 local ReportModeValues = {
     whisper = "Whisper",
-    public = "Public",
+    public = "Announcement",
     debug = "Debug",
 }
 
@@ -104,8 +104,9 @@ local function BuildOptions()
                         args = {
                             publicReportAnnouncement = {
                                 type = "toggle",
-                                name = "Announce Changing To Public Manual Report Mode",
-                                desc = "Announce in party or raid chat when Manual Report Mode is changed to Public.",
+                                name = "Announce Changing To Manual Announcement Mode",
+                                desc = "Announce in party or raid chat when Manual Report Mode is changed "
+                                    .. "to Announcement.",
                                 order = 10,
                                 width = "full",
                                 get = function()
@@ -117,7 +118,7 @@ local function BuildOptions()
                             },
                             publicScanAnnouncement = {
                                 type = "toggle",
-                                name = "Auto-Announce Scan Issue Summary Per Player After Scan Completes",
+                                name = "Auto-Announce Summary Per Player",
                                 desc = "Announce a grouped player's issue count in party or raid chat after a "
                                     .. "successful scan.",
                                 order = 20,
@@ -185,7 +186,7 @@ local function BuildOptions()
                         args = {
                             reportOffers = {
                                 type = "toggle",
-                                name = "Auto-Whisper After Scan Completes",
+                                name = "Auto-Whisper Report Offer",
                                 desc = "Automatically whisper grouped players with issues after their scan finishes.",
                                 order = 20,
                                 width = "full",

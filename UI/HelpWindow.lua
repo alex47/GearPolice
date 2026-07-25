@@ -47,17 +47,17 @@ local HelpSections = {
     },
     {
         title = "Options",
-        body = "Open Settings to choose manual report mode, public announcements, auto-whispers, minimap button "
+        body = "Open Settings to choose manual report mode, automatic announcements, auto-whispers, minimap button "
             .. "visibility, and which gear checks GearPolice should report. The settings page is generated in "
             .. "the game's AddOns settings list.\n\n"
-            .. "Auto-Announce Scan Issue Summary Per Player After Scan Completes posts a short party or raid "
+            .. "Auto-Announce Summary Per Player posts a short party or raid "
             .. "message when a successful scan finds issues. It applies to grouped players, including you, "
             .. "and grouped target scans. Clean, incomplete, failed, and outside-group target scans are not "
             .. "announced. Auto-Announce In Party and Auto-Announce In Raid choose which group types receive "
             .. "these summaries. If multiple GearPolice users enable it, GearPolice chooses one announcer to "
-            .. "prevent duplicate messages. Automatic public summaries are not sent inside battlegrounds or "
+            .. "prevent duplicate messages. Automatic summaries are not sent inside battlegrounds or "
             .. "arenas.\n\n"
-            .. "Auto-Whisper After Scan Completes automatically whispers party or raid members when issues are found. "
+            .. "Auto-Whisper Report Offer automatically whispers party or raid members when issues are found. "
             .. "Clean scans do not send an offer. They can whisper you back to request the full report. "
             .. "If more than one GearPolice user in the group has auto-whispers turned on, GearPolice chooses "
             .. "one sender automatically so players do not get duplicate offer whispers. Auto-Whisper In Party "
@@ -72,10 +72,10 @@ local HelpSections = {
     {
         title = "Manual Reporting And Automatic Announcements",
         body = "Whisper sends manual reports privately to the player.\n\n"
-            .. "Public sends manual reports to party or raid chat.\n\n"
-            .. "Announce Changing To Public Manual Report Mode controls whether GearPolice announces in "
-            .. "party or raid chat when you switch Manual Report Mode to Public.\n\n"
-            .. "Auto-Announce Scan Issue Summary Per Player After Scan Completes controls automatic public "
+            .. "Announcement sends manual reports to party or raid chat.\n\n"
+            .. "Announce Changing To Manual Announcement Mode controls whether GearPolice announces in "
+            .. "party or raid chat when you switch Manual Report Mode to Announcement.\n\n"
+            .. "Auto-Announce Summary Per Player controls automatic "
             .. "issue-count summaries after successful scans. Its Party and Raid options control where those "
             .. "summaries are enabled.\n\n"
             .. "Debug prints manual reports only in your own chat window.",
@@ -88,7 +88,7 @@ local HelpSections = {
     {
         title = "Combat",
         body = "GearPolice pauses all active and queued gear inspection during combat and continues afterward. "
-            .. "Automatic report offer whispers and pending public scan summaries wait until combat is over.",
+            .. "Automatic report offer whispers and pending automatic scan summaries wait until combat is over.",
     },
     {
         title = "Commands",

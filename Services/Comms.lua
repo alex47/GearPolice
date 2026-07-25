@@ -310,7 +310,7 @@ local function UpdateCoordinatorDebug(addon)
         addon,
         GetPublicAnnouncementCoordinatorGuid(addon),
         "commsLastPublicAnnouncementCoordinatorGuid",
-        "Public announcement coordinator: "
+        "Automatic announcement coordinator: "
     )
 end
 

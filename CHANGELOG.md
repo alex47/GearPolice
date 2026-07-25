@@ -7,11 +7,11 @@
 ### Features
 
 - Added optional automatic scan issue summaries with separate controls for parties and raids.
-- Public scan summaries coordinate between GearPolice users to prevent duplicate announcements.
+- Automatic scan summaries coordinate between GearPolice users to prevent duplicate announcements.
 
 ### Changes
 
-- Reorganized reporting settings into Manual Reporting, Public Reporting, and Automatic Whispers.
+- Reorganized reporting settings into Manual Reporting, Automatic Announcements, and Automatic Whispers.
 
 ## 1.4.8 - 2026-07-19
 
@@ -67,7 +67,7 @@
 
 ### Features
 
-- Added a setting to control whether GearPolice announces when Manual Report Mode is changed to Public.
+- Added a setting to control whether GearPolice announces when Manual Report Mode is changed to Announcement.
 
 ## 1.4.1 - 2026-06-28
 
@@ -87,7 +87,7 @@
 ### Fixes
 
 - Opening Settings now closes the main GearPolice window.
-- Public report mode now announces itself only while you are in a group.
+- Announcement report mode now announces itself only while you are in a group.
 - Long reports are now split into safe chat-sized messages.
 - Improved main-window toolbar alignment and button labels.
 
@@ -101,7 +101,7 @@ Initial CurseForge release.
 - Supports target scans for player targets outside the group.
 - Checks equipped items for missing gems, missing enchants, missing upgrades, low item level, extra waist gem issues, and enchanter ring enchant cases.
 - Shows scan status, item icons, and GearPolice issue lines in item tooltips.
-- Supports whisper, public, and debug report modes.
+- Supports whisper, announcement, and debug report modes.
 - Adds optional report offers so players can whisper `!gp` to receive their own report.
 - Adds a minimap button with quick access to the main window, options, and help.
 - Routes outgoing report messages through ChatThrottleLib-based throttling.

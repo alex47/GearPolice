@@ -3,7 +3,7 @@ local GearPolice = GearPolice
 GearPolice.Settings = GearPolice.Settings or {}
 
 local Settings = GearPolice.Settings
-local PUBLIC_REPORT_MODE_MESSAGE = "Public Shaming mode: Activated"
+local PUBLIC_REPORT_MODE_MESSAGE = "Announcement mode: Activated"
 
 local ReportModes = {
     whisper = true,
