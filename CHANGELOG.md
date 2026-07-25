@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 1.5.0 - 2026-07-25
+
+### Features
+
+- Added optional automatic scan issue summaries with separate controls for parties and raids.
+- Public scan summaries coordinate between GearPolice users to prevent duplicate announcements.
+
+### Changes
+
+- Reorganized reporting settings into Manual Reporting, Public Reporting, and Automatic Whispers.
+
 ## 1.4.8 - 2026-07-19
 
 ### Changes

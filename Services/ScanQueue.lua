@@ -231,6 +231,10 @@ function GearPolice:OnCombatEnded()
         self:SchedulePendingReportOffersAfterCombat()
     end
 
+    if self.SchedulePendingPublicScanAnnouncementsAfterCombat then
+        self:SchedulePendingPublicScanAnnouncementsAfterCombat()
+    end
+
     return ScanQueue.OnCombatEnded(self)
 end
 

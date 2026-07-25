@@ -24,6 +24,7 @@ function GearPolice:OnInitialize()
     end
 
     self:InitializeReportOffers()
+    self:InitializePublicScanAnnouncements()
     self:InitializeComms()
     self:InitializeMinimapIcon()
 end
@@ -86,9 +87,14 @@ function GearPolice:UpdateGroupMembers()
 end
 
 function GearPolice:OnPlayerEnteringWorld()
-    if not self.Settings:IsAutoWhisperAllowedInCurrentInstance()
-        and self.ClearPendingReportOffers then
-        self:ClearPendingReportOffers()
+    if not self.Settings:IsAutomaticPublicMessagingAllowedInCurrentInstance() then
+        if self.ClearPendingReportOffers then
+            self:ClearPendingReportOffers()
+        end
+
+        if self.ClearPendingPublicScanAnnouncements then
+            self:ClearPendingPublicScanAnnouncements()
+        end
     end
 
     if self.AnnounceCommsState then

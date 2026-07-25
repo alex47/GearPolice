@@ -373,6 +373,7 @@ function ScanSession.RunChecks(addon, playerGuid, scanGeneration)
 
         if finished then
             addon:MaybeSendReportOffer(finishedPlayerInfo, completedScan, status)
+            addon:MaybeAnnouncePublicScanSummary(finishedPlayerInfo, completedScan, status)
         end
 
         if finished and status == "Partial" and finishedPlayerInfo and completedScan then

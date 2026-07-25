@@ -15,7 +15,7 @@
 - `Core.lua` should stay focused on addon bootstrap, event registration, slash commands, and high-level routing.
 - `Config/` owns constants, slot order, and rule configuration.
 - `State/` owns runtime state and saved player records.
-- `Services/` owns settings, timers, roster reconciliation, scan queue, scan session, peer communication, report offers, and outbound chat throttling.
+- `Services/` owns settings, timers, roster reconciliation, scan queue, scan session, peer communication, report offers, public scan announcements, and outbound chat throttling.
 - `Inspection/` owns item checks, slot resolution, and running configured checks.
 - `UI/` owns view models, windows, rows, widgets, minimap UI, and help text.
 - `Reporting.lua` owns report message formatting and delivery.
@@ -33,14 +33,14 @@
 - Target scans only apply to player targets.
 - Use structured problem records when touching item issue handling: `slotName`, `itemLink`, `ruleId`, and `message`.
 - Route player-facing report text through `Reporting.lua` so the `{Square} GearPolice {Cross}` prefix and message style stay unified.
-- Route addon-owned outgoing chat through `Services/ChatThrottle.lua`. Do not call `SendChatMessage` directly for reports or report offers.
-- Automatic report-offer whispers must remain disabled inside battlegrounds and arenas; manual reports and explicit `!gp` replies remain available.
+- Route addon-owned outgoing chat through `Services/ChatThrottle.lua`. Do not call `SendChatMessage` directly for reports, report offers, or public scan summaries.
+- Automatic report-offer whispers and public scan summaries must remain disabled inside battlegrounds and arenas; manual reports and explicit `!gp` replies remain available.
 - Keep `!gp` as the documented whisper request trigger. The hidden `|gp` compatibility trigger should not be mentioned in player help unless requested.
 
 ## UI Rules
 
 - The main window should stay operational and direct, not a landing page.
-- Keep report mode, report offers, hide-whisper options, check toggles, and minimap visibility in the generated AceConfig settings page.
+- Keep report mode, automatic announcements, report offers, hide-whisper options, check toggles, and minimap visibility in the generated AceConfig settings page.
 - Keep the minimap right-click menu focused on opening the main window, Settings, Help, and Close.
 - Keep row item tooltips using Blizzard item hyperlinks unchanged, then append GearPolice issue lines below them.
 - Do not prefix item names in tooltips with slot names.
@@ -51,7 +51,7 @@
 Run these checks after Lua/XML changes:
 
 ```sh
-luac5.1 -p Libs/AceComm-3.0/ChatThrottleLib.lua Libs/AceConfig-3.0/AceConfigRegistry-3.0/AceConfigRegistry-3.0.lua Libs/AceConfig-3.0/AceConfigCmd-3.0/AceConfigCmd-3.0.lua Libs/AceConfig-3.0/AceConfigDialog-3.0/AceConfigDialog-3.0.lua Libs/AceConfig-3.0/AceConfig-3.0.lua Core.lua Debug.lua Helper.lua Inspection.lua Reporting.lua UI.lua Config/Constants.lua Config/Slots.lua Config/Rules.lua Util/Tables.lua Util/Units.lua Util/Inventory.lua State/RuntimeState.lua State/PlayerStore.lua Services/Timers.lua Services/Settings.lua Services/Roster.lua Services/ScanQueue.lua Services/ScanSession.lua Services/Comms.lua Services/ReportOffers.lua Services/ChatThrottle.lua Inspection/ItemChecks.lua Inspection/SlotResolver.lua Inspection/CheckRunner.lua UI/ViewModel.lua UI/Widgets/ItemIcon.lua UI/PlayerRows.lua UI/MainWindow.lua UI/HelpWindow.lua UI/AceConfigOptions.lua UI/MinimapMenu.lua UI/MinimapIcon.lua
+luac5.1 -p Libs/AceComm-3.0/ChatThrottleLib.lua Libs/AceConfig-3.0/AceConfigRegistry-3.0/AceConfigRegistry-3.0.lua Libs/AceConfig-3.0/AceConfigCmd-3.0/AceConfigCmd-3.0.lua Libs/AceConfig-3.0/AceConfigDialog-3.0/AceConfigDialog-3.0.lua Libs/AceConfig-3.0/AceConfig-3.0.lua Core.lua Debug.lua Helper.lua Inspection.lua Reporting.lua UI.lua Config/Constants.lua Config/Slots.lua Config/Rules.lua Util/Tables.lua Util/Units.lua Util/Inventory.lua State/RuntimeState.lua State/PlayerStore.lua Services/Timers.lua Services/Settings.lua Services/Roster.lua Services/ScanQueue.lua Services/ScanSession.lua Services/Comms.lua Services/PublicAnnouncements.lua Services/ReportOffers.lua Services/ChatThrottle.lua Inspection/ItemChecks.lua Inspection/SlotResolver.lua Inspection/CheckRunner.lua UI/ViewModel.lua UI/Widgets/ItemIcon.lua UI/PlayerRows.lua UI/MainWindow.lua UI/HelpWindow.lua UI/AceConfigOptions.lua UI/MinimapMenu.lua UI/MinimapIcon.lua
 git diff --check
 luacheck . --exclude-files Libs
 ```
@@ -71,4 +71,5 @@ When behavior changes, mention which of these need in-game validation:
 - Debug report and whisper/public reports still show full item links.
 - Report offers respect the UI toggle, 12-hour cooldown, combat delay, and hide-whisper setting.
 - When multiple GearPolice users enable Report Offers, only the elected coordinator sends automatic offers.
+- Public scan summaries announce only successful grouped players with issues, respect party/raid scope and the 12-hour cooldown, and use one elected announcer.
 - Minimap left-click toggles the main window and right-click opens the menu.

@@ -5,6 +5,7 @@ GearPolice.Comms = GearPolice.Comms or {}
 local CommPrefix = "GearPolice"
 local ProtocolVersion = "1"
 local StateMessageType = "STATE"
+local PublicAnnouncementMessageType = "PUBLIC_ANNOUNCED"
 local HeartbeatInterval = 30
 local PeerExpirySeconds = 90
 local RosterAnnounceMinDelay = 0.5
@@ -73,6 +74,11 @@ local function IsLocalReportOfferEligible(addon)
     end
 
     return addon.Settings and addon.Settings:IsAutoWhisperEnabledForCurrentGroup()
+end
+
+local function IsLocalPublicAnnouncementEligible(addon)
+    return addon.Settings
+        and addon.Settings:IsPublicScanAnnouncementEnabledForCurrentGroup()
 end
 
 local function GetAddonVersion()
@@ -236,7 +242,7 @@ local function PrunePeers(addon)
     end
 end
 
-local function GetCoordinatorGuid(addon)
+local function GetCoordinatorGuid(addon, localEligibility, peerEligibilityField)
     if not IsGrouped() then
         return nil
     end
@@ -246,12 +252,12 @@ local function GetCoordinatorGuid(addon)
     local selectedCandidate
     local localGuid = UnitGUID("player")
 
-    if IsPlayerGuid(localGuid) and IsLocalReportOfferEligible(addon) then
+    if IsPlayerGuid(localGuid) and localEligibility(addon) then
         selectedCandidate = BuildCandidate(addon, localGuid)
     end
 
     for playerGuid, peer in pairs(addon.commsPeers or {}) do
-        if peer.reportOffersEligible == true and GearPolice.Helper:IsPlayerInGroup(playerGuid) then
+        if peer[peerEligibilityField] == true and GearPolice.Helper:IsPlayerInGroup(playerGuid) then
             local candidate = BuildCandidate(addon, playerGuid, peer)
             if CandidateComesBefore(candidate, selectedCandidate) then
                 selectedCandidate = candidate
@@ -262,15 +268,26 @@ local function GetCoordinatorGuid(addon)
     return selectedCandidate and selectedCandidate.playerGuid or nil
 end
 
-local function UpdateCoordinatorDebug(addon)
-    local coordinatorGuid = GetCoordinatorGuid(addon)
-    local previousCoordinatorGuid = addon.commsLastCoordinatorGuid
+local function GetReportOfferCoordinatorGuid(addon)
+    return GetCoordinatorGuid(addon, IsLocalReportOfferEligible, "reportOffersEligible")
+end
+
+local function GetPublicAnnouncementCoordinatorGuid(addon)
+    return GetCoordinatorGuid(
+        addon,
+        IsLocalPublicAnnouncementEligible,
+        "publicAnnouncementsEligible"
+    )
+end
+
+local function UpdateCoordinatorDebugValue(addon, coordinatorGuid, stateField, messageLabel)
+    local previousCoordinatorGuid = addon[stateField]
 
     if previousCoordinatorGuid == coordinatorGuid then
         return
     end
 
-    addon.commsLastCoordinatorGuid = coordinatorGuid
+    addon[stateField] = coordinatorGuid
 
     if previousCoordinatorGuid == CoordinatorUnset and not coordinatorGuid then
         return
@@ -278,8 +295,23 @@ local function UpdateCoordinatorDebug(addon)
 
     local coordinatorName = coordinatorGuid and GetPlayerDisplayName(addon, coordinatorGuid) or "none"
     if GearPolice.Debug and GearPolice.Debug.Message then
-        GearPolice.Debug:Message("Report offer coordinator: " .. coordinatorName)
+        GearPolice.Debug:Message(messageLabel .. coordinatorName)
     end
+end
+
+local function UpdateCoordinatorDebug(addon)
+    UpdateCoordinatorDebugValue(
+        addon,
+        GetReportOfferCoordinatorGuid(addon),
+        "commsLastCoordinatorGuid",
+        "Report offer coordinator: "
+    )
+    UpdateCoordinatorDebugValue(
+        addon,
+        GetPublicAnnouncementCoordinatorGuid(addon),
+        "commsLastPublicAnnouncementCoordinatorGuid",
+        "Public announcement coordinator: "
+    )
 end
 
 local function StopHeartbeat(addon)
@@ -314,6 +346,9 @@ local function FinishCoordinationWarmup(addon)
     if addon.SendPendingReportOffersAfterCoordination then
         addon:SendPendingReportOffersAfterCoordination()
     end
+    if addon.SendPendingPublicScanAnnouncementsAfterCoordination then
+        addon:SendPendingPublicScanAnnouncementsAfterCoordination()
+    end
 end
 
 local function StartCoordinationWarmup(addon)
@@ -343,6 +378,7 @@ local function BuildStateMessage(addon)
     end
 
     local reportOffersEligible = IsLocalReportOfferEligible(addon)
+    local publicAnnouncementsEligible = IsLocalPublicAnnouncementEligible(addon)
 
     return table.concat({
         StateMessageType,
@@ -351,6 +387,7 @@ local function BuildStateMessage(addon)
         playerGuid,
         reportOffersEligible and "1" or "0",
         GetLocalPlayerName() or "",
+        publicAnnouncementsEligible and "1" or "0",
     }, "\t")
 end
 
@@ -373,6 +410,36 @@ local function SendState(addon, priority)
         distribution,
         nil,
         priority == "BULK" and "BULK" or "NORMAL"
+    )
+
+    return ok == true
+end
+
+local function SendPublicAnnouncementState(addon, playerGuid)
+    local distribution = GetCommDistribution()
+    local localGuid = UnitGUID("player")
+    if not distribution
+        or not IsPlayerGuid(localGuid)
+        or not IsPlayerGuid(playerGuid)
+        or type(addon.SendCommMessage) ~= "function" then
+        return false
+    end
+
+    local message = table.concat({
+        PublicAnnouncementMessageType,
+        ProtocolVersion,
+        localGuid,
+        playerGuid,
+    }, "\t")
+
+    local ok = pcall(
+        addon.SendCommMessage,
+        addon,
+        CommPrefix,
+        message,
+        distribution,
+        nil,
+        "NORMAL"
     )
 
     return ok == true
@@ -499,26 +566,21 @@ local function ResolveCommSender(addon, sender)
     return nil, nil
 end
 
-local function HandleMessage(addon, prefix, message, distribution, sender)
-    if prefix ~= CommPrefix or type(message) ~= "string" or not IsGrouped() then
-        return
+local function HandleStateMessage(addon, message, sender, senderGuid, senderFullName)
+    local messageType, protocolVersion, addonVersion, playerGuid, eligibilityFlag,
+        _, publicAnnouncementEligibilityFlag = strsplit("\t", message)
+
+    if publicAnnouncementEligibilityFlag == nil or publicAnnouncementEligibilityFlag == "" then
+        publicAnnouncementEligibilityFlag = "0"
     end
-
-    if distribution ~= GetCommDistribution() then
-        return
-    end
-
-    local messageType, protocolVersion, addonVersion, playerGuid, eligibilityFlag =
-        strsplit("\t", message)
-
-    local senderGuid, senderFullName = ResolveCommSender(addon, sender)
 
     if messageType ~= StateMessageType
         or protocolVersion ~= ProtocolVersion
         or not IsPlayerGuid(playerGuid)
         or playerGuid == UnitGUID("player")
         or (eligibilityFlag ~= "1" and eligibilityFlag ~= "0")
-        or not senderGuid
+        or (publicAnnouncementEligibilityFlag ~= "1"
+            and publicAnnouncementEligibilityFlag ~= "0")
         or senderGuid ~= playerGuid then
         return
     end
@@ -526,6 +588,7 @@ local function HandleMessage(addon, prefix, message, distribution, sender)
     addon.commsPeers[playerGuid] = {
         addonVersion = addonVersion or "unknown",
         reportOffersEligible = eligibilityFlag == "1",
+        publicAnnouncementsEligible = publicAnnouncementEligibilityFlag == "1",
         lastSeenAt = time(),
         sender = sender,
         playerName = senderFullName,
@@ -535,6 +598,51 @@ local function HandleMessage(addon, prefix, message, distribution, sender)
     UpdateCoordinatorDebug(addon)
 end
 
+local function HandlePublicAnnouncementMessage(addon, message, senderGuid)
+    local messageType, protocolVersion, announcingGuid, playerGuid = strsplit("\t", message)
+    if messageType ~= PublicAnnouncementMessageType
+        or protocolVersion ~= ProtocolVersion
+        or not IsPlayerGuid(announcingGuid)
+        or not IsPlayerGuid(playerGuid)
+        or senderGuid ~= announcingGuid
+        or not GearPolice.Helper:IsPlayerInGroup(playerGuid) then
+        return
+    end
+
+    local peer = addon.commsPeers and addon.commsPeers[announcingGuid]
+    if not peer
+        or peer.publicAnnouncementsEligible ~= true
+        or GetPublicAnnouncementCoordinatorGuid(addon) ~= announcingGuid then
+        return
+    end
+
+    if addon.RecordPublicScanAnnouncement then
+        addon:RecordPublicScanAnnouncement(playerGuid)
+    end
+end
+
+local function HandleMessage(addon, prefix, message, distribution, sender)
+    if prefix ~= CommPrefix or type(message) ~= "string" or not IsGrouped() then
+        return
+    end
+
+    if distribution ~= GetCommDistribution() then
+        return
+    end
+
+    local senderGuid, senderFullName = ResolveCommSender(addon, sender)
+    if not senderGuid then
+        return
+    end
+
+    local messageType = strsplit("\t", message)
+    if messageType == StateMessageType then
+        HandleStateMessage(addon, message, sender, senderGuid, senderFullName)
+    elseif messageType == PublicAnnouncementMessageType then
+        HandlePublicAnnouncementMessage(addon, message, senderGuid)
+    end
+end
+
 function GearPolice:InitializeComms()
     self.commsPeers = {}
     self.commsHeartbeatTimer = nil
@@ -542,6 +650,7 @@ function GearPolice:InitializeComms()
     self.commsWarmupTimer = nil
     self.commsWarmupActive = false
     self.commsLastCoordinatorGuid = CoordinatorUnset
+    self.commsLastPublicAnnouncementCoordinatorGuid = CoordinatorUnset
 
     if type(self.RegisterComm) == "function" then
         self:RegisterComm(CommPrefix, "OnGearPoliceCommReceived")
@@ -561,6 +670,10 @@ function GearPolice:AnnounceCommsState()
 end
 
 function GearPolice:IsReportOfferCoordinationWarmupActive()
+    return self:IsCommsCoordinationWarmupActive()
+end
+
+function GearPolice:IsCommsCoordinationWarmupActive()
     return self.commsWarmupActive == true
 end
 
@@ -578,12 +691,38 @@ function GearPolice:IsLocalReportOfferCoordinator()
         return true
     end
 
-    local coordinatorGuid = GetCoordinatorGuid(self)
+    local coordinatorGuid = GetReportOfferCoordinatorGuid(self)
     if not coordinatorGuid then
         return true
     end
 
     return coordinatorGuid == localGuid
+end
+
+function GearPolice:IsLocalPublicAnnouncementCoordinator()
+    if not IsGrouped() then
+        return false
+    end
+
+    if not IsLocalPublicAnnouncementEligible(self) then
+        return false
+    end
+
+    local localGuid = UnitGUID("player")
+    if not IsPlayerGuid(localGuid) then
+        return true
+    end
+
+    local coordinatorGuid = GetPublicAnnouncementCoordinatorGuid(self)
+    if not coordinatorGuid then
+        return true
+    end
+
+    return coordinatorGuid == localGuid
+end
+
+function GearPolice:AnnouncePublicScanSummarySent(playerGuid)
+    return SendPublicAnnouncementState(self, playerGuid)
 end
 
 function GearPolice:OnGearPoliceCommReceived(prefix, message, distribution, sender)

@@ -71,107 +71,191 @@ local function BuildOptions()
                 type = "group",
                 name = "Reporting",
                 inline = true,
-                order = 20,
+                order = 30,
                 args = {
-                    manualReportMode = {
-                        type = "select",
-                        name = "Manual Report Mode",
-                        desc = "Choose where the row report button sends manual reports.",
-                        order = 10,
-                        width = "normal",
-                        values = ReportModeValues,
-                        sorting = ReportModeOrder,
-                        get = function()
-                            return GetSettings():GetReportMode()
-                        end,
-                        set = function(_info, value)
-                            GetSettings():SetReportMode(value)
-                        end,
-                    },
-                    publicReportAnnouncement = {
-                        type = "toggle",
-                        name = "Announce Changing To Public Report Mode",
-                        desc = "Announce in party or raid chat when Manual Report Mode is changed to Public.",
-                        order = 15,
-                        width = "double",
-                        get = function()
-                            return GetSettings():IsPublicReportAnnouncementEnabled()
-                        end,
-                        set = function(_info, value)
-                            GetSettings():SetPublicReportAnnouncementEnabled(value)
-                        end,
-                    },
-                    reportOffers = {
-                        type = "toggle",
-                        name = "Auto-Whisper After Scan Completes",
-                        desc = "Automatically whisper grouped players with issues after their scan finishes.",
-                        order = 20,
-                        width = "full",
-                        get = function()
-                            return GetSettings():IsReportOfferEnabled()
-                        end,
-                        set = function(_info, value)
-                            GetSettings():SetReportOfferEnabled(value)
-                        end,
-                    },
-                    reportOfferScopes = {
+                    manualReporting = {
                         type = "group",
-                        name = "",
+                        name = "Manual Reporting",
                         inline = true,
-                        order = 30,
+                        order = 10,
                         args = {
-                            indent = {
-                                type = "description",
-                                name = " ",
+                            manualReportMode = {
+                                type = "select",
+                                name = "Manual Report Mode",
+                                desc = "Choose where the row report button sends manual reports.",
                                 order = 10,
-                                width = 0.15,
-                            },
-                            party = {
-                                type = "toggle",
-                                name = "Auto-Whisper In Party",
-                                desc = "Send automatic report offer whispers while you are in a party.",
-                                order = 20,
                                 width = "normal",
-                                disabled = function()
-                                    return not GetSettings():IsReportOfferEnabled()
-                                end,
+                                values = ReportModeValues,
+                                sorting = ReportModeOrder,
                                 get = function()
-                                    return GetSettings():IsAutoWhisperInPartyEnabled()
+                                    return GetSettings():GetReportMode()
                                 end,
                                 set = function(_info, value)
-                                    GetSettings():SetAutoWhisperInPartyEnabled(value)
-                                end,
-                            },
-                            raid = {
-                                type = "toggle",
-                                name = "Auto-Whisper In Raid",
-                                desc = "Send automatic report offer whispers while you are in a raid.",
-                                order = 30,
-                                width = "normal",
-                                disabled = function()
-                                    return not GetSettings():IsReportOfferEnabled()
-                                end,
-                                get = function()
-                                    return GetSettings():IsAutoWhisperInRaidEnabled()
-                                end,
-                                set = function(_info, value)
-                                    GetSettings():SetAutoWhisperInRaidEnabled(value)
+                                    GetSettings():SetReportMode(value)
                                 end,
                             },
                         },
                     },
-                    showAutoWhispers = {
-                        type = "toggle",
-                        name = "Show Auto-Whispers",
-                        desc = "Show GearPolice automatic offer and reply whispers in your local chat window.",
-                        order = 40,
-                        width = "full",
-                        get = function()
-                            return GetSettings():IsAutoWhispersShown()
-                        end,
-                        set = function(_info, value)
-                            GetSettings():SetAutoWhispersShown(value)
-                        end,
+                    automaticAnnouncements = {
+                        type = "group",
+                        name = "Automatic Announcements",
+                        inline = true,
+                        order = 20,
+                        args = {
+                            publicReportAnnouncement = {
+                                type = "toggle",
+                                name = "Announce Changing To Public Manual Report Mode",
+                                desc = "Announce in party or raid chat when Manual Report Mode is changed to Public.",
+                                order = 10,
+                                width = "full",
+                                get = function()
+                                    return GetSettings():IsPublicReportAnnouncementEnabled()
+                                end,
+                                set = function(_info, value)
+                                    GetSettings():SetPublicReportAnnouncementEnabled(value)
+                                end,
+                            },
+                            publicScanAnnouncement = {
+                                type = "toggle",
+                                name = "Auto-Announce Scan Issue Summary Per Player After Scan Completes",
+                                desc = "Announce a grouped player's issue count in party or raid chat after a "
+                                    .. "successful scan.",
+                                order = 20,
+                                width = "full",
+                                get = function()
+                                    return GetSettings():IsPublicScanAnnouncementEnabled()
+                                end,
+                                set = function(_info, value)
+                                    GetSettings():SetPublicScanAnnouncementEnabled(value)
+                                end,
+                            },
+                            publicScanAnnouncementScopes = {
+                                type = "group",
+                                name = "",
+                                inline = true,
+                                order = 30,
+                                args = {
+                                    indent = {
+                                        type = "description",
+                                        name = " ",
+                                        order = 10,
+                                        width = 0.15,
+                                    },
+                                    party = {
+                                        type = "toggle",
+                                        name = "Auto-Announce In Party",
+                                        desc = "Send automatic scan issue summaries while you are in a party.",
+                                        order = 20,
+                                        width = "normal",
+                                        disabled = function()
+                                            return not GetSettings():IsPublicScanAnnouncementEnabled()
+                                        end,
+                                        get = function()
+                                            return GetSettings():IsPublicScanAnnouncementInPartyEnabled()
+                                        end,
+                                        set = function(_info, value)
+                                            GetSettings():SetPublicScanAnnouncementInPartyEnabled(value)
+                                        end,
+                                    },
+                                    raid = {
+                                        type = "toggle",
+                                        name = "Auto-Announce In Raid",
+                                        desc = "Send automatic scan issue summaries while you are in a raid.",
+                                        order = 30,
+                                        width = "normal",
+                                        disabled = function()
+                                            return not GetSettings():IsPublicScanAnnouncementEnabled()
+                                        end,
+                                        get = function()
+                                            return GetSettings():IsPublicScanAnnouncementInRaidEnabled()
+                                        end,
+                                        set = function(_info, value)
+                                            GetSettings():SetPublicScanAnnouncementInRaidEnabled(value)
+                                        end,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    automaticWhispers = {
+                        type = "group",
+                        name = "Automatic Whispers",
+                        inline = true,
+                        order = 30,
+                        args = {
+                            reportOffers = {
+                                type = "toggle",
+                                name = "Auto-Whisper After Scan Completes",
+                                desc = "Automatically whisper grouped players with issues after their scan finishes.",
+                                order = 20,
+                                width = "full",
+                                get = function()
+                                    return GetSettings():IsReportOfferEnabled()
+                                end,
+                                set = function(_info, value)
+                                    GetSettings():SetReportOfferEnabled(value)
+                                end,
+                            },
+                            reportOfferScopes = {
+                                type = "group",
+                                name = "",
+                                inline = true,
+                                order = 30,
+                                args = {
+                                    indent = {
+                                        type = "description",
+                                        name = " ",
+                                        order = 10,
+                                        width = 0.15,
+                                    },
+                                    party = {
+                                        type = "toggle",
+                                        name = "Auto-Whisper In Party",
+                                        desc = "Send automatic report offer whispers while you are in a party.",
+                                        order = 20,
+                                        width = "normal",
+                                        disabled = function()
+                                            return not GetSettings():IsReportOfferEnabled()
+                                        end,
+                                        get = function()
+                                            return GetSettings():IsAutoWhisperInPartyEnabled()
+                                        end,
+                                        set = function(_info, value)
+                                            GetSettings():SetAutoWhisperInPartyEnabled(value)
+                                        end,
+                                    },
+                                    raid = {
+                                        type = "toggle",
+                                        name = "Auto-Whisper In Raid",
+                                        desc = "Send automatic report offer whispers while you are in a raid.",
+                                        order = 30,
+                                        width = "normal",
+                                        disabled = function()
+                                            return not GetSettings():IsReportOfferEnabled()
+                                        end,
+                                        get = function()
+                                            return GetSettings():IsAutoWhisperInRaidEnabled()
+                                        end,
+                                        set = function(_info, value)
+                                            GetSettings():SetAutoWhisperInRaidEnabled(value)
+                                        end,
+                                    },
+                                },
+                            },
+                            showAutoWhispers = {
+                                type = "toggle",
+                                name = "Show Auto-Whispers",
+                                desc = "Show GearPolice automatic offer and reply whispers in your local chat window.",
+                                order = 10,
+                                width = "full",
+                                get = function()
+                                    return GetSettings():IsAutoWhispersShown()
+                                end,
+                                set = function(_info, value)
+                                    GetSettings():SetAutoWhispersShown(value)
+                                end,
+                            },
+                        },
                     },
                 },
             },
@@ -179,7 +263,7 @@ local function BuildOptions()
                 type = "group",
                 name = "Checks",
                 inline = true,
-                order = 30,
+                order = 20,
                 args = {
                     missingGems = {
                         type = "toggle",
@@ -242,42 +326,34 @@ local function BuildOptions()
                             SetRule("missing_enchanter_ring_enchant", value)
                         end,
                     },
-                    lowItemLevelGroup = {
-                        type = "group",
+                    lowItemLevel = {
+                        type = "toggle",
                         name = "Low Item Level",
-                        inline = true,
                         order = 60,
-                        args = {
-                            enabled = {
-                                type = "toggle",
-                                name = "Enable Check",
-                                order = 10,
-                                width = "full",
-                                get = function()
-                                    return GetRule("low_item_level")
-                                end,
-                                set = function(_info, value)
-                                    SetRule("low_item_level", value)
-                                end,
-                            },
-                            threshold = {
-                                type = "input",
-                                name = "Threshold",
-                                desc = "Items below this item level are reported when Low Item Level is enabled.",
-                                order = 20,
-                                width = "double",
-                                validate = ValidateItemLevelThreshold,
-                                disabled = function()
-                                    return not GetRule("low_item_level")
-                                end,
-                                get = function()
-                                    return tostring(GetSettings():GetItemLevelThreshold())
-                                end,
-                                set = function(_info, value)
-                                    GetSettings():SetItemLevelThreshold(value)
-                                end,
-                            },
-                        },
+                        width = "normal",
+                        get = function()
+                            return GetRule("low_item_level")
+                        end,
+                        set = function(_info, value)
+                            SetRule("low_item_level", value)
+                        end,
+                    },
+                    lowItemLevelThreshold = {
+                        type = "input",
+                        name = "",
+                        desc = "Items below this item level are reported when Low Item Level is enabled.",
+                        order = 61,
+                        width = "double",
+                        validate = ValidateItemLevelThreshold,
+                        disabled = function()
+                            return not GetRule("low_item_level")
+                        end,
+                        get = function()
+                            return tostring(GetSettings():GetItemLevelThreshold())
+                        end,
+                        set = function(_info, value)
+                            GetSettings():SetItemLevelThreshold(value)
+                        end,
                     },
                 },
             },

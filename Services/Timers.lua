@@ -70,6 +70,7 @@ function Timers.CancelAllManagedTimers(addon)
     addon.activePlayerTimers = {}
     addon.scanQueueTimer = nil
     addon.reportOfferCombatTimer = nil
+    addon.publicAnnouncementCombatTimer = nil
 end
 
 function GearPolice:ScheduleManagedTimer(callback, delay, playerGuid)

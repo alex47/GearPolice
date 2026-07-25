@@ -131,6 +131,18 @@ function Settings:Initialize()
         db.PublicReportAnnouncementEnabled = true
     end
 
+    if type(db.PublicScanAnnouncementEnabled) ~= "boolean" then
+        db.PublicScanAnnouncementEnabled = false
+    end
+
+    if type(db.PublicScanAnnouncementInParty) ~= "boolean" then
+        db.PublicScanAnnouncementInParty = false
+    end
+
+    if type(db.PublicScanAnnouncementInRaid) ~= "boolean" then
+        db.PublicScanAnnouncementInRaid = true
+    end
+
     if not PlayerListFilterModes[db.PlayerListFilterMode] then
         db.PlayerListFilterMode = "all"
     end
@@ -194,6 +206,71 @@ function Settings:SetPublicReportAnnouncementEnabled(enabled)
     end
 
     db.PublicReportAnnouncementEnabled = enabled == true
+    return true
+end
+
+function Settings:IsPublicScanAnnouncementEnabled()
+    local db = GetGlobalDb()
+    return db and db.PublicScanAnnouncementEnabled == true
+end
+
+function Settings:SetPublicScanAnnouncementEnabled(enabled)
+    local db = GetGlobalDb()
+    if not db then
+        return false
+    end
+
+    db.PublicScanAnnouncementEnabled = enabled == true
+    if not db.PublicScanAnnouncementEnabled and GearPolice.ClearPendingPublicScanAnnouncements then
+        GearPolice:ClearPendingPublicScanAnnouncements()
+    end
+
+    if GearPolice.AnnounceCommsState then
+        GearPolice:AnnounceCommsState()
+    end
+
+    return true
+end
+
+function Settings:IsPublicScanAnnouncementInPartyEnabled()
+    local db = GetGlobalDb()
+    return db and db.PublicScanAnnouncementInParty == true
+end
+
+function Settings:SetPublicScanAnnouncementInPartyEnabled(enabled)
+    local db = GetGlobalDb()
+    if not db then
+        return false
+    end
+
+    db.PublicScanAnnouncementInParty = enabled == true
+    if GearPolice.AnnounceCommsState then
+        GearPolice:AnnounceCommsState()
+    end
+
+    return true
+end
+
+function Settings:IsPublicScanAnnouncementInRaidEnabled()
+    local db = GetGlobalDb()
+    if not db or type(db.PublicScanAnnouncementInRaid) ~= "boolean" then
+        return true
+    end
+
+    return db.PublicScanAnnouncementInRaid == true
+end
+
+function Settings:SetPublicScanAnnouncementInRaidEnabled(enabled)
+    local db = GetGlobalDb()
+    if not db then
+        return false
+    end
+
+    db.PublicScanAnnouncementInRaid = enabled == true
+    if GearPolice.AnnounceCommsState then
+        GearPolice:AnnounceCommsState()
+    end
+
     return true
 end
 
@@ -262,9 +339,28 @@ function Settings:SetAutoWhisperInRaidEnabled(enabled)
     return true
 end
 
-function Settings:IsAutoWhisperAllowedInCurrentInstance()
+function Settings:IsAutomaticPublicMessagingAllowedInCurrentInstance()
     local inInstance, instanceType = IsInInstance()
     return not inInstance or (instanceType ~= "pvp" and instanceType ~= "arena")
+end
+
+function Settings:IsAutoWhisperAllowedInCurrentInstance()
+    return self:IsAutomaticPublicMessagingAllowedInCurrentInstance()
+end
+
+function Settings:IsPublicScanAnnouncementEnabledForCurrentGroup()
+    if not self:IsPublicScanAnnouncementEnabled()
+        or not self:IsAutomaticPublicMessagingAllowedInCurrentInstance() then
+        return false
+    end
+
+    if IsInRaid() then
+        return self:IsPublicScanAnnouncementInRaidEnabled()
+    elseif IsInGroup() then
+        return self:IsPublicScanAnnouncementInPartyEnabled()
+    end
+
+    return false
 end
 
 function Settings:IsAutoWhisperEnabledForCurrentGroup()

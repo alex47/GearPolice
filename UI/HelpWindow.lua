@@ -47,16 +47,22 @@ local HelpSections = {
     },
     {
         title = "Options",
-        body = "Open Settings to choose manual report mode, auto-whispers, minimap button visibility, and which "
-            .. "gear checks GearPolice should report. The settings page is generated in the game's AddOns "
-            .. "settings list.\n\n"
+        body = "Open Settings to choose manual report mode, public announcements, auto-whispers, minimap button "
+            .. "visibility, and which gear checks GearPolice should report. The settings page is generated in "
+            .. "the game's AddOns settings list.\n\n"
+            .. "Auto-Announce Scan Issue Summary Per Player After Scan Completes posts a short party or raid "
+            .. "message when a successful scan finds issues. It applies to grouped players, including you, "
+            .. "and grouped target scans. Clean, incomplete, failed, and outside-group target scans are not "
+            .. "announced. Auto-Announce In Party and Auto-Announce In Raid choose which group types receive "
+            .. "these summaries. If multiple GearPolice users enable it, GearPolice chooses one announcer to "
+            .. "prevent duplicate messages. Automatic public summaries are not sent inside battlegrounds or "
+            .. "arenas.\n\n"
             .. "Auto-Whisper After Scan Completes automatically whispers party or raid members when issues are found. "
             .. "Clean scans do not send an offer. They can whisper you back to request the full report. "
-            .. "GearPolice waits 12 hours before offering the same player again. If more than one "
-            .. "GearPolice user in the group has auto-whispers turned on, GearPolice chooses one sender "
-            .. "automatically so players do not get duplicate offer whispers. Auto-Whisper In Party and "
-            .. "Auto-Whisper In Raid choose which group types can receive automatic offers. Automatic offers "
-            .. "are not sent while you are inside a battleground or arena.\n\n"
+            .. "If more than one GearPolice user in the group has auto-whispers turned on, GearPolice chooses "
+            .. "one sender automatically so players do not get duplicate offer whispers. Auto-Whisper In Party "
+            .. "and Auto-Whisper In Raid choose which group types can receive automatic offers. Automatic "
+            .. "offers are not sent while you are inside a battleground or arena.\n\n"
             .. "Show Auto-Whispers controls whether GearPolice's automatic offer and reply whispers are shown "
             .. "in your chat window. The whispers are still sent normally when this is off.\n\n"
             .. "The Checks section controls which problems are reported on future scans. Low Item Level "
@@ -64,11 +70,14 @@ local HelpSections = {
             .. "item's current and maximum upgrade levels.",
     },
     {
-        title = "Manual Report Modes",
+        title = "Manual Reporting And Automatic Announcements",
         body = "Whisper sends manual reports privately to the player.\n\n"
             .. "Public sends manual reports to party or raid chat.\n\n"
-            .. "Announce Changing To Public Report Mode controls whether GearPolice announces in "
+            .. "Announce Changing To Public Manual Report Mode controls whether GearPolice announces in "
             .. "party or raid chat when you switch Manual Report Mode to Public.\n\n"
+            .. "Auto-Announce Scan Issue Summary Per Player After Scan Completes controls automatic public "
+            .. "issue-count summaries after successful scans. Its Party and Raid options control where those "
+            .. "summaries are enabled.\n\n"
             .. "Debug prints manual reports only in your own chat window.",
     },
     {
@@ -79,7 +88,7 @@ local HelpSections = {
     {
         title = "Combat",
         body = "GearPolice pauses all active and queued gear inspection during combat and continues afterward. "
-            .. "Automatic report offer whispers also wait until combat is over.",
+            .. "Automatic report offer whispers and pending public scan summaries wait until combat is over.",
     },
     {
         title = "Commands",

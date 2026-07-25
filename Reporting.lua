@@ -5,7 +5,10 @@ local Reporting = GearPolice.Reporting
 local ReportPrefix = "{Square} GearPolice {Cross}"
 
 local function IsKnownPlayerName(playerName)
-    return type(playerName) == "string" and playerName ~= "" and playerName ~= "Unknown"
+    return type(playerName) == "string"
+        and playerName ~= ""
+        and playerName ~= "Unknown"
+        and playerName ~= "Unknown Player"
 end
 
 local function GetWhisperRecipientForPlayer(playerInfo)
@@ -155,6 +158,21 @@ end
 
 function Reporting:GetReportPrefix()
     return ReportPrefix
+end
+
+function Reporting:BuildPublicScanSummaryMessage(playerInfo)
+    if type(playerInfo) ~= "table" or not IsKnownPlayerName(playerInfo.PlayerName) then
+        return nil
+    end
+
+    local issueCount = self:GetReportableIssueCount(playerInfo)
+    if issueCount <= 0 then
+        return nil
+    end
+
+    local issueWord = issueCount == 1 and "issue" or "issues"
+    return self:GetReportPrefix() .. " " .. playerInfo.PlayerName .. " - "
+        .. tostring(issueCount) .. " gear " .. issueWord .. " found."
 end
 
 function Reporting:BuildProblemReportMessages(playerInfo, item, includePlayerName)

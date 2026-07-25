@@ -13,6 +13,7 @@ Constants.ItemMetadataPending = "PENDING_METADATA"
 Constants.ScanInterval = 2
 Constants.ScanQueueAvailabilityInterval = 5
 Constants.InspectReadyTimeout = 8
+Constants.AutomaticPlayerMessageCooldownSeconds = 12 * 60 * 60
 
 Constants.InventorySlotRetryCount = 6
 Constants.InventorySlotRetryDelay = 2

@@ -3,7 +3,7 @@ local GearPolice = GearPolice
 GearPolice.ReportOffers = GearPolice.ReportOffers or {}
 
 local ReportOffers = GearPolice.ReportOffers
-local ReportOfferCooldownSeconds = 12 * 60 * 60
+local ReportOfferCooldownSeconds = GearPolice.Constants.AutomaticPlayerMessageCooldownSeconds
 local ReportOfferCombatDelay = 5
 local ChatFiltersRegistered = false
 local SuppressedOutgoingMessages = {}

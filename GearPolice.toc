@@ -1,6 +1,6 @@
 ## Interface: 50504
 ## Title: GearPolice
-## Version: 1.4.8
+## Version: 1.5.0
 ## Notes: Shame your group members when their gear is missing enchants or gems.|n|cffBBBBBBMade by Borlandc @ Shek'zeer-EU|r
 ## Author: Borlandc @ Shek'zeer-EU
 ## IconTexture: Interface\AddOns\GearPolice\Media\GearPoliceIcon.tga
@@ -40,5 +40,6 @@ UI\MinimapMenu.lua
 UI\MinimapMenu.xml
 UI\MinimapIcon.lua
 Reporting.lua
+Services\PublicAnnouncements.lua
 Services\ReportOffers.lua
 Debug.lua
