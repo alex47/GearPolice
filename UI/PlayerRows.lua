@@ -40,6 +40,10 @@ local function CreatePlayerRow(scrollContainer)
 
     local reportButton = UI:CreateCenteredRowIcon()
     reportButton:SetImage("Interface\\COMMON\\VOICECHAT-SPEAKER")
+    reportButton:SetTooltip(
+        "Send Manual Report",
+        "Send this player's report using the selected Manual Report Mode."
+    )
     reportButton:SetPoint("LEFT", playerContainer.content, "LEFT", 0, 0)
     playerContainer:AddChild(reportButton)
 

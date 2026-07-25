@@ -82,7 +82,7 @@ local function BuildOptions()
                             manualReportMode = {
                                 type = "select",
                                 name = "Manual Report Mode",
-                                desc = "Choose where the row report button sends manual reports.",
+                                desc = "Choose where each player's speaker button sends the manual report.",
                                 order = 10,
                                 width = "normal",
                                 values = ReportModeValues,
@@ -187,7 +187,8 @@ local function BuildOptions()
                             reportOffers = {
                                 type = "toggle",
                                 name = "Auto-Whisper Report Offer",
-                                desc = "Automatically whisper grouped players with issues after their scan finishes.",
+                                desc = "Automatically whisper other group members when a successful scan finds "
+                                    .. "issues, inviting them to request the full report with !gp.",
                                 order = 20,
                                 width = "full",
                                 get = function()
@@ -246,7 +247,8 @@ local function BuildOptions()
                             showAutoWhispers = {
                                 type = "toggle",
                                 name = "Show Auto-Whispers",
-                                desc = "Show GearPolice automatic offer and reply whispers in your local chat window.",
+                                desc = "Show !gp requests and GearPolice's automatic report offer and reply "
+                                    .. "whispers in your chat window.",
                                 order = 10,
                                 width = "full",
                                 get = function()
@@ -269,6 +271,7 @@ local function BuildOptions()
                     missingGems = {
                         type = "toggle",
                         name = "Missing Gems",
+                        desc = "Report items with one or more empty gem sockets.",
                         order = 10,
                         width = "full",
                         get = function()
@@ -281,6 +284,7 @@ local function BuildOptions()
                     missingEnchants = {
                         type = "toggle",
                         name = "Missing Enchants",
+                        desc = "Report configured equipment slots that do not have an enchant.",
                         order = 20,
                         width = "full",
                         get = function()
@@ -293,6 +297,7 @@ local function BuildOptions()
                     missingUpgrades = {
                         type = "toggle",
                         name = "Missing Upgrades",
+                        desc = "Report upgradeable items that are not at their maximum upgrade level.",
                         order = 30,
                         width = "full",
                         get = function()
@@ -305,6 +310,7 @@ local function BuildOptions()
                     missingWaistExtraGem = {
                         type = "toggle",
                         name = "Missing Extra Waist Gem Socket",
+                        desc = "Report waist items whose normal sockets are filled but have no extra belt-buckle gem.",
                         order = 40,
                         width = "full",
                         get = function()
@@ -330,6 +336,7 @@ local function BuildOptions()
                     lowItemLevel = {
                         type = "toggle",
                         name = "Low Item Level",
+                        desc = "Report items below the configured item level threshold.",
                         order = 60,
                         width = "normal",
                         get = function()

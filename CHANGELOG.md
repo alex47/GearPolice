@@ -12,6 +12,7 @@
 ### Changes
 
 - Reorganized reporting settings into Manual Reporting, Automatic Announcements, and Automatic Whispers.
+- Improved settings, minimap, and report-button tooltips so their behavior is clearer.
 
 ## 1.4.8 - 2026-07-19
 

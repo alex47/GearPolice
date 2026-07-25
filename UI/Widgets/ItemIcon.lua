@@ -111,6 +111,24 @@ local function CenteredIcon_OnClick(frame, button)
     AceGUI:ClearFocus()
 end
 
+local function CenteredIcon_OnEnter(frame)
+    local widget = frame.obj
+    if not widget or not widget.interactive or not widget.tooltipTitle then
+        return
+    end
+
+    GameTooltip:SetOwner(frame, "ANCHOR_TOP")
+    GameTooltip:SetText(widget.tooltipTitle, 1, 1, 1)
+    if widget.tooltipText then
+        GameTooltip:AddLine(widget.tooltipText, 1, 1, 1, true)
+    end
+    GameTooltip:Show()
+end
+
+local function CenteredIcon_OnLeave()
+    GameTooltip:Hide()
+end
+
 local function CreateSlotButton(widget, index)
     local backdropTemplate = _G.BackdropTemplateMixin and "BackdropTemplate" or nil
     local button = CreateFrame("Button", nil, widget.frame, backdropTemplate)
@@ -243,12 +261,14 @@ local centeredIconMethods = {
         self:SetWidth(UI.PlayerContainerElementSize)
         self:SetHeight(UI.PlayerContainerElementSize)
         self:SetImage(nil)
+        self:SetTooltip(nil)
         self.frame:EnableMouse(true)
         self:SetInteractive(true)
     end,
 
     OnRelease = function(self)
         self:SetImage(nil)
+        self:SetTooltip(nil)
         self.frame:EnableMouse(true)
         self:SetInteractive(true)
     end,
@@ -264,6 +284,11 @@ local centeredIconMethods = {
     SetImageSize = function(self, width, height)
         self.image:SetWidth(width)
         self.image:SetHeight(height)
+    end,
+
+    SetTooltip = function(self, title, text)
+        self.tooltipTitle = type(title) == "string" and title ~= "" and title or nil
+        self.tooltipText = type(text) == "string" and text ~= "" and text or nil
     end,
 
     SetInteractive = function(self, interactive)
@@ -285,6 +310,8 @@ local function CreateCenteredIconWidget()
     frame:Hide()
     frame:EnableMouse(true)
     frame:SetScript("OnClick", CenteredIcon_OnClick)
+    frame:SetScript("OnEnter", CenteredIcon_OnEnter)
+    frame:SetScript("OnLeave", CenteredIcon_OnLeave)
 
     local image = frame:CreateTexture(nil, "BACKGROUND")
     image:SetPoint("CENTER")

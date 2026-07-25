@@ -63,8 +63,9 @@ local HelpSections = {
             .. "one sender automatically so players do not get duplicate offer whispers. Auto-Whisper In Party "
             .. "and Auto-Whisper In Raid choose which group types can receive automatic offers. Automatic "
             .. "offers are not sent while you are inside a battleground or arena.\n\n"
-            .. "Show Auto-Whispers controls whether GearPolice's automatic offer and reply whispers are shown "
-            .. "in your chat window. The whispers are still sent normally when this is off.\n\n"
+            .. "Show Auto-Whispers controls whether incoming !gp requests and GearPolice's automatic report "
+            .. "offer and reply whispers appear in your chat window. Hiding them does not stop requests from "
+            .. "being processed or messages from being sent.\n\n"
             .. "The Checks section controls which problems are reported on future scans. Low Item Level "
             .. "issues include the threshold that was used for the scan. Missing Upgrade issues show the "
             .. "item's current and maximum upgrade levels.",

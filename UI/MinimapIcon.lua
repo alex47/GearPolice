@@ -38,7 +38,7 @@ function GearPolice:InitializeMinimapIcon()
         OnTooltipShow = function(tooltip)
             tooltip:AddLine("GearPolice")
             tooltip:AddLine("Left-click: Toggle window", 1, 1, 1)
-            tooltip:AddLine("Right-click: Options", 1, 1, 1)
+            tooltip:AddLine("Right-click: Open menu", 1, 1, 1)
         end,
     })
 
