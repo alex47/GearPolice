@@ -343,7 +343,7 @@ local function BuildOptions()
                         name = "",
                         desc = "Items below this item level are reported when Low Item Level is enabled.",
                         order = 61,
-                        width = "double",
+                        width = "normal",
                         validate = ValidateItemLevelThreshold,
                         disabled = function()
                             return not GetRule("low_item_level")
