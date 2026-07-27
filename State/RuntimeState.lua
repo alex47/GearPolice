@@ -4,6 +4,15 @@ GearPolice.RuntimeState = GearPolice.RuntimeState or {}
 
 local RuntimeState = GearPolice.RuntimeState
 
+local function ClearTrackedPlayers(addon, updateUI)
+    addon:StopAllScans()
+    addon.PlayerStore:ClearAll()
+
+    if updateUI then
+        addon.UI:UpdateUI()
+    end
+end
+
 function RuntimeState.Initialize(addon)
     addon.scanQueue = {}
     addon.queuedScanReasons = {}
@@ -70,16 +79,11 @@ function RuntimeState.RemovePlayerFromTracking(addon, playerGuid)
 end
 
 function RuntimeState.ClearAllTrackedPlayers(addon)
-    addon:StopAllScans()
-    addon.PlayerStore:ClearAll()
-    addon:ResetRosterSnapshot()
-    addon.UI:UpdateUI()
+    ClearTrackedPlayers(addon, true)
 end
 
 function RuntimeState.ClearTrackedPlayersForRosterTransition(addon)
-    addon:StopAllScans()
-    addon.PlayerStore:ClearAll()
-    addon:ResetRosterSnapshot()
+    ClearTrackedPlayers(addon, false)
 end
 
 function GearPolice:InitializeRuntimeState()

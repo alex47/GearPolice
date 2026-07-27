@@ -48,7 +48,7 @@ local function CreatePlayerRow(scrollContainer)
     playerContainer:AddChild(reportButton)
 
     local statusIcon = UI:CreateCenteredRowIcon()
-    statusIcon:SetImage("Interface\\COMMON\\Indicator-Yellow")
+    statusIcon:SetImage(UI:GetCheckStatusTexture(GearPolice.Constants.ScanStatus.InProgress))
     statusIcon:SetInteractive(false)
     statusIcon:SetPoint("LEFT", reportButton.frame, "RIGHT", UI.RowGap, 0)
     playerContainer:AddChild(statusIcon)
@@ -136,7 +136,9 @@ function UI:UpdateUI()
         return
     end
 
-    local rows, summary = self.ViewModel.BuildRows(self.FilterMode or "all")
+    local rows, summary = self.ViewModel.BuildRows(
+        self.FilterMode or GearPolice.Settings.PlayerListFilter.All
+    )
     if summary then
         self.uiFrame:SetStatusText(summary.text or "")
     end

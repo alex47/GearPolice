@@ -3,6 +3,20 @@ local GearPolice = GearPolice
 GearPolice.PlayerStore = GearPolice.PlayerStore or {}
 
 local PlayerStore = GearPolice.PlayerStore
+local ScanStatus = GearPolice.Constants.ScanStatus
+
+local function InitializeScanFields(playerInfo, scanGeneration)
+    playerInfo.CheckRequested = true
+    playerInfo.CheckStatus = ScanStatus.InProgress
+    playerInfo.Problems = {}
+    playerInfo.EquippedItems = {}
+    playerInfo.PendingItemMetadata = {}
+    playerInfo.LastScanTime = 0
+    playerInfo.retryAttempts = 0
+    playerInfo.pendingChecks = 0
+    playerInfo.ForceScanRequested = true
+    playerInfo.ScanGeneration = scanGeneration or 0
+end
 
 function PlayerStore:EnsureStorage()
     if not GearPolice.db or not GearPolice.db.global then
@@ -40,26 +54,14 @@ function PlayerStore:SetDefault(playerGuid)
     end
 
     local _, _, _, _, _, playerName, playerRealm = GetPlayerInfoByGUID(playerGuid)
-    local playerFullName = playerName
-    if type(playerName) == "string" and type(playerRealm) == "string" and playerRealm ~= "" then
-        playerFullName = playerName .. "-" .. playerRealm
-    end
-
-    playerGearInfo[playerGuid] = {
-        ["PlayerName"] = playerName or "Unknown",
-        ["PlayerFullName"] = playerFullName or playerName or "Unknown",
-        ["PlayerGuid"] = playerGuid,
-        ["CheckRequested"] = true,
-        ["CheckStatus"] = "InProgress",
-        ["Problems"] = {},
-        ["ProblematicItems"] = {},
-        ["PendingItemMetadata"] = {},
-        ["LastScanTime"] = 0,
-        ["retryAttempts"] = 0,
-        ["ForceScanRequested"] = true,
-        ["ScanGeneration"] = 0,
-        ["IsRosterTracked"] = false
+    local playerInfo = {
+        PlayerName = GearPolice.Players.IsKnownName(playerName) and playerName or "Unknown",
+        PlayerFullName = GearPolice.Players.BuildFullName(playerName, playerRealm) or "Unknown",
+        PlayerGuid = playerGuid,
+        IsRosterTracked = false,
     }
+    InitializeScanFields(playerInfo, 0)
+    playerGearInfo[playerGuid] = playerInfo
 
     return playerGearInfo[playerGuid]
 end
@@ -74,20 +76,12 @@ function PlayerStore:ResetForScan(playerGuid, playerName, playerFullName)
         return nil
     end
 
-    playerInfo.PlayerName = playerName or playerInfo.PlayerName or "Unknown"
-    playerInfo.PlayerFullName = playerFullName or playerInfo.PlayerFullName or playerInfo.PlayerName
+    playerInfo.PlayerName = GearPolice.Players.IsKnownName(playerName)
+        and playerName or playerInfo.PlayerName or "Unknown"
+    playerInfo.PlayerFullName = GearPolice.Players.IsKnownName(playerFullName)
+        and playerFullName or playerInfo.PlayerFullName or playerInfo.PlayerName
     playerInfo.PlayerGuid = playerGuid
-    playerInfo.CheckRequested = true
-    playerInfo.CheckStatus = "InProgress"
-    playerInfo.Problems = {}
-    playerInfo.ProblematicItems = {}
-    playerInfo.EquippedItems = {}
-    playerInfo.PendingItemMetadata = {}
-    playerInfo.LastScanTime = 0
-    playerInfo.retryAttempts = 0
-    playerInfo.pendingChecks = 0
-    playerInfo.ForceScanRequested = true
-    playerInfo.ScanGeneration = (playerInfo.ScanGeneration or 0) + 1
+    InitializeScanFields(playerInfo, (playerInfo.ScanGeneration or 0) + 1)
 
     return playerInfo
 end
@@ -113,7 +107,7 @@ function PlayerStore:MarkAllScansCancelled()
 
     for _, playerInfo in pairs(playerGearInfo) do
         playerInfo.CheckRequested = false
-        playerInfo.CheckStatus = "Cancelled"
+        playerInfo.CheckStatus = ScanStatus.Cancelled
         playerInfo.pendingChecks = 0
         playerInfo.ScanGeneration = (playerInfo.ScanGeneration or 0) + 1
     end
@@ -124,7 +118,7 @@ function PlayerStore:HasPendingEquippedItems(playerInfo)
         return true
     end
 
-    for _, slotName in ipairs(GearPolice.Helper:GetInventorySlotNames()) do
+    for _, slotName in ipairs(GearPolice.Slots.GetInventorySlotNames()) do
         local slotValue = playerInfo.EquippedItems[slotName]
         if not slotValue or slotValue == GearPolice.InventorySlotPending then
             return true
@@ -147,7 +141,7 @@ function PlayerStore:IsScanComplete(playerInfo)
         return false
     end
 
-    if playerInfo.CheckStatus ~= "Successful" then
+    if playerInfo.CheckStatus ~= ScanStatus.Successful then
         return false
     end
 

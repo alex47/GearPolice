@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.5.1 - 2026-07-27
+
+### Changes
+
+- Automatic scan announcements and report-offer whispers now show how many times each type of gear issue was found.
+
 ## 1.5.0 - 2026-07-25
 
 ### Features

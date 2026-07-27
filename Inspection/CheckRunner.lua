@@ -1,8 +1,7 @@
 local GearPolice = GearPolice
 
 local Inspection = GearPolice.Inspection
-local EnchanterRingEnchantRuleId = "missing_enchanter_ring_enchant"
-local EnchanterRingEnchantMessage = "Missing Enchanter Ring Enchant"
+local EnchanterRingEnchantRuleId = GearPolice.Rules.EnchanterRingEnchantRuleId
 
 local function IsPendingSlotValue(slotValue)
     return not slotValue or slotValue == GearPolice.InventorySlotPending
@@ -22,8 +21,7 @@ function Inspection:ApplySlotChecks(playerInfo, slotName, slotValue, slotID, sca
         return
     end
 
-    local ruleDefinitions = GearPolice.Rules.GetRuleDefinitions()
-    local unitId = GearPolice.Helper:GetUnitIdOfPlayerGuid(playerInfo.PlayerGuid)
+    local unitId = GearPolice.Units.GetUnitIdOfPlayerGuid(playerInfo.PlayerGuid)
     local context = {
         playerInfo = playerInfo,
         slotName = slotName,
@@ -32,7 +30,7 @@ function Inspection:ApplySlotChecks(playerInfo, slotName, slotValue, slotID, sca
     }
 
     for _, ruleId in ipairs(slotRuleIds) do
-        local rule = ruleDefinitions[ruleId]
+        local rule = GearPolice.Rules.GetRuleDefinition(ruleId)
         if rule and GearPolice.Settings:IsRuleEnabled(ruleId) then
             local checkResult = rule.evaluate(slotValue, context)
             if self:IsItemMetadataPending(checkResult) then
@@ -40,7 +38,7 @@ function Inspection:ApplySlotChecks(playerInfo, slotName, slotValue, slotID, sca
             elseif checkResult then
                 local problemMessage = rule.message
                 if type(rule.buildMessage) == "function" then
-                    problemMessage = rule.buildMessage(slotValue, context, checkResult)
+                    problemMessage = rule.buildMessage(slotValue, context, checkResult, rule)
                 end
 
                 self:RecordProblem(playerInfo, slotName, slotValue, ruleId, problemMessage, scanGeneration)
@@ -55,6 +53,11 @@ function Inspection:ApplyEnchanterRingChecks(playerInfo, scanGeneration)
     end
 
     if not GearPolice.Settings:IsRuleEnabled(EnchanterRingEnchantRuleId) then
+        return
+    end
+
+    local ringEnchantRule = GearPolice.Rules.GetRuleDefinition(EnchanterRingEnchantRuleId)
+    if not ringEnchantRule or type(ringEnchantRule.message) ~= "string" then
         return
     end
 
@@ -81,7 +84,7 @@ function Inspection:ApplyEnchanterRingChecks(playerInfo, scanGeneration)
             "Finger0Slot",
             firstRing,
             EnchanterRingEnchantRuleId,
-            EnchanterRingEnchantMessage,
+            ringEnchantRule.message,
             scanGeneration
         )
     end
@@ -92,7 +95,7 @@ function Inspection:ApplyEnchanterRingChecks(playerInfo, scanGeneration)
             "Finger1Slot",
             secondRing,
             EnchanterRingEnchantRuleId,
-            EnchanterRingEnchantMessage,
+            ringEnchantRule.message,
             scanGeneration
         )
     end
@@ -104,7 +107,6 @@ function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
         return
     end
 
-    playerInfo.ProblematicItems = {}
     playerInfo.Problems = {}
     playerInfo.PendingItemMetadata = {}
     playerInfo.pendingChecks = 0
@@ -154,7 +156,7 @@ function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
         return true
     end
 
-    for _, slotName in ipairs(GearPolice.Helper:GetInventorySlotNames()) do
+    for _, slotName in ipairs(GearPolice.Slots.GetInventorySlotNames()) do
         ScheduleSlotResolution(slotName)
     end
 

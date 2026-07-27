@@ -18,7 +18,7 @@ function Debug:PrintTable(t, indent)
 end
 
 function Debug:Message(message)
-    if GearPolice.db.global.DebugEnabled then
+    if GearPolice.Settings:IsDebugEnabled() then
         GearPolice:Print(message)
     end
 end

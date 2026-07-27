@@ -66,10 +66,24 @@ function Units.IsPlayerInGroup(playerGuid)
     return UnitGUID("player") == playerGuid
 end
 
+function Units.GetGroupChatType()
+    if IsInRaid() then
+        return "RAID"
+    elseif IsInGroup() then
+        return "PARTY"
+    end
+
+    return nil
+end
+
 function Helper:GetUnitIdOfPlayerGuid(playerGuid)
     return Units.GetUnitIdOfPlayerGuid(playerGuid)
 end
 
 function Helper:IsPlayerInGroup(playerGuid)
     return Units.IsPlayerInGroup(playerGuid)
+end
+
+function Helper:GetGroupChatType()
+    return Units.GetGroupChatType()
 end

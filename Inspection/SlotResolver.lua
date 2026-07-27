@@ -40,7 +40,7 @@ function Inspection:GetCapturedInventoryEvidenceCount(playerInfo, excludedSlotNa
     end
 
     local evidenceCount = 0
-    for _, slotName in ipairs(GearPolice.Helper:GetInventorySlotNames()) do
+    for _, slotName in ipairs(GearPolice.Slots.GetInventorySlotNames()) do
         if slotName ~= excludedSlotName and self:IsStoredItemLink(playerInfo.EquippedItems[slotName]) then
             evidenceCount = evidenceCount + 1
         end
@@ -50,7 +50,7 @@ function Inspection:GetCapturedInventoryEvidenceCount(playerInfo, excludedSlotNa
 end
 
 function Inspection:CanConfirmEmptyInventorySlot(playerInfo, unitId, slotName, noEvidenceCount)
-    if GearPolice.Helper:CanConfirmEmptyInventorySlot(unitId, slotName, noEvidenceCount) then
+    if GearPolice.Inventory:CanConfirmEmptyInventorySlot(unitId, slotName, noEvidenceCount) then
         return true
     end
 
@@ -79,9 +79,10 @@ function Inspection:ResolveInventorySlotWithRetry(
         return
     end
 
+    local targetReason = GearPolice.Constants.ScanReason.Target
     local currentScan = GearPolice.currentScan
-    if currentScan and currentScan.reason == "target"
-        and not GearPolice:IsScanTargetAvailable(playerInfo.PlayerGuid, "target") then
+    if currentScan and currentScan.reason == targetReason
+        and not GearPolice:IsScanTargetAvailable(playerInfo.PlayerGuid, targetReason) then
         GearPolice:OnPlayerTargetChanged()
         return
     end
@@ -94,10 +95,10 @@ function Inspection:ResolveInventorySlotWithRetry(
         noEvidenceCount = 0
     end
 
-    local unitId = GearPolice.Helper:GetUnitIdOfPlayerGuid(playerInfo.PlayerGuid)
+    local unitId = GearPolice.Units.GetUnitIdOfPlayerGuid(playerInfo.PlayerGuid)
     local slotState, itemLink, slotID
     if unitId then
-        slotState, itemLink, slotID = GearPolice.Helper:GetInventorySlotState(unitId, slotName)
+        slotState, itemLink, slotID = GearPolice.Inventory:GetInventorySlotState(unitId, slotName)
     else
         slotState = GearPolice.InventorySlotPending
     end

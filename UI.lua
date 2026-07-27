@@ -3,6 +3,7 @@ local GearPolice = GearPolice
 GearPolice.UI = GearPolice.UI or {}
 
 local UI = GearPolice.UI
+local ScanStatus = GearPolice.Constants.ScanStatus
 
 UI.IconSize = 20
 UI.RowActionIconSize = 16
@@ -21,7 +22,7 @@ UI.MinimumWindowHeight = 320
 UI.ItemStripWidgetType = "GearPoliceItemStrip"
 UI.CenteredIconWidgetType = "GearPoliceCenteredIcon"
 UI.QuestionMarkIcon = "Interface\\Icons\\INV_Misc_QuestionMark"
-UI.FilterMode = "all"
+UI.FilterMode = GearPolice.Settings.PlayerListFilter.All
 
 UI.ItemIconVisualStates = {
     ok = {
@@ -43,11 +44,11 @@ UI.ItemIconVisualStates = {
 }
 
 UI.CheckStatusTextures = {
-    InProgress = "Interface\\COMMON\\Indicator-Yellow",
-    Successful = "Interface\\RaidFrame\\ReadyCheck-Ready",
-    Partial = "Interface\\RaidFrame\\ReadyCheck-Waiting",
-    Failed = "Interface\\RaidFrame\\ReadyCheck-NotReady",
-    TemporaryFailed = "Interface\\RaidFrame\\ReadyCheck-Waiting",
+    [ScanStatus.InProgress] = "Interface\\COMMON\\Indicator-Yellow",
+    [ScanStatus.Successful] = "Interface\\RaidFrame\\ReadyCheck-Ready",
+    [ScanStatus.Partial] = "Interface\\RaidFrame\\ReadyCheck-Waiting",
+    [ScanStatus.Failed] = "Interface\\RaidFrame\\ReadyCheck-NotReady",
+    [ScanStatus.TemporaryFailed] = "Interface\\RaidFrame\\ReadyCheck-Waiting",
 }
 
 function UI:GetCheckStatusTexture(checkStatus)

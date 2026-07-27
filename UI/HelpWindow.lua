@@ -2,7 +2,6 @@ local AceGUI = LibStub("AceGUI-3.0")
 local GearPolice = GearPolice
 
 local UI = GearPolice.UI
-local AddonName = "GearPolice"
 
 local HelpSections = {
     {
@@ -50,15 +49,19 @@ local HelpSections = {
         body = "Open Settings to choose manual report mode, automatic announcements, auto-whispers, minimap button "
             .. "visibility, and which gear checks GearPolice should report. The settings page is generated in "
             .. "the game's AddOns settings list.\n\n"
-            .. "Auto-Announce Summary Per Player posts a short party or raid "
-            .. "message when a successful scan finds issues. It applies to grouped players, including you, "
+            .. "Auto-Announce Summary Per Player posts a party or raid summary when a successful scan finds "
+            .. "issues. The summary shows the total and how many times each issue type was found. If the full "
+            .. "breakdown is too long for one chat message, it continues in another clearly labeled message. "
+            .. "It applies to grouped players, including you, "
             .. "and grouped target scans. Clean, incomplete, failed, and outside-group target scans are not "
             .. "announced. Auto-Announce In Party and Auto-Announce In Raid choose which group types receive "
             .. "these summaries. If multiple GearPolice users enable it, GearPolice chooses one announcer to "
             .. "prevent duplicate messages. Automatic summaries are not sent inside battlegrounds or "
             .. "arenas.\n\n"
             .. "Auto-Whisper Report Offer automatically whispers party or raid members when issues are found. "
-            .. "Clean scans do not send an offer. They can whisper you back to request the full report. "
+            .. "The offer shows the total and how many times each issue type was found. If needed, the breakdown "
+            .. "continues in another clearly labeled whisper. Clean scans do not send an offer. They can whisper "
+            .. "you back to request the full report. "
             .. "If more than one GearPolice user in the group has auto-whispers turned on, GearPolice chooses "
             .. "one sender automatically so players do not get duplicate offer whispers. Auto-Whisper In Party "
             .. "and Auto-Whisper In Raid choose which group types can receive automatic offers. Automatic "
@@ -76,9 +79,9 @@ local HelpSections = {
             .. "Announcement sends manual reports to party or raid chat.\n\n"
             .. "Announce Changing To Manual Announcement Mode controls whether GearPolice announces in "
             .. "party or raid chat when you switch Manual Report Mode to Announcement.\n\n"
-            .. "Auto-Announce Summary Per Player controls automatic "
-            .. "issue-count summaries after successful scans. Its Party and Raid options control where those "
-            .. "summaries are enabled.\n\n"
+            .. "Auto-Announce Summary Per Player controls automatic issue summaries after successful scans. "
+            .. "Each summary includes the total and a count for every issue type. Its Party and Raid options "
+            .. "control where those summaries are enabled.\n\n"
             .. "Debug prints manual reports only in your own chat window.",
     },
     {
@@ -93,13 +96,9 @@ local HelpSections = {
     },
     {
         title = "Commands",
-        body = "/gearpolice shows the command list.\n\n"
-            .. "/gearpolice scan clears the current list and performs a fresh group scan.\n\n"
-            .. "/gearpolice showui opens the main window.\n\n"
-            .. "/gearpolice settings opens the settings page.\n\n"
-            .. "/gearpolice target scans your current player target.\n\n"
-            .. "/gearpolice help opens this help window.\n\n"
-            .. "/gearpolice debug toggles debug messages.",
+        body = function()
+            return GearPolice:GetSlashCommandHelpText("\n\n")
+        end,
     },
 }
 
@@ -109,7 +108,7 @@ local function GetAddonMetadata(fieldName)
         return nil
     end
 
-    return getter(AddonName, fieldName)
+    return getter(GearPolice.AddonName, fieldName)
 end
 
 local function AddText(container, text)
@@ -137,11 +136,11 @@ function UI:ShowHelpWindow()
     local author = GetAddonMetadata("Author") or "Unknown"
 
     self.helpFrame = AceGUI:Create("Frame")
-    self.helpFrame:SetTitle("GearPolice Help")
+    self.helpFrame:SetTitle(GearPolice.AddonName .. " Help")
     self.helpFrame:SetWidth(620)
     self.helpFrame:SetHeight(540)
     self.helpFrame:SetLayout("Fill")
-    self.helpFrame:SetStatusText("GearPolice v" .. version .. " | Made by " .. author)
+    self.helpFrame:SetStatusText(GearPolice.AddonName .. " v" .. version .. " | Made by " .. author)
     self.helpFrame:SetCallback("OnClose", function(widget)
         AceGUI:Release(widget)
         self.helpFrame = nil
@@ -156,6 +155,6 @@ function UI:ShowHelpWindow()
             AddSpacer(scroll)
         end
         AddHeading(scroll, section.title)
-        AddText(scroll, section.body)
+        AddText(scroll, type(section.body) == "function" and section.body() or section.body)
     end
 end

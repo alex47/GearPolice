@@ -3,6 +3,8 @@ local GearPolice = GearPolice
 GearPolice.ScanQueue = GearPolice.ScanQueue or {}
 
 local ScanQueue = GearPolice.ScanQueue
+local ScanReason = GearPolice.Constants.ScanReason
+local ScanStatus = GearPolice.Constants.ScanStatus
 
 local function RemoveQueueEntryAt(addon, index, playerGuid)
     table.remove(addon.scanQueue, index)
@@ -16,9 +18,9 @@ local function FindNextInspectableEntry(addon)
 
     while index <= #addon.scanQueue do
         local playerGuid = addon.scanQueue[index]
-        local reason = addon.queuedScanReasons[playerGuid] or "group"
+        local reason = addon.queuedScanReasons[playerGuid] or ScanReason.Group
 
-        if reason == "target" and not addon:IsScanTargetAvailable(playerGuid, reason) then
+        if reason == ScanReason.Target and not addon:IsScanTargetAvailable(playerGuid, reason) then
             addon:OnPlayerTargetChanged()
             return nil, nil, nil, nil, true
         end
@@ -34,7 +36,7 @@ local function FindNextInspectableEntry(addon)
         elseif addon:IsPlayerScanComplete(playerInfo) and not playerInfo.ForceScanRequested then
             playerInfo.CheckRequested = false
             RemoveQueueEntryAt(addon, index, playerGuid)
-        elseif playerInfo.CheckStatus == "Failed" then
+        elseif playerInfo.CheckStatus == ScanStatus.Failed then
             playerInfo.CheckRequested = false
             RemoveQueueEntryAt(addon, index, playerGuid)
         else
@@ -55,10 +57,7 @@ function ScanQueue.CancelQueueTimer(addon)
         return
     end
 
-    addon:CancelTimer(addon.scanQueueTimer)
-    if addon.activeTimers then
-        addon.activeTimers[addon.scanQueueTimer] = nil
-    end
+    addon:CancelManagedTimer(addon.scanQueueTimer)
     addon.scanQueueTimer = nil
 end
 
@@ -94,11 +93,11 @@ function ScanQueue.Process(addon)
         return
     end
 
-    local reason = addon.queuedScanReasons[playerGuid] or "group"
+    local reason = addon.queuedScanReasons[playerGuid] or ScanReason.Group
     RemoveQueueEntryAt(addon, queueIndex, playerGuid)
 
     playerInfo.CheckRequested = true
-    playerInfo.CheckStatus = "InProgress"
+    playerInfo.CheckStatus = ScanStatus.InProgress
     playerInfo.pendingChecks = 0
     playerInfo.retryAttempts = playerInfo.retryAttempts or 0
 
@@ -120,11 +119,11 @@ function ScanQueue.OnCombatEnded(addon)
 end
 
 function ScanQueue.NormalizeReason(reason)
-    if reason == "target" then
-        return "target"
+    if reason == ScanReason.Target then
+        return ScanReason.Target
     end
 
-    return "group"
+    return ScanReason.Group
 end
 
 function ScanQueue.Contains(addon, playerGuid)

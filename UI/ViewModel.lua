@@ -5,44 +5,20 @@ local UI = GearPolice.UI
 UI.ViewModel = UI.ViewModel or {}
 
 local ViewModel = UI.ViewModel
+local ScanStatus = GearPolice.Constants.ScanStatus
+local PlayerListFilter = GearPolice.Settings.PlayerListFilter
 
 local StatusLabels = {
-    InProgress = "|cffffcc00Scanning|r",
-    Successful = "|cff40ff40Done|r",
-    Partial = "|cffffcc00Partial|r",
-    Failed = "|cffff4040Failed|r",
-    TemporaryFailed = "|cffffcc00Retry|r",
-    Cancelled = "|cffaaaaaaCancelled|r",
+    [ScanStatus.InProgress] = "|cffffcc00Scanning|r",
+    [ScanStatus.Successful] = "|cff40ff40Done|r",
+    [ScanStatus.Partial] = "|cffffcc00Partial|r",
+    [ScanStatus.Failed] = "|cffff4040Failed|r",
+    [ScanStatus.TemporaryFailed] = "|cffffcc00Retry|r",
+    [ScanStatus.Cancelled] = "|cffaaaaaaCancelled|r",
 }
 
 local function GetSlotLabel(slotName)
     return GearPolice.Slots.GetSlotLabel(slotName) or "Unknown Slot"
-end
-
-local function AddProblem(problemLookup, slotName, itemLink, ruleId, message)
-    if type(message) ~= "string" or message == "" then
-        return
-    end
-
-    local problem = {
-        slotName = slotName,
-        itemLink = itemLink,
-        ruleId = ruleId,
-        message = message,
-    }
-
-    if slotName then
-        problemLookup.bySlot[slotName] = problemLookup.bySlot[slotName] or {}
-        table.insert(problemLookup.bySlot[slotName], problem)
-    end
-
-    if type(itemLink) == "string" then
-        problemLookup.byItemLink[itemLink] = problemLookup.byItemLink[itemLink] or {}
-        table.insert(problemLookup.byItemLink[itemLink], problem)
-    end
-
-    problemLookup.hasProblems = true
-    problemLookup.problemCount = problemLookup.problemCount + 1
 end
 
 local function FormatIssueSummary(problemCount, hasPendingSlots)
@@ -59,12 +35,7 @@ local function FormatIssueSummary(problemCount, hasPendingSlots)
 end
 
 local function NormalizePlayerSortName(playerName)
-    if type(playerName) ~= "string" or playerName == ""
-        or playerName == "Unknown" or playerName == "Unknown Player" then
-        return nil
-    end
-
-    return string.lower(playerName)
+    return GearPolice.Players.NormalizeShortName(playerName)
 end
 
 local function PlayerRowComesBefore(rowA, rowB)
@@ -79,8 +50,12 @@ local function PlayerRowComesBefore(rowA, rowB)
         return (nameA or "") < (nameB or "")
     end
 
-    local fullNameA = NormalizePlayerSortName(rowA.playerInfo and rowA.playerInfo.PlayerFullName) or nameA
-    local fullNameB = NormalizePlayerSortName(rowB.playerInfo and rowB.playerInfo.PlayerFullName) or nameB
+    local fullNameA = GearPolice.Players.NormalizeFullName(
+        rowA.playerInfo and rowA.playerInfo.PlayerFullName
+    ) or nameA
+    local fullNameB = GearPolice.Players.NormalizeFullName(
+        rowB.playerInfo and rowB.playerInfo.PlayerFullName
+    ) or nameB
     if fullNameA ~= fullNameB then
         return (fullNameA or "") < (fullNameB or "")
     end
@@ -89,18 +64,18 @@ local function PlayerRowComesBefore(rowA, rowB)
 end
 
 local function RowMatchesFilter(row, filterMode)
-    if filterMode == "problems" then
+    if filterMode == PlayerListFilter.Problems then
         return row.hasProblems
     end
 
-    if filterMode == "scanning" then
-        return row.checkStatus == "InProgress"
+    if filterMode == PlayerListFilter.Scanning then
+        return row.checkStatus == ScanStatus.InProgress
     end
 
-    if filterMode == "failed_partial" then
-        return row.checkStatus == "Failed"
-            or row.checkStatus == "Partial"
-            or row.checkStatus == "TemporaryFailed"
+    if filterMode == PlayerListFilter.FailedPartial then
+        return row.checkStatus == ScanStatus.Failed
+            or row.checkStatus == ScanStatus.Partial
+            or row.checkStatus == ScanStatus.TemporaryFailed
     end
 
     return true
@@ -112,7 +87,7 @@ local function BuildSummary(rows)
 
     for _, row in ipairs(rows) do
         issueCount = issueCount + (row.problemCount or 0)
-        if row.checkStatus == "InProgress" then
+        if row.checkStatus == ScanStatus.InProgress then
             scanningCount = scanningCount + 1
         end
     end
@@ -131,42 +106,7 @@ local function BuildSummary(rows)
 end
 
 function ViewModel.BuildProblemLookup(playerInfo)
-    local problemLookup = {
-        bySlot = {},
-        byItemLink = {},
-        hasProblems = false,
-        problemCount = 0,
-    }
-
-    if type(playerInfo.Problems) == "table" and #playerInfo.Problems > 0 then
-        for _, problem in ipairs(playerInfo.Problems) do
-            if type(problem) == "table" then
-                AddProblem(
-                    problemLookup,
-                    problem.slotName,
-                    problem.itemLink,
-                    problem.ruleId,
-                    problem.message
-                )
-            end
-        end
-
-        return problemLookup
-    end
-
-    if type(playerInfo.ProblematicItems) == "table" then
-        for itemLink, problems in pairs(playerInfo.ProblematicItems) do
-            if type(problems) == "table" then
-                for _, message in ipairs(problems) do
-                    AddProblem(problemLookup, nil, itemLink, nil, message)
-                end
-            elseif type(problems) == "string" then
-                AddProblem(problemLookup, nil, itemLink, nil, problems)
-            end
-        end
-    end
-
-    return problemLookup
+    return GearPolice.Problems.BuildIndex(playerInfo)
 end
 
 function ViewModel.BuildSlot(playerInfo, slotName, problemLookup)
@@ -218,9 +158,9 @@ function ViewModel.BuildRow(playerGuid, playerInfo, slotOrder)
     end
 
     local hasPendingSlots = pendingSlotCount > 0
-        or playerInfo.CheckStatus == "InProgress"
-        or playerInfo.CheckStatus == "Partial"
-        or playerInfo.CheckStatus == "TemporaryFailed"
+        or playerInfo.CheckStatus == ScanStatus.InProgress
+        or playerInfo.CheckStatus == ScanStatus.Partial
+        or playerInfo.CheckStatus == ScanStatus.TemporaryFailed
 
     return {
         playerGuid = playerGuid,
@@ -230,15 +170,15 @@ function ViewModel.BuildRow(playerGuid, playerInfo, slotOrder)
         statusText = StatusLabels[playerInfo.CheckStatus] or (playerInfo.CheckStatus or "Unknown"),
         statusTexture = UI:GetCheckStatusTexture(playerInfo.CheckStatus),
         hasProblems = problemLookup.hasProblems,
-        problemCount = problemLookup.problemCount,
-        issueSummary = FormatIssueSummary(problemLookup.problemCount, hasPendingSlots),
+        problemCount = problemLookup.totalProblemCount,
+        issueSummary = FormatIssueSummary(problemLookup.totalProblemCount, hasPendingSlots),
         slots = slots,
     }
 end
 
 function ViewModel.BuildRows(filterMode)
     local rows = {}
-    local slotOrder = GearPolice.Helper:GetInventorySlotNames()
+    local slotOrder = GearPolice.Slots.GetInventorySlotNames()
     local playerGearInfo = GearPolice.PlayerStore:GetAll()
 
     for playerGuid, playerInfo in pairs(playerGearInfo or {}) do

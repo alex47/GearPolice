@@ -3,18 +3,8 @@ local GearPolice = GearPolice
 GearPolice.Roster = GearPolice.Roster or {}
 
 local Roster = GearPolice.Roster
-
-local function BuildFullPlayerName(playerName, playerRealm)
-    if type(playerName) ~= "string" or playerName == "" or playerName == "Unknown" then
-        return nil
-    end
-
-    if type(playerRealm) == "string" and playerRealm ~= "" then
-        return playerName .. "-" .. playerRealm
-    end
-
-    return playerName
-end
+local ScanReason = GearPolice.Constants.ScanReason
+local ScanStatus = GearPolice.Constants.ScanStatus
 
 function Roster.CreateEmptySnapshot(groupType)
     return {
@@ -201,14 +191,14 @@ function Roster.ProcessGroupMember(addon, unitId, sortIndex, groupType)
     if not playerGuid then return end
 
     local playerName, playerRealm = UnitName(unitId)
-    local playerFullName = BuildFullPlayerName(playerName, playerRealm)
+    local playerFullName = GearPolice.Players.BuildFullName(playerName, playerRealm)
     local playerInfo = addon.PlayerStore:Get(playerGuid)
 
     if playerInfo then
         Roster.ApplyMetadata(playerInfo, playerGuid, unitId, sortIndex, groupType)
     end
 
-    if not playerName or playerName == "Unknown" then
+    if not GearPolice.Players.IsKnownName(playerName) then
         addon:ScheduleManagedTimer(function()
             local roster = addon.currentRoster
             local currentUnitId = roster and roster.unitIdByGuid and roster.unitIdByGuid[playerGuid]
@@ -239,21 +229,21 @@ function Roster.ProcessGroupMember(addon, unitId, sortIndex, groupType)
     Roster.ApplyMetadata(playerInfo, playerGuid, unitId, sortIndex, groupType)
 
     if isNewPlayer then
-        addon:AddToScanQueue(playerGuid, true, "group")
-    elseif playerInfo.CheckStatus == "TemporaryFailed" then
+        addon:AddToScanQueue(playerGuid, true, ScanReason.Group)
+    elseif playerInfo.CheckStatus == ScanStatus.TemporaryFailed then
         if not addon:HasScheduledPlayerWork(playerGuid) then
-            playerInfo.CheckStatus = "InProgress"
+            playerInfo.CheckStatus = ScanStatus.InProgress
             playerInfo.retryAttempts = 0
-            addon:AddToScanQueue(playerGuid, true, "group")
+            addon:AddToScanQueue(playerGuid, true, ScanReason.Group)
         end
-    elseif playerInfo.CheckStatus == "Partial" then
+    elseif playerInfo.CheckStatus == ScanStatus.Partial then
         if not addon:HasScheduledPlayerWork(playerGuid) then
-            addon:AddToScanQueue(playerGuid, true, "group")
+            addon:AddToScanQueue(playerGuid, true, ScanReason.Group)
         end
     elseif not playerInfo.LastScanTime or playerInfo.LastScanTime <= 0 then
-        addon:AddToScanQueue(playerGuid, true, "group")
+        addon:AddToScanQueue(playerGuid, true, ScanReason.Group)
     elseif (time() - playerInfo.LastScanTime) > 86400 then
-        addon:AddToScanQueue(playerGuid, true, "group")
+        addon:AddToScanQueue(playerGuid, true, ScanReason.Group)
     end
 end
 

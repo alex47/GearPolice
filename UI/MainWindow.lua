@@ -3,20 +3,6 @@ local GearPolice = GearPolice
 
 local UI = GearPolice.UI
 
-local FilterOptions = {
-    all = "All",
-    problems = "Problems",
-    scanning = "Scanning",
-    failed_partial = "Failed/Partial",
-}
-
-local FilterOptionOrder = {
-    "all",
-    "problems",
-    "scanning",
-    "failed_partial",
-}
-
 local ToolbarHeight = 44
 local ToolbarButtonWidth = 134
 local ToolbarButtonHeight = 24
@@ -99,12 +85,15 @@ local function CreateFilterDropdown(self, parent)
     local dropdown = AceGUI:Create("Dropdown")
     dropdown:SetLabel("")
     dropdown:SetWidth(150)
-    dropdown:SetList(FilterOptions, FilterOptionOrder)
-    dropdown:SetValue(self.FilterMode or "all")
+    dropdown:SetList(
+        GearPolice.Settings:GetPlayerListFilterValues(),
+        GearPolice.Settings:GetPlayerListFilterOrder()
+    )
+    dropdown:SetValue(self.FilterMode or GearPolice.Settings.PlayerListFilter.All)
     dropdown:SetCallback("OnValueChanged", function(_widget, _event, value)
-        local filterMode = value or "all"
+        local filterMode = value or GearPolice.Settings.PlayerListFilter.All
         if not GearPolice.Settings:SetPlayerListFilterMode(filterMode) then
-            filterMode = "all"
+            filterMode = GearPolice.Settings.PlayerListFilter.All
             GearPolice.Settings:SetPlayerListFilterMode(filterMode)
         end
 
@@ -163,7 +152,7 @@ function UI:ShowUI()
     end
 
     self.uiFrame = AceGUI:Create("Frame")
-    self.uiFrame:SetTitle("GearPolice")
+    self.uiFrame:SetTitle(GearPolice.AddonName)
     self.uiFrame:SetCallback("OnClose", function(widget)
         ReleaseDetachedToolbarWidgets(self)
         AceGUI:Release(widget)

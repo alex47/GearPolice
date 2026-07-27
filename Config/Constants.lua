@@ -4,6 +4,20 @@ GearPolice.Constants = GearPolice.Constants or {}
 
 local Constants = GearPolice.Constants
 
+Constants.ScanStatus = {
+    InProgress = "InProgress",
+    Successful = "Successful",
+    Partial = "Partial",
+    Failed = "Failed",
+    TemporaryFailed = "TemporaryFailed",
+    Cancelled = "Cancelled",
+}
+
+Constants.ScanReason = {
+    Group = "group",
+    Target = "target",
+}
+
 Constants.InventorySlotReady = "READY"
 Constants.InventorySlotPending = "PENDING"
 Constants.InventorySlotNoEvidence = "NO_EVIDENCE"
@@ -14,6 +28,7 @@ Constants.ScanInterval = 2
 Constants.ScanQueueAvailabilityInterval = 5
 Constants.InspectReadyTimeout = 8
 Constants.AutomaticPlayerMessageCooldownSeconds = 12 * 60 * 60
+Constants.AutomaticMessageCombatDelaySeconds = 5
 
 Constants.InventorySlotRetryCount = 6
 Constants.InventorySlotRetryDelay = 2

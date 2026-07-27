@@ -60,7 +60,7 @@ function GearPolice:InitializeMinimapDropDownItems(_frame, level)
         return
     end
 
-    AddTitle("GearPolice")
+    AddTitle(GearPolice.AddonName)
     AddAction("Open Main Window", OpenMainWindow)
     AddAction("Settings", OpenSettingsPage)
     AddAction("Help", OpenHelpWindow)

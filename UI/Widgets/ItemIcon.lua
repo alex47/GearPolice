@@ -69,7 +69,7 @@ local function AddProblemLines(slot)
     end
 
     GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("GearPolice:", 1, 0.82, 0, true)
+    GameTooltip:AddLine(GearPolice.AddonName .. ":", 1, 0.82, 0, true)
     for _, problem in ipairs(slot.problems) do
         GameTooltip:AddLine(" - " .. problem.message, 1, 0.25, 0.25, true)
     end
@@ -129,6 +129,21 @@ local function CenteredIcon_OnLeave()
     GameTooltip:Hide()
 end
 
+local function CreateIconTextures(frame, imageSize)
+    local image = frame:CreateTexture(nil, "BACKGROUND")
+    image:SetPoint("CENTER")
+    image:SetWidth(imageSize)
+    image:SetHeight(imageSize)
+
+    local highlight = frame:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints(image)
+    highlight:SetTexture(136580)
+    highlight:SetTexCoord(0, 1, 0.23, 0.77)
+    highlight:SetBlendMode("ADD")
+
+    return image, highlight
+end
+
 local function CreateSlotButton(widget, index)
     local backdropTemplate = _G.BackdropTemplateMixin and "BackdropTemplate" or nil
     local button = CreateFrame("Button", nil, widget.frame, backdropTemplate)
@@ -140,17 +155,8 @@ local function CreateSlotButton(widget, index)
     button:SetScript("OnEnter", SlotButton_OnEnter)
     button:SetScript("OnLeave", SlotButton_OnLeave)
 
-    local image = button:CreateTexture(nil, "BACKGROUND")
-    image:SetPoint("CENTER")
-    image:SetWidth(UI.IconSize)
-    image:SetHeight(UI.IconSize)
+    local image = CreateIconTextures(button, UI.IconSize)
     button.image = image
-
-    local highlight = button:CreateTexture(nil, "HIGHLIGHT")
-    highlight:SetAllPoints(image)
-    highlight:SetTexture(136580)
-    highlight:SetTexCoord(0, 1, 0.23, 0.77)
-    highlight:SetBlendMode("ADD")
 
     return button
 end
@@ -251,7 +257,7 @@ AceGUI:RegisterWidgetType(UI.ItemStripWidgetType, CreateItemStripWidget, ItemStr
 function UI:CreateEquipmentIconStrip()
     local strip = AceGUI:Create(self.ItemStripWidgetType)
     strip:SetHeight(self.PlayerContainerElementSize)
-    strip:SetWidth(self:GetEquipmentIconStripWidth(#GearPolice.Helper:GetInventorySlotNames()))
+    strip:SetWidth(self:GetEquipmentIconStripWidth(#GearPolice.Slots.GetInventorySlotNames()))
 
     return strip
 end
@@ -313,16 +319,7 @@ local function CreateCenteredIconWidget()
     frame:SetScript("OnEnter", CenteredIcon_OnEnter)
     frame:SetScript("OnLeave", CenteredIcon_OnLeave)
 
-    local image = frame:CreateTexture(nil, "BACKGROUND")
-    image:SetPoint("CENTER")
-    image:SetWidth(UI.IconSize)
-    image:SetHeight(UI.IconSize)
-
-    local highlight = frame:CreateTexture(nil, "HIGHLIGHT")
-    highlight:SetAllPoints(image)
-    highlight:SetTexture(136580)
-    highlight:SetTexCoord(0, 1, 0.23, 0.77)
-    highlight:SetBlendMode("ADD")
+    local image, highlight = CreateIconTextures(frame, UI.IconSize)
 
     local widget = {
         frame = frame,

@@ -17,7 +17,8 @@
 - `Core.lua` should stay focused on addon bootstrap, event registration, slash commands, and high-level routing.
 - `Config/` owns constants, slot order, and rule configuration.
 - `State/` owns runtime state and saved player records.
-- `Services/` owns settings, timers, roster reconciliation, scan queue, scan session, peer communication, report offers, automatic scan announcements, and outbound chat throttling.
+- `State/Problems.lua` is the canonical owner of structured gear issue records and derived problem indexes.
+- `Services/` owns settings, timers, roster reconciliation, scan queue, scan session, peer communication, automatic-message lifecycle, report offers, automatic scan announcements, and outbound chat throttling.
 - `Inspection/` owns item checks, slot resolution, and running configured checks.
 - `UI/` owns view models, windows, rows, widgets, minimap UI, and help text.
 - `Reporting.lua` owns report message formatting and delivery.
@@ -53,7 +54,7 @@
 Run these checks after Lua/XML changes:
 
 ```sh
-luac5.1 -p Libs/AceComm-3.0/ChatThrottleLib.lua Libs/AceConfig-3.0/AceConfigRegistry-3.0/AceConfigRegistry-3.0.lua Libs/AceConfig-3.0/AceConfigCmd-3.0/AceConfigCmd-3.0.lua Libs/AceConfig-3.0/AceConfigDialog-3.0/AceConfigDialog-3.0.lua Libs/AceConfig-3.0/AceConfig-3.0.lua Core.lua Debug.lua Helper.lua Inspection.lua Reporting.lua UI.lua Config/Constants.lua Config/Slots.lua Config/Rules.lua Util/Tables.lua Util/Units.lua Util/Inventory.lua State/RuntimeState.lua State/PlayerStore.lua Services/Timers.lua Services/Settings.lua Services/Roster.lua Services/ScanQueue.lua Services/ScanSession.lua Services/Comms.lua Services/PublicAnnouncements.lua Services/ReportOffers.lua Services/ChatThrottle.lua Inspection/ItemChecks.lua Inspection/SlotResolver.lua Inspection/CheckRunner.lua UI/ViewModel.lua UI/Widgets/ItemIcon.lua UI/PlayerRows.lua UI/MainWindow.lua UI/HelpWindow.lua UI/AceConfigOptions.lua UI/MinimapMenu.lua UI/MinimapIcon.lua
+luac5.1 -p Libs/AceComm-3.0/ChatThrottleLib.lua Libs/AceConfig-3.0/AceConfigRegistry-3.0/AceConfigRegistry-3.0.lua Libs/AceConfig-3.0/AceConfigCmd-3.0/AceConfigCmd-3.0.lua Libs/AceConfig-3.0/AceConfigDialog-3.0/AceConfigDialog-3.0.lua Libs/AceConfig-3.0/AceConfig-3.0.lua Core.lua Debug.lua Helper.lua Inspection.lua Reporting.lua UI.lua Config/Constants.lua Config/Slots.lua Config/Rules.lua Util/Tables.lua Util/Units.lua Util/Players.lua Util/Inventory.lua State/RuntimeState.lua State/PlayerStore.lua State/Problems.lua Services/Timers.lua Services/Settings.lua Services/Roster.lua Services/ScanQueue.lua Services/ScanSession.lua Services/Comms.lua Services/AutomaticMessageFlow.lua Services/PublicAnnouncements.lua Services/ReportOffers.lua Services/ChatThrottle.lua Inspection/ItemChecks.lua Inspection/SlotResolver.lua Inspection/CheckRunner.lua UI/ViewModel.lua UI/Widgets/ItemIcon.lua UI/PlayerRows.lua UI/MainWindow.lua UI/HelpWindow.lua UI/AceConfigOptions.lua UI/MinimapMenu.lua UI/MinimapIcon.lua
 git diff --check
 luacheck . --exclude-files Libs
 ```
@@ -71,7 +72,8 @@ When behavior changes, mention which of these need in-game validation:
 - Completed scans do not revert from green/done to scanning.
 - Partial scans retry later without affecting later successful scans.
 - Debug report and whisper/announcement reports still show full item links.
-- Report offers respect the UI toggle, 12-hour cooldown, combat delay, and hide-whisper setting.
+- Report offers include deterministic per-issue counts and respect the UI toggle, 12-hour cooldown, combat delay,
+  and hide-whisper setting.
 - When multiple GearPolice users enable Report Offers, only the elected coordinator sends automatic offers.
-- Automatic scan summaries announce only successful grouped players with issues, respect party/raid scope and the 12-hour cooldown, and use one elected announcer.
+- Automatic scan summaries announce only successful grouped players with issues, include deterministic per-issue counts, respect party/raid scope and the 12-hour cooldown, and use one elected announcer.
 - Minimap left-click toggles the main window and right-click opens the menu.

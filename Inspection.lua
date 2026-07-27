@@ -63,17 +63,10 @@ function Inspection:RecordProblem(playerInfo, slotName, itemLink, ruleId, messag
         return false
     end
 
-    playerInfo.Problems = playerInfo.Problems or {}
-    table.insert(playerInfo.Problems, {
+    return GearPolice.Problems.Add(playerInfo, {
         slotName = slotName,
         itemLink = itemLink,
         ruleId = ruleId,
         message = message,
     })
-
-    playerInfo.ProblematicItems = playerInfo.ProblematicItems or {}
-    playerInfo.ProblematicItems[itemLink] = playerInfo.ProblematicItems[itemLink] or {}
-    table.insert(playerInfo.ProblematicItems[itemLink], message)
-
-    return true
 end

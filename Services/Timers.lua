@@ -37,6 +37,37 @@ function Timers.ScheduleManagedTimer(addon, callback, delay, playerGuid)
     return handle
 end
 
+function Timers.CancelManagedTimer(addon, handle)
+    if not handle then
+        return false
+    end
+
+    local playerGuid = addon.activeTimers and addon.activeTimers[handle] or nil
+    addon:CancelTimer(handle)
+
+    if addon.activeTimers then
+        addon.activeTimers[handle] = nil
+    end
+
+    if addon.activePlayerTimers then
+        if type(playerGuid) == "string" and addon.activePlayerTimers[playerGuid] then
+            addon.activePlayerTimers[playerGuid][handle] = nil
+            if not next(addon.activePlayerTimers[playerGuid]) then
+                addon.activePlayerTimers[playerGuid] = nil
+            end
+        elseif playerGuid == nil then
+            for registeredPlayerGuid, timers in pairs(addon.activePlayerTimers) do
+                timers[handle] = nil
+                if not next(timers) then
+                    addon.activePlayerTimers[registeredPlayerGuid] = nil
+                end
+            end
+        end
+    end
+
+    return true
+end
+
 function Timers.CancelManagedTimersForPlayer(addon, playerGuid)
     if not playerGuid or not addon.activePlayerTimers then
         return
@@ -47,11 +78,13 @@ function Timers.CancelManagedTimersForPlayer(addon, playerGuid)
         return
     end
 
+    local handles = {}
     for handle in pairs(timers) do
-        addon:CancelTimer(handle)
-        if addon.activeTimers then
-            addon.activeTimers[handle] = nil
-        end
+        table.insert(handles, handle)
+    end
+
+    for _, handle in ipairs(handles) do
+        Timers.CancelManagedTimer(addon, handle)
     end
 
     addon.activePlayerTimers[playerGuid] = nil
@@ -62,8 +95,13 @@ function Timers.CancelAllManagedTimers(addon)
         return
     end
 
+    local handles = {}
     for handle in pairs(addon.activeTimers) do
-        addon:CancelTimer(handle)
+        table.insert(handles, handle)
+    end
+
+    for _, handle in ipairs(handles) do
+        Timers.CancelManagedTimer(addon, handle)
     end
 
     addon.activeTimers = {}
@@ -79,6 +117,10 @@ end
 
 function GearPolice:CancelManagedTimersForPlayer(playerGuid)
     return Timers.CancelManagedTimersForPlayer(self, playerGuid)
+end
+
+function GearPolice:CancelManagedTimer(handle)
+    return Timers.CancelManagedTimer(self, handle)
 end
 
 function GearPolice:CancelAllManagedTimers()

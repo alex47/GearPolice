@@ -2,7 +2,7 @@ local GearPolice = GearPolice
 
 GearPolice.Comms = GearPolice.Comms or {}
 
-local CommPrefix = "GearPolice"
+local CommPrefix = GearPolice.AddonName
 local ProtocolVersion = "1"
 local StateMessageType = "STATE"
 local PublicAnnouncementMessageType = "PUBLIC_ANNOUNCED"
@@ -17,63 +17,18 @@ local function IsGrouped()
     return IsInRaid() or IsInGroup()
 end
 
-local function IsKnownPlayerName(playerName)
-    return type(playerName) == "string" and playerName ~= "" and playerName ~= "Unknown"
-end
-
-local function NormalizePlayerName(playerName)
-    if not IsKnownPlayerName(playerName) then
-        return nil
-    end
-
-    return string.lower(playerName)
-end
-
-local function BuildFullPlayerName(playerName, playerRealm)
-    if not IsKnownPlayerName(playerName) then
-        return nil
-    end
-
-    if type(playerRealm) == "string" and playerRealm ~= "" then
-        return playerName .. "-" .. playerRealm
-    end
-
-    return playerName
-end
-
-local function GetUnitFullPlayerName(unitId)
-    if not unitId or not UnitExists(unitId) then
-        return nil
-    end
-
-    local playerName, playerRealm = UnitName(unitId)
-    if unitId == "player" and (not playerRealm or playerRealm == "") and type(GetRealmName) == "function" then
-        playerRealm = GetRealmName()
-    end
-
-    return BuildFullPlayerName(playerName, playerRealm)
-end
-
 local function GetLocalPlayerName()
-    return GetUnitFullPlayerName("player")
+    return GearPolice.Players.GetUnitFullName("player")
 end
 
 local function GetCommDistribution()
-    if IsInRaid() then
-        return "RAID"
-    elseif IsInGroup() then
-        return "PARTY"
-    end
-
-    return nil
+    return GearPolice.Units.GetGroupChatType()
 end
 
 local function IsLocalReportOfferEligible(addon)
-    if not addon.db or not addon.db.global or addon.db.global.ReportOfferEnabled ~= true then
-        return false
-    end
-
-    return addon.Settings and addon.Settings:IsAutoWhisperEnabledForCurrentGroup()
+    return addon.Settings
+        and addon.Settings:IsReportOfferEnabled()
+        and addon.Settings:IsAutoWhisperEnabledForCurrentGroup()
 end
 
 local function IsLocalPublicAnnouncementEligible(addon)
@@ -87,19 +42,11 @@ local function GetAddonVersion()
         return "unknown"
     end
 
-    return getter("GearPolice", "Version") or "unknown"
-end
-
-local function IsPlayerGuid(value)
-    return type(value) == "string" and string.find(value, "^Player%-") ~= nil
+    return getter(GearPolice.AddonName, "Version") or "unknown"
 end
 
 local function GetUnitForGuid(playerGuid)
-    if GearPolice.Helper and GearPolice.Helper.GetUnitIdOfPlayerGuid then
-        return GearPolice.Helper:GetUnitIdOfPlayerGuid(playerGuid)
-    end
-
-    return nil
+    return GearPolice.Units.GetUnitIdOfPlayerGuid(playerGuid)
 end
 
 local function IsUnitGroupLeader(unitId)
@@ -136,15 +83,7 @@ local function GetStoredPlayerName(addon, playerGuid)
         return nil
     end
 
-    if IsKnownPlayerName(playerInfo.PlayerFullName) then
-        return playerInfo.PlayerFullName
-    end
-
-    if IsKnownPlayerName(playerInfo.PlayerName) then
-        return playerInfo.PlayerName
-    end
-
-    return nil
+    return GearPolice.Players.GetStoredFullName(playerInfo)
 end
 
 local function GetCandidateName(addon, playerGuid, peer)
@@ -153,7 +92,7 @@ local function GetCandidateName(addon, playerGuid, peer)
     end
 
     local unitId = GetUnitForGuid(playerGuid)
-    local unitName = GetUnitFullPlayerName(unitId)
+    local unitName = GearPolice.Players.GetUnitFullName(unitId)
     if unitName then
         return unitName
     end
@@ -163,11 +102,11 @@ local function GetCandidateName(addon, playerGuid, peer)
         return storedName
     end
 
-    if peer and IsKnownPlayerName(peer.playerName) then
+    if peer and GearPolice.Players.IsKnownName(peer.playerName) then
         return peer.playerName
     end
 
-    if peer and IsKnownPlayerName(peer.sender) then
+    if peer and GearPolice.Players.IsKnownName(peer.sender) then
         return peer.sender
     end
 
@@ -182,7 +121,8 @@ local function BuildCandidate(addon, playerGuid, peer)
         leaderRank = IsUnitGroupLeader(unitId) and 0 or 1,
         assistantRank = IsUnitGroupAssistant(unitId) and 0 or 1,
         rosterIndex = IsInRaid() and FindRaidRosterIndex(playerGuid) or 999,
-        playerName = NormalizePlayerName(GetCandidateName(addon, playerGuid, peer)) or tostring(playerGuid or ""),
+        playerName = GearPolice.Players.NormalizeFullName(GetCandidateName(addon, playerGuid, peer))
+            or tostring(playerGuid or ""),
         tieBreaker = playerGuid,
     }
 end
@@ -218,7 +158,7 @@ local function GetPlayerDisplayName(addon, playerGuid)
     end
 
     local candidateName = GetCandidateName(addon, playerGuid, addon.commsPeers and addon.commsPeers[playerGuid])
-    if IsKnownPlayerName(candidateName) then
+    if GearPolice.Players.IsKnownName(candidateName) then
         return candidateName
     end
 
@@ -236,7 +176,7 @@ local function PrunePeers(addon)
         local lastSeenAt = type(peer) == "table" and peer.lastSeenAt or nil
         if type(lastSeenAt) ~= "number"
             or currentTime - lastSeenAt >= PeerExpirySeconds
-            or not GearPolice.Helper:IsPlayerInGroup(playerGuid) then
+            or not GearPolice.Units.IsPlayerInGroup(playerGuid) then
             addon.commsPeers[playerGuid] = nil
         end
     end
@@ -252,12 +192,12 @@ local function GetCoordinatorGuid(addon, localEligibility, peerEligibilityField)
     local selectedCandidate
     local localGuid = UnitGUID("player")
 
-    if IsPlayerGuid(localGuid) and localEligibility(addon) then
+    if GearPolice.Players.IsPlayerGuid(localGuid) and localEligibility(addon) then
         selectedCandidate = BuildCandidate(addon, localGuid)
     end
 
     for playerGuid, peer in pairs(addon.commsPeers or {}) do
-        if peer[peerEligibilityField] == true and GearPolice.Helper:IsPlayerInGroup(playerGuid) then
+        if peer[peerEligibilityField] == true and GearPolice.Units.IsPlayerInGroup(playerGuid) then
             local candidate = BuildCandidate(addon, playerGuid, peer)
             if CandidateComesBefore(candidate, selectedCandidate) then
                 selectedCandidate = candidate
@@ -373,7 +313,7 @@ end
 
 local function BuildStateMessage(addon)
     local playerGuid = UnitGUID("player")
-    if not IsPlayerGuid(playerGuid) then
+    if not GearPolice.Players.IsPlayerGuid(playerGuid) then
         return nil
     end
 
@@ -419,8 +359,8 @@ local function SendPublicAnnouncementState(addon, playerGuid)
     local distribution = GetCommDistribution()
     local localGuid = UnitGUID("player")
     if not distribution
-        or not IsPlayerGuid(localGuid)
-        or not IsPlayerGuid(playerGuid)
+        or not GearPolice.Players.IsPlayerGuid(localGuid)
+        or not GearPolice.Players.IsPlayerGuid(playerGuid)
         or type(addon.SendCommMessage) ~= "function" then
         return false
     end
@@ -515,7 +455,7 @@ local function GetSenderRosterSnapshot(addon)
 end
 
 local function ResolveCommSender(addon, sender)
-    local normalizedSender = NormalizePlayerName(sender)
+    local normalizedSender = GearPolice.Players.NormalizeFullName(sender)
     if not normalizedSender then
         return nil, nil
     end
@@ -530,13 +470,13 @@ local function ResolveCommSender(addon, sender)
     local shortGuid
     local shortName
     local shortMatchCount = 0
-    local normalizedSenderShort = NormalizePlayerName(sender:match("^([^%-]+)"))
+    local normalizedSenderShort = GearPolice.Players.NormalizeShortName(sender)
 
     for _, rosterGuid in ipairs(snapshot.orderedGuids) do
         local unitId = snapshot.unitIdByGuid and snapshot.unitIdByGuid[rosterGuid]
         if unitId and UnitGUID(unitId) == rosterGuid then
-            local unitFullName = GetUnitFullPlayerName(unitId)
-            local normalizedUnitFullName = NormalizePlayerName(unitFullName)
+            local unitFullName = GearPolice.Players.GetUnitFullName(unitId)
+            local normalizedUnitFullName = GearPolice.Players.NormalizeFullName(unitFullName)
             if normalizedUnitFullName == normalizedSender then
                 if exactGuid then
                     return nil, nil
@@ -547,7 +487,7 @@ local function ResolveCommSender(addon, sender)
             end
 
             local unitName = UnitName(unitId)
-            if NormalizePlayerName(unitName) == normalizedSenderShort then
+            if GearPolice.Players.NormalizeShortName(unitName) == normalizedSenderShort then
                 shortGuid = rosterGuid
                 shortName = unitFullName or unitName
                 shortMatchCount = shortMatchCount + 1
@@ -576,7 +516,7 @@ local function HandleStateMessage(addon, message, sender, senderGuid, senderFull
 
     if messageType ~= StateMessageType
         or protocolVersion ~= ProtocolVersion
-        or not IsPlayerGuid(playerGuid)
+        or not GearPolice.Players.IsPlayerGuid(playerGuid)
         or playerGuid == UnitGUID("player")
         or (eligibilityFlag ~= "1" and eligibilityFlag ~= "0")
         or (publicAnnouncementEligibilityFlag ~= "1"
@@ -602,10 +542,10 @@ local function HandlePublicAnnouncementMessage(addon, message, senderGuid)
     local messageType, protocolVersion, announcingGuid, playerGuid = strsplit("\t", message)
     if messageType ~= PublicAnnouncementMessageType
         or protocolVersion ~= ProtocolVersion
-        or not IsPlayerGuid(announcingGuid)
-        or not IsPlayerGuid(playerGuid)
+        or not GearPolice.Players.IsPlayerGuid(announcingGuid)
+        or not GearPolice.Players.IsPlayerGuid(playerGuid)
         or senderGuid ~= announcingGuid
-        or not GearPolice.Helper:IsPlayerInGroup(playerGuid) then
+        or not GearPolice.Units.IsPlayerInGroup(playerGuid) then
         return
     end
 
@@ -669,10 +609,6 @@ function GearPolice:AnnounceCommsState()
     return RefreshGroupState(self, true, true)
 end
 
-function GearPolice:IsReportOfferCoordinationWarmupActive()
-    return self:IsCommsCoordinationWarmupActive()
-end
-
 function GearPolice:IsCommsCoordinationWarmupActive()
     return self.commsWarmupActive == true
 end
@@ -687,7 +623,7 @@ function GearPolice:IsLocalReportOfferCoordinator()
     end
 
     local localGuid = UnitGUID("player")
-    if not IsPlayerGuid(localGuid) then
+    if not GearPolice.Players.IsPlayerGuid(localGuid) then
         return true
     end
 
@@ -709,7 +645,7 @@ function GearPolice:IsLocalPublicAnnouncementCoordinator()
     end
 
     local localGuid = UnitGUID("player")
-    if not IsPlayerGuid(localGuid) then
+    if not GearPolice.Players.IsPlayerGuid(localGuid) then
         return true
     end
 

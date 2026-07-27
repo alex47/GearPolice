@@ -3,6 +3,8 @@ local GearPolice = GearPolice
 GearPolice.ScanSession = GearPolice.ScanSession or {}
 
 local ScanSession = GearPolice.ScanSession
+local ScanReason = GearPolice.Constants.ScanReason
+local ScanStatus = GearPolice.Constants.ScanStatus
 
 local function ClearCurrentScanWork(addon, playerGuid)
     addon:CancelManagedTimersForPlayer(playerGuid)
@@ -58,11 +60,11 @@ function ScanSession.IsTargetAvailable(addon, playerGuid, reason)
     end
 
     reason = addon:NormalizeScanReason(reason)
-    if reason == "target" then
+    if reason == ScanReason.Target then
         return UnitGUID("target") == playerGuid
     end
 
-    return addon.Helper:IsPlayerInGroup(playerGuid)
+    return addon.Units.IsPlayerInGroup(playerGuid)
 end
 
 function ScanSession.GetUnitId(addon, playerGuid, reason)
@@ -71,11 +73,11 @@ function ScanSession.GetUnitId(addon, playerGuid, reason)
         return nil
     end
 
-    if reason == "target" then
+    if reason == ScanReason.Target then
         return "target"
     end
 
-    return addon.Helper:GetUnitIdOfPlayerGuid(playerGuid)
+    return addon.Units.GetUnitIdOfPlayerGuid(playerGuid)
 end
 
 function ScanSession.IsLocalPlayer(_addon, playerGuid)
@@ -89,10 +91,10 @@ function ScanSession.DeferUntilInspectable(addon, playerGuid, scanGeneration)
 
     local reason = addon:NormalizeScanReason(addon.currentScan.reason)
     if not addon:IsScanTargetAvailable(playerGuid, reason) then
-        if reason == "target" then
+        if reason == ScanReason.Target then
             addon:OnPlayerTargetChanged()
         else
-            addon:FinishScan(playerGuid, scanGeneration, "Failed")
+            addon:FinishScan(playerGuid, scanGeneration, ScanStatus.Failed)
         end
         return false
     end
@@ -102,7 +104,7 @@ function ScanSession.DeferUntilInspectable(addon, playerGuid, scanGeneration)
         playerGuid,
         scanGeneration,
         reason,
-        reason == "target"
+        reason == ScanReason.Target
     )
     if not requeued and addon:IsCurrentScan(playerGuid, scanGeneration) then
         ClearCurrentScanWork(addon, playerGuid)
@@ -160,14 +162,13 @@ local function ReconcileObsoleteTargetWork(addon, playerGuids)
         local playerInfo = addon.PlayerStore:Get(playerGuid)
         local isRosterPlayer = IsCurrentRosterPlayer(addon, playerGuid)
 
-        addon:ClearScheduledWorkForPlayer(playerGuid)
-
         if isRosterPlayer then
+            addon:ClearScheduledWorkForPlayer(playerGuid)
             playerInfo = playerInfo or addon.PlayerStore:Ensure(playerGuid)
             if playerInfo then
                 addon:ApplyCurrentRosterMetadata(playerGuid, playerInfo)
                 playerInfo.retryAttempts = 0
-                addon:AddToScanQueue(playerGuid, true, "group", true)
+                addon:AddToScanQueue(playerGuid, true, ScanReason.Group, true)
             end
         else
             addon:RemovePlayerFromTracking(playerGuid)
@@ -191,19 +192,19 @@ function ScanSession.HandleTargetChanged(addon)
     local obsoletePlayerGuids = {}
     local currentScan = addon.currentScan
 
-    if currentScan and currentScan.reason == "target"
+    if currentScan and currentScan.reason == ScanReason.Target
         and currentScan.playerGuid ~= currentTargetGuid then
         obsoletePlayerGuids[currentScan.playerGuid] = true
     end
 
     for playerGuid, reason in pairs(addon.queuedScanReasons or {}) do
-        if reason == "target" and playerGuid ~= currentTargetGuid then
+        if reason == ScanReason.Target and playerGuid ~= currentTargetGuid then
             obsoletePlayerGuids[playerGuid] = true
         end
     end
 
     for playerGuid, retry in pairs(addon.delayedScanRetries or {}) do
-        if retry.reason == "target" and playerGuid ~= currentTargetGuid then
+        if retry.reason == ScanReason.Target and playerGuid ~= currentTargetGuid then
             obsoletePlayerGuids[playerGuid] = true
         end
     end
@@ -274,7 +275,7 @@ function ScanSession.ScheduleDelayedRetry(addon, playerGuid, scanGeneration, rea
             return
         end
 
-        if reason == "target" and not addon:IsScanTargetAvailable(playerGuid, reason) then
+        if reason == ScanReason.Target and not addon:IsScanTargetAvailable(playerGuid, reason) then
             addon:OnPlayerTargetChanged()
             return
         end
@@ -334,7 +335,7 @@ function ScanSession.RunChecks(addon, playerGuid, scanGeneration)
     end
 
     if not playerInfo or not playerInfo.CheckRequested then
-        addon:FinishScan(playerGuid, scanGeneration, "Failed")
+        addon:FinishScan(playerGuid, scanGeneration, ScanStatus.Failed)
         return
     end
 
@@ -347,7 +348,7 @@ function ScanSession.RunChecks(addon, playerGuid, scanGeneration)
     end
 
     addon.currentScan.inspectReadyReceived = true
-    playerInfo.CheckStatus = "InProgress"
+    playerInfo.CheckStatus = ScanStatus.InProgress
     playerInfo.EquippedItems = {}
     addon.UI:UpdateUI()
 
@@ -360,9 +361,9 @@ function ScanSession.RunChecks(addon, playerGuid, scanGeneration)
         local status
         if addon:HasPendingEquippedItems(updatedPlayerInfo)
             or addon:HasPendingItemMetadata(updatedPlayerInfo) then
-            status = "Partial"
+            status = ScanStatus.Partial
         else
-            status = "Successful"
+            status = ScanStatus.Successful
         end
 
         local finished, finishedPlayerInfo, completedScan =
@@ -376,12 +377,12 @@ function ScanSession.RunChecks(addon, playerGuid, scanGeneration)
             addon:MaybeAnnouncePublicScanSummary(finishedPlayerInfo, completedScan, status)
         end
 
-        if finished and status == "Partial" and finishedPlayerInfo and completedScan then
+        if finished and status == ScanStatus.Partial and finishedPlayerInfo and completedScan then
             addon:ScheduleDelayedScanRetry(
                 playerGuid,
                 scanGeneration,
                 completedScan.reason,
-                "Partial",
+                ScanStatus.Partial,
                 60
             )
         end
@@ -407,12 +408,12 @@ function ScanSession.StartInspection(addon, unitId, reason, scanGeneration)
 
     local playerInfo = addon.db.global.PlayerGearInfo[playerGuid]
     if not playerInfo or not playerInfo.CheckRequested then
-        addon:FinishScan(playerGuid, scanGeneration, "Failed")
+        addon:FinishScan(playerGuid, scanGeneration, ScanStatus.Failed)
         return
     end
 
     if addon:IsPlayerScanComplete(playerInfo) and not playerInfo.ForceScanRequested then
-        addon:FinishScan(playerGuid, scanGeneration, "Successful")
+        addon:FinishScan(playerGuid, scanGeneration, ScanStatus.Successful)
         return
     end
 
@@ -421,12 +422,12 @@ function ScanSession.StartInspection(addon, unitId, reason, scanGeneration)
         return
     end
 
-    if playerInfo.CheckStatus == "Failed" then
-        addon:FinishScan(playerGuid, scanGeneration, "Failed")
+    if playerInfo.CheckStatus == ScanStatus.Failed then
+        addon:FinishScan(playerGuid, scanGeneration, ScanStatus.Failed)
         return
     end
 
-    playerInfo.CheckStatus = "InProgress"
+    playerInfo.CheckStatus = ScanStatus.InProgress
     addon.currentScan.unitId = unitId
     addon.currentScan.reason = reason
     addon.currentScan.inspectReadyReceived = false
@@ -465,7 +466,7 @@ function ScanSession.RetryInspection(addon, playerGuid, attempt, scanGeneration)
     local playerInfo = addon.db.global.PlayerGearInfo[playerGuid]
 
     if not playerInfo or not playerInfo.CheckRequested then
-        addon:FinishScan(playerGuid, scanGeneration, "Failed")
+        addon:FinishScan(playerGuid, scanGeneration, ScanStatus.Failed)
         return
     end
 
@@ -474,12 +475,12 @@ function ScanSession.RetryInspection(addon, playerGuid, attempt, scanGeneration)
     end
 
     if not addon:IsScanTargetAvailable(playerGuid, reason) then
-        if reason == "target" then
+        if reason == ScanReason.Target then
             addon:OnPlayerTargetChanged()
             return
         end
 
-        addon:FinishScan(playerGuid, scanGeneration, "Failed")
+        addon:FinishScan(playerGuid, scanGeneration, ScanStatus.Failed)
         return
     end
 
@@ -493,13 +494,13 @@ function ScanSession.RetryInspection(addon, playerGuid, attempt, scanGeneration)
 
     if playerInfo.retryAttempts >= maxAttempts then
         local finished, finishedPlayerInfo, completedScan =
-            addon:FinishScan(playerGuid, scanGeneration, "TemporaryFailed")
+            addon:FinishScan(playerGuid, scanGeneration, ScanStatus.TemporaryFailed)
         if finished and finishedPlayerInfo and completedScan then
             addon:ScheduleDelayedScanRetry(
                 playerGuid,
                 finishedPlayerInfo.ScanGeneration,
                 completedScan.reason,
-                "TemporaryFailed",
+                ScanStatus.TemporaryFailed,
                 300
             )
         end
@@ -523,7 +524,7 @@ function ScanSession.RetryInspection(addon, playerGuid, attempt, scanGeneration)
 
         local currentPlayerInfo = addon.db.global.PlayerGearInfo[playerGuid]
         if not currentPlayerInfo or not currentPlayerInfo.CheckRequested then
-            addon:FinishScan(playerGuid, scanGeneration, "Failed")
+            addon:FinishScan(playerGuid, scanGeneration, ScanStatus.Failed)
             return
         end
 

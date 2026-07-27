@@ -3,7 +3,7 @@ local GearPolice = GearPolice
 GearPolice.ChatThrottle = GearPolice.ChatThrottle or {}
 
 local ChatThrottle = GearPolice.ChatThrottle
-local ChatPrefix = "GearPolice"
+local ChatPrefix = GearPolice.AddonName
 local DefaultPriority = "NORMAL"
 local MaxChatMessageLength = 255
 

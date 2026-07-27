@@ -1,12 +1,74 @@
+local AddonName = "GearPolice"
+
 GearPolice = LibStub("AceAddon-3.0"):NewAddon(
-    "GearPolice",
+    AddonName,
     "AceConsole-3.0",
     "AceEvent-3.0",
     "AceTimer-3.0",
     "AceComm-3.0"
 )
 
+GearPolice.AddonName = AddonName
+
 GearPolice:RegisterChatCommand("gearpolice", "HandleSlashCommands")
+
+local SlashCommands = {
+    {
+        keyword = "",
+        syntax = "/gearpolice",
+        description = "Shows this command list.",
+    },
+    {
+        keyword = "scan",
+        syntax = "/gearpolice scan",
+        description = "Clears the current list and rescans your group.",
+        handler = function(addon)
+            addon:RescanGroup()
+        end,
+    },
+    {
+        keyword = "showui",
+        syntax = "/gearpolice showui",
+        description = "Opens the main window.",
+        handler = function(addon)
+            addon.UI:ShowUI()
+        end,
+    },
+    {
+        keyword = "settings",
+        syntax = "/gearpolice settings",
+        description = "Opens the settings page.",
+        handler = function(addon)
+            addon.UI:OpenAceConfigSettings()
+        end,
+    },
+    {
+        keyword = "target",
+        syntax = "/gearpolice target",
+        description = "Scans your current player target.",
+        handler = function(addon)
+            addon:StartGearPolicingOfTarget()
+        end,
+    },
+    {
+        keyword = "help",
+        syntax = "/gearpolice help",
+        description = "Opens the help window.",
+        handler = function(addon)
+            addon.UI:ShowHelpWindow()
+        end,
+    },
+    {
+        keyword = "debug",
+        syntax = "/gearpolice debug",
+        description = "Toggles debug messages.",
+        handler = function(addon)
+            local enabled = not addon.Settings:IsDebugEnabled()
+            addon.Settings:SetDebugEnabled(enabled)
+            addon:Print("Debug mode " .. (enabled and "enabled" or "disabled") .. ".")
+        end,
+    },
+}
 
 function GearPolice:OnInitialize()
     GearPolice:Print("Addon loaded!")
@@ -15,13 +77,11 @@ function GearPolice:OnInitialize()
 
     self:InitializeRuntimeState()
     self.PlayerStore:EnsureStorage()
+    for _, playerInfo in pairs(self.PlayerStore:GetAll() or {}) do
+        self.Problems.NormalizeStoredPlayer(playerInfo)
+    end
     self:InitializeSettings()
     self.UI:RegisterAceConfigSettings()
-
-    -- Initialize DebugEnabled if it's not set
-    if type(GearPolice.db.global.DebugEnabled) ~= "boolean" then
-        GearPolice.db.global.DebugEnabled = false
-    end
 
     self:InitializeReportOffers()
     self:InitializePublicScanAnnouncements()
@@ -58,7 +118,7 @@ function GearPolice:StartGearPolicingOfTarget()
     local targetGuid = UnitGUID("target")
     if targetGuid then
         local targetName, targetRealm = UnitName("target")
-        if not targetName or targetName == "Unknown" then
+        if not self.Players.IsKnownName(targetName) then
             self:ScheduleManagedTimer(function()
                 if UnitGUID("target") == targetGuid then
                     self:StartGearPolicingOfTarget()
@@ -67,14 +127,11 @@ function GearPolice:StartGearPolicingOfTarget()
             return
         end
 
-        local targetFullName = targetName
-        if type(targetRealm) == "string" and targetRealm ~= "" then
-            targetFullName = targetName .. "-" .. targetRealm
-        end
+        local targetFullName = self.Players.BuildFullName(targetName, targetRealm)
 
         GearPolice:RefreshCurrentRosterSnapshot()
         GearPolice:ResetPlayerGearInfo(targetGuid, targetName, targetFullName)
-        GearPolice:AddToScanQueue(targetGuid, true, "target", true)
+        GearPolice:AddToScanQueue(targetGuid, true, self.Constants.ScanReason.Target, true)
         GearPolice.UI:UpdateUI()
 
         GearPolice:ProcessScanQueue()
@@ -102,38 +159,39 @@ function GearPolice:OnPlayerEnteringWorld()
     end
 end
 
--- Slash command
-
 function GearPolice:PrintSlashCommandHelp()
-    GearPolice:Print("Available commands:")
-    GearPolice:Print("/gearpolice - Shows this command list.")
-    GearPolice:Print("/gearpolice scan - Clears the current list and rescans your group.")
-    GearPolice:Print("/gearpolice showui - Opens the main window.")
-    GearPolice:Print("/gearpolice settings - Opens the settings page.")
-    GearPolice:Print("/gearpolice target - Scans your current player target.")
-    GearPolice:Print("/gearpolice help - Opens the help window.")
-    GearPolice:Print("/gearpolice debug - Toggles debug messages.")
+    self:Print("Available commands:")
+    for _, command in ipairs(SlashCommands) do
+        self:Print(command.syntax .. " - " .. command.description)
+    end
+end
+
+function GearPolice:GetSlashCommands()
+    return SlashCommands
+end
+
+function GearPolice:GetSlashCommandHelpText(separator)
+    local lines = {}
+    for _, command in ipairs(SlashCommands) do
+        table.insert(lines, command.syntax .. " " .. command.description)
+    end
+
+    return table.concat(lines, separator or "\n")
 end
 
 function GearPolice:HandleSlashCommands(msg, _editbox)
     msg = string.lower((msg or ""):match("^%s*(.-)%s*$"))
 
-    if msg == "" then
-        GearPolice:PrintSlashCommandHelp()
-    elseif (msg == "scan") then
-        GearPolice:RescanGroup()
-    elseif (msg == "target") then
-        GearPolice:StartGearPolicingOfTarget()
-    elseif (msg == "showui") then
-        GearPolice.UI:ShowUI()
-    elseif (msg == "settings") then
-        GearPolice.UI:OpenAceConfigSettings()
-    elseif (msg == "help") then
-        GearPolice.UI:ShowHelpWindow()
-    elseif (msg == "debug") then
-        GearPolice.db.global.DebugEnabled = not GearPolice.db.global.DebugEnabled
-        GearPolice:Print("Debug mode " .. (GearPolice.db.global.DebugEnabled and "enabled" or "disabled") .. ".")
-    else
-        GearPolice:PrintSlashCommandHelp()
+    for _, command in ipairs(SlashCommands) do
+        if command.keyword == msg then
+            if command.handler then
+                command.handler(self)
+            else
+                self:PrintSlashCommandHelp()
+            end
+            return
+        end
     end
+
+    self:PrintSlashCommandHelp()
 end

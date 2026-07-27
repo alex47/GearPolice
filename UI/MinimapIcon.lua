@@ -2,16 +2,6 @@ local GearPolice = GearPolice
 
 local MINIMAP_ICON_PATH = "Interface\\AddOns\\GearPolice\\Media\\GearPoliceIcon.tga"
 
-local function EnsureMinimapSettings()
-    GearPolice.db.global.MinimapIcon = GearPolice.db.global.MinimapIcon or {}
-
-    if type(GearPolice.db.global.MinimapIcon.hide) ~= "boolean" then
-        GearPolice.db.global.MinimapIcon.hide = false
-    end
-
-    return GearPolice.db.global.MinimapIcon
-end
-
 function GearPolice:InitializeMinimapIcon()
     local LDB = LibStub("LibDataBroker-1.1", true)
     local LibDBIcon = LibStub("LibDBIcon-1.0", true)
@@ -24,9 +14,9 @@ function GearPolice:InitializeMinimapIcon()
         return
     end
 
-    self.minimapLauncher = LDB:NewDataObject("GearPolice", {
+    self.minimapLauncher = LDB:NewDataObject(self.AddonName, {
         type = "launcher",
-        text = "GearPolice",
+        text = self.AddonName,
         icon = MINIMAP_ICON_PATH,
         OnClick = function(frame, button)
             if button == "LeftButton" then
@@ -36,11 +26,11 @@ function GearPolice:InitializeMinimapIcon()
             end
         end,
         OnTooltipShow = function(tooltip)
-            tooltip:AddLine("GearPolice")
+            tooltip:AddLine(GearPolice.AddonName)
             tooltip:AddLine("Left-click: Toggle window", 1, 1, 1)
             tooltip:AddLine("Right-click: Open menu", 1, 1, 1)
         end,
     })
 
-    LibDBIcon:Register("GearPolice", self.minimapLauncher, EnsureMinimapSettings())
+    LibDBIcon:Register(self.AddonName, self.minimapLauncher, self.db.global.MinimapIcon)
 end
