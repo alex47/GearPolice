@@ -123,11 +123,12 @@ function GearPolice:StartGearPolicingOfTarget()
                 if UnitGUID("target") == targetGuid then
                     self:StartGearPolicingOfTarget()
                 end
-            end, 1, targetGuid)
+            end, self.Constants.PlayerNameRetryDelay, targetGuid)
             return
         end
 
-        local targetFullName = self.Players.BuildFullName(targetName, targetRealm)
+        local targetFullName = self.Players.GetUnitFullName("target")
+            or self.Players.BuildFullName(targetName, targetRealm)
 
         GearPolice:RefreshCurrentRosterSnapshot()
         GearPolice:ResetPlayerGearInfo(targetGuid, targetName, targetFullName)

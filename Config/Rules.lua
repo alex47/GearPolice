@@ -161,6 +161,11 @@ function Rules.GetIssueSummaryLabel(ruleId)
     return rule.summaryLabel or rule.message
 end
 
+function Rules.GetIssueSummaryOrder(ruleId)
+    local rule = RuleDefinitions[ruleId]
+    return rule and rule.summaryOrder or nil
+end
+
 function Rules.GetSettingRuleIds()
     return GetOrderedRuleIds("settingOrder")
 end

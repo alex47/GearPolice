@@ -11,4 +11,5 @@ license-output: LICENSE.txt
 ignore:
   - AGENTS.md
   - TODO.txt
+  - Tests
   - Media/GearPoliceCurseForgeAvatar.png

@@ -3,6 +3,7 @@ local GearPolice = GearPolice
 GearPolice.Inspection = GearPolice.Inspection or {}
 
 local Inspection = GearPolice.Inspection
+local Constants = GearPolice.Constants
 
 function Inspection:IsCurrentScan(playerInfo, scanGeneration)
     if not playerInfo or not playerInfo.PlayerGuid then
@@ -21,19 +22,19 @@ function Inspection:IsStoredItemLink(slotValue)
         return false
     end
 
-    if slotValue == GearPolice.InventorySlotPending then
+    if slotValue == Constants.InventorySlotPending then
         return false
     end
 
-    if slotValue == GearPolice.InventorySlotEmpty then
+    if slotValue == Constants.InventorySlotEmpty then
         return false
     end
 
-    if slotValue == GearPolice.InventorySlotNoEvidence then
+    if slotValue == Constants.InventorySlotNoEvidence then
         return false
     end
 
-    if slotValue == GearPolice.InventorySlotReady then
+    if slotValue == Constants.InventorySlotReady then
         return false
     end
 
@@ -41,7 +42,7 @@ function Inspection:IsStoredItemLink(slotValue)
 end
 
 function Inspection:IsItemMetadataPending(checkResult)
-    return checkResult == GearPolice.ItemMetadataPending
+    return checkResult == Constants.ItemMetadataPending
 end
 
 function Inspection:MarkItemMetadataPending(playerInfo, slotName, itemLink, scanGeneration)

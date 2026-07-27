@@ -8,6 +8,13 @@
 
 - Automatic scan announcements and report-offer whispers now show how many times each type of gear issue was found.
 
+### Fixes
+
+- Automatic whispers now stay hidden across all chat windows when hidden in settings.
+- Group members whose names load late now start scanning reliably.
+- Identical equipped item links no longer show issues from the other equipment slot.
+- Automatic whisper coordination now better prevents repeated report offers.
+
 ## 1.5.0 - 2026-07-25
 
 ### Features

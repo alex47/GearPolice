@@ -11,6 +11,11 @@ local InventorySlotNames = {
     "Trinket0Slot", "Trinket1Slot"
 }
 
+local InventorySlotOrder = {}
+for index, slotName in ipairs(InventorySlotNames) do
+    InventorySlotOrder[slotName] = index
+end
+
 local InventorySnapshotEvidenceSlotNames = {
     "HeadSlot", "ShoulderSlot", "ChestSlot", "HandsSlot", "WaistSlot",
     "LegsSlot", "FeetSlot", "MainHandSlot"
@@ -37,6 +42,10 @@ local SlotLabels = {
 
 function Slots.GetInventorySlotNames()
     return InventorySlotNames
+end
+
+function Slots.GetSlotOrder(slotName)
+    return InventorySlotOrder[slotName]
 end
 
 function Slots.GetInventorySnapshotEvidenceSlotNames()

@@ -19,6 +19,7 @@ function RuntimeState.Initialize(addon)
     addon.currentScan = nil
     addon.scanQueueTimer = nil
     addon.delayedScanRetries = {}
+    addon.pendingRosterNameRetries = {}
     addon.activeTimers = {}
     addon.activePlayerTimers = {}
     addon.currentRoster = nil
@@ -34,6 +35,9 @@ function RuntimeState.ClearScheduledWorkForPlayer(addon, playerGuid)
     addon:CancelManagedTimersForPlayer(playerGuid)
     if addon.delayedScanRetries then
         addon.delayedScanRetries[playerGuid] = nil
+    end
+    if addon.pendingRosterNameRetries then
+        addon.pendingRosterNameRetries[playerGuid] = nil
     end
     addon:RemoveFromScanQueue(playerGuid)
     addon:ClearCurrentScanForPlayer(playerGuid)
@@ -62,6 +66,7 @@ function RuntimeState.StopAllScans(addon)
     addon.queuedScanReasons = {}
     addon.currentScan = nil
     addon.delayedScanRetries = {}
+    addon.pendingRosterNameRetries = {}
     addon.scanQueueTimer = nil
     addon:ResetRosterSnapshot()
 

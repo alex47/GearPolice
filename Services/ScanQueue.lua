@@ -3,6 +3,7 @@ local GearPolice = GearPolice
 GearPolice.ScanQueue = GearPolice.ScanQueue or {}
 
 local ScanQueue = GearPolice.ScanQueue
+local Constants = GearPolice.Constants
 local ScanReason = GearPolice.Constants.ScanReason
 local ScanStatus = GearPolice.Constants.ScanStatus
 
@@ -69,7 +70,7 @@ function ScanQueue.ScheduleProcessing(addon, delay)
     addon.scanQueueTimer = addon:ScheduleManagedTimer(function()
         addon.scanQueueTimer = nil
         addon:ProcessScanQueue()
-    end, delay or addon.scanInterval)
+    end, delay or Constants.ScanInterval)
 end
 
 function ScanQueue.Process(addon)
@@ -89,7 +90,7 @@ function ScanQueue.Process(addon)
     end
 
     if not playerGuid then
-        addon:ScheduleScanQueueProcessing(addon.scanQueueAvailabilityInterval)
+        addon:ScheduleScanQueueProcessing(Constants.ScanQueueAvailabilityInterval)
         return
     end
 

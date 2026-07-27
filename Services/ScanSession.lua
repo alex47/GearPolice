@@ -3,6 +3,7 @@ local GearPolice = GearPolice
 GearPolice.ScanSession = GearPolice.ScanSession or {}
 
 local ScanSession = GearPolice.ScanSession
+local Constants = GearPolice.Constants
 local ScanReason = GearPolice.Constants.ScanReason
 local ScanStatus = GearPolice.Constants.ScanStatus
 
@@ -253,7 +254,7 @@ function ScanSession.Finish(addon, playerGuid, scanGeneration, status, options)
     end
 
     addon.UI:UpdateUI()
-    addon:ScheduleScanQueueProcessing(addon.scanInterval)
+    addon:ScheduleScanQueueProcessing(Constants.ScanInterval)
 
     return true, playerInfo, currentScan
 end
@@ -320,7 +321,7 @@ function ScanSession.ScheduleInspectReadyTimeout(addon, playerGuid, scanGenerati
 
         addon.Debug:Message("INSPECT_READY timed out; retrying scan.")
         addon:RetryInspection(playerGuid, 1, scanGeneration)
-    end, addon.inspectReadyTimeout, playerGuid)
+    end, Constants.InspectReadyTimeout, playerGuid)
 end
 
 function ScanSession.RunChecks(addon, playerGuid, scanGeneration)
@@ -383,7 +384,7 @@ function ScanSession.RunChecks(addon, playerGuid, scanGeneration)
                 scanGeneration,
                 completedScan.reason,
                 ScanStatus.Partial,
-                60
+                Constants.PartialScanRetryDelay
             )
         end
     end, scanGeneration)
@@ -446,7 +447,7 @@ function ScanSession.StartInspection(addon, unitId, reason, scanGeneration)
 end
 
 function ScanSession.RetryInspection(addon, playerGuid, attempt, scanGeneration)
-    local maxAttempts = 5
+    local maxAttempts = Constants.InspectRetryMaxAttempts
     attempt = attempt or 1
 
     if not addon:IsCurrentScan(playerGuid, scanGeneration) then
@@ -501,7 +502,7 @@ function ScanSession.RetryInspection(addon, playerGuid, attempt, scanGeneration)
                 finishedPlayerInfo.ScanGeneration,
                 completedScan.reason,
                 ScanStatus.TemporaryFailed,
-                300
+                Constants.TemporaryFailedScanRetryDelay
             )
         end
         return
@@ -539,7 +540,7 @@ function ScanSession.RetryInspection(addon, playerGuid, attempt, scanGeneration)
         end
 
         addon:StartInspectionOfUnit(currentUnitId, addon.currentScan.reason, scanGeneration)
-    end, addon.scanInterval * attempt, playerGuid)
+    end, Constants.ScanInterval * attempt, playerGuid)
 end
 
 function ScanSession.OnInspectReady(addon, _eventName, playerGuid)

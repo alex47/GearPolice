@@ -27,8 +27,15 @@ Constants.ItemMetadataPending = "PENDING_METADATA"
 Constants.ScanInterval = 2
 Constants.ScanQueueAvailabilityInterval = 5
 Constants.InspectReadyTimeout = 8
+Constants.PlayerNameRetryDelay = 1
+Constants.InspectRetryMaxAttempts = 5
+Constants.PartialScanRetryDelay = 60
+Constants.TemporaryFailedScanRetryDelay = 300
+Constants.StaleScanAgeSeconds = 24 * 60 * 60
 Constants.AutomaticPlayerMessageCooldownSeconds = 12 * 60 * 60
 Constants.AutomaticMessageCombatDelaySeconds = 5
+Constants.OutgoingWhisperSuppressionExpirySeconds = 5 * 60
+Constants.ProcessedChatLineCacheLifetimeSeconds = 30
 
 Constants.InventorySlotRetryCount = 6
 Constants.InventorySlotRetryDelay = 2
@@ -37,7 +44,7 @@ Constants.InventorySnapshotEvidenceMinimum = 4
 
 Constants.ItemLevelThreshold = 450
 
--- Compatibility aliases. Later refactor phases can move callers to GearPolice.Constants.
+-- Compatibility aliases for legacy and external callers.
 GearPolice.InventorySlotReady = Constants.InventorySlotReady
 GearPolice.InventorySlotPending = Constants.InventorySlotPending
 GearPolice.InventorySlotNoEvidence = Constants.InventorySlotNoEvidence

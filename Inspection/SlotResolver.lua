@@ -1,9 +1,10 @@
 local GearPolice = GearPolice
 
 local Inspection = GearPolice.Inspection
+local Constants = GearPolice.Constants
 
 local function InspectionRetryDelay()
-    return GearPolice.InventorySlotRetryDelay
+    return Constants.InventorySlotRetryDelay
 end
 
 function Inspection:SetEquippedSlotValue(playerInfo, slotName, slotValue, scanGeneration)
@@ -14,17 +15,17 @@ function Inspection:SetEquippedSlotValue(playerInfo, slotName, slotValue, scanGe
     playerInfo.EquippedItems = playerInfo.EquippedItems or {}
     local currentValue = playerInfo.EquippedItems[slotName]
 
-    if slotValue == GearPolice.InventorySlotPending then
-        if not currentValue or currentValue == GearPolice.InventorySlotPending then
+    if slotValue == Constants.InventorySlotPending then
+        if not currentValue or currentValue == Constants.InventorySlotPending then
             playerInfo.EquippedItems[slotName] = slotValue
         end
         return true
     end
 
-    if slotValue == GearPolice.InventorySlotEmpty then
+    if slotValue == Constants.InventorySlotEmpty then
         if not currentValue
-            or currentValue == GearPolice.InventorySlotPending
-            or currentValue == GearPolice.InventorySlotEmpty then
+            or currentValue == Constants.InventorySlotPending
+            or currentValue == Constants.InventorySlotEmpty then
             playerInfo.EquippedItems[slotName] = slotValue
         end
         return true
@@ -54,12 +55,12 @@ function Inspection:CanConfirmEmptyInventorySlot(playerInfo, unitId, slotName, n
         return true
     end
 
-    if (noEvidenceCount or 0) < GearPolice.InventorySlotEmptyConfirmations then
+    if (noEvidenceCount or 0) < Constants.InventorySlotEmptyConfirmations then
         return false
     end
 
     local capturedEvidenceCount = self:GetCapturedInventoryEvidenceCount(playerInfo, slotName)
-    return capturedEvidenceCount >= GearPolice.InventorySnapshotEvidenceMinimum
+    return capturedEvidenceCount >= Constants.InventorySnapshotEvidenceMinimum
 end
 
 function Inspection:ResolveInventorySlotWithRetry(
@@ -88,7 +89,7 @@ function Inspection:ResolveInventorySlotWithRetry(
     end
 
     if not retryCount then
-        retryCount = GearPolice.InventorySlotRetryCount
+        retryCount = Constants.InventorySlotRetryCount
     end
 
     if not noEvidenceCount then
@@ -100,10 +101,10 @@ function Inspection:ResolveInventorySlotWithRetry(
     if unitId then
         slotState, itemLink, slotID = GearPolice.Inventory:GetInventorySlotState(unitId, slotName)
     else
-        slotState = GearPolice.InventorySlotPending
+        slotState = Constants.InventorySlotPending
     end
 
-    if slotState == GearPolice.InventorySlotReady then
+    if slotState == Constants.InventorySlotReady then
         if not self:SetEquippedSlotValue(playerInfo, slotName, itemLink, scanGeneration) then
             return
         end
@@ -111,18 +112,18 @@ function Inspection:ResolveInventorySlotWithRetry(
         return
     end
 
-    if slotState == GearPolice.InventorySlotNoEvidence then
+    if slotState == Constants.InventorySlotNoEvidence then
         noEvidenceCount = noEvidenceCount + 1
         if self:CanConfirmEmptyInventorySlot(playerInfo, unitId, slotName, noEvidenceCount) then
             if not self:SetEquippedSlotValue(
                 playerInfo,
                 slotName,
-                GearPolice.InventorySlotEmpty,
+                Constants.InventorySlotEmpty,
                 scanGeneration
             ) then
                 return
             end
-            onResolved(slotName, GearPolice.InventorySlotEmpty, slotID)
+            onResolved(slotName, Constants.InventorySlotEmpty, slotID)
             return
         end
     else
@@ -133,13 +134,13 @@ function Inspection:ResolveInventorySlotWithRetry(
         if not self:SetEquippedSlotValue(
             playerInfo,
             slotName,
-            GearPolice.InventorySlotPending,
+            Constants.InventorySlotPending,
             scanGeneration
         ) then
             return
         end
         GearPolice.Debug:Message("Unable to confirm " .. slotName .. " for " .. playerInfo.PlayerName)
-        onResolved(slotName, GearPolice.InventorySlotPending, slotID)
+        onResolved(slotName, Constants.InventorySlotPending, slotID)
         return
     end
 

@@ -5,6 +5,7 @@ GearPolice.Helper = GearPolice.Helper or {}
 
 local Inventory = GearPolice.Inventory
 local Helper = GearPolice.Helper
+local Constants = GearPolice.Constants
 
 function Inventory.GetInventorySlotNames()
     return GearPolice.Slots.GetInventorySlotNames()
@@ -36,17 +37,17 @@ end
 
 function Inventory:GetInventorySlotState(unitId, slotName)
     if not unitId or not slotName or not UnitExists(unitId) then
-        return GearPolice.InventorySlotPending
+        return Constants.InventorySlotPending
     end
 
     local slotID = GetInventorySlotInfo(slotName)
     if not slotID then
-        return GearPolice.InventorySlotNoEvidence
+        return Constants.InventorySlotNoEvidence
     end
 
     local itemLink = GetInventoryItemLink(unitId, slotID)
     if itemLink then
-        return GearPolice.InventorySlotReady, itemLink, slotID
+        return Constants.InventorySlotReady, itemLink, slotID
     end
 
     local itemID
@@ -58,14 +59,14 @@ function Inventory:GetInventorySlotState(unitId, slotName)
     local hasTooltipItem = self:InventorySlotTooltipHasItem(unitId, slotID)
 
     if itemID or texture or hasTooltipItem then
-        return GearPolice.InventorySlotPending, nil, slotID, itemID, texture, hasTooltipItem
+        return Constants.InventorySlotPending, nil, slotID, itemID, texture, hasTooltipItem
     end
 
-    return GearPolice.InventorySlotNoEvidence, nil, slotID
+    return Constants.InventorySlotNoEvidence, nil, slotID
 end
 
 function Inventory:IsInventorySlotEvidenceState(slotState)
-    return slotState == GearPolice.InventorySlotReady or slotState == GearPolice.InventorySlotPending
+    return slotState == Constants.InventorySlotReady or slotState == Constants.InventorySlotPending
 end
 
 function Inventory:GetInventorySnapshotEvidenceCount(unitId, excludedSlotName)
@@ -87,11 +88,12 @@ function Inventory:GetInventorySnapshotEvidenceCount(unitId, excludedSlotName)
 end
 
 function Inventory:CanConfirmEmptyInventorySlot(unitId, slotName, noEvidenceCount)
-    if (noEvidenceCount or 0) < GearPolice.InventorySlotEmptyConfirmations then
+    if (noEvidenceCount or 0) < Constants.InventorySlotEmptyConfirmations then
         return false
     end
 
-    return self:GetInventorySnapshotEvidenceCount(unitId, slotName) >= GearPolice.InventorySnapshotEvidenceMinimum
+    return self:GetInventorySnapshotEvidenceCount(unitId, slotName)
+        >= Constants.InventorySnapshotEvidenceMinimum
 end
 
 function Helper.GetInventorySlotNames()

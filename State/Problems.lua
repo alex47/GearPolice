@@ -16,6 +16,59 @@ local function BuildLegacySignature(itemLink, message)
     return itemLink .. "\001" .. message
 end
 
+local function BuildOrderedProblems(playerInfo)
+    local orderedProblems = {}
+
+    for originalIndex, problem in ipairs(Problems.GetRecords(playerInfo)) do
+        if IsValidProblem(problem) then
+            table.insert(orderedProblems, {
+                problem = problem,
+                originalIndex = originalIndex,
+                slotOrder = GearPolice.Slots.GetSlotOrder(problem.slotName),
+                ruleOrder = GearPolice.Rules.GetIssueSummaryOrder(problem.ruleId),
+            })
+        end
+    end
+
+    table.sort(orderedProblems, function(left, right)
+        local leftHasKnownSlot = left.slotOrder ~= nil
+        local rightHasKnownSlot = right.slotOrder ~= nil
+        if leftHasKnownSlot ~= rightHasKnownSlot then
+            return leftHasKnownSlot
+        end
+
+        if leftHasKnownSlot and left.slotOrder ~= right.slotOrder then
+            return left.slotOrder < right.slotOrder
+        end
+
+        local leftProblem = left.problem
+        local rightProblem = right.problem
+        if leftProblem.itemLink ~= rightProblem.itemLink then
+            return leftProblem.itemLink < rightProblem.itemLink
+        end
+
+        local leftRuleOrder = left.ruleOrder or math.huge
+        local rightRuleOrder = right.ruleOrder or math.huge
+        if leftRuleOrder ~= rightRuleOrder then
+            return leftRuleOrder < rightRuleOrder
+        end
+
+        local leftMessage = string.lower(leftProblem.message)
+        local rightMessage = string.lower(rightProblem.message)
+        if leftMessage ~= rightMessage then
+            return leftMessage < rightMessage
+        end
+
+        if leftProblem.message ~= rightProblem.message then
+            return leftProblem.message < rightProblem.message
+        end
+
+        return left.originalIndex < right.originalIndex
+    end)
+
+    return orderedProblems
+end
+
 function Problems.Add(playerInfo, problem)
     if type(playerInfo) ~= "table" or not IsValidProblem(problem) then
         return false
@@ -105,42 +158,46 @@ function Problems.BuildIndex(playerInfo)
         orderedRecords = {},
         bySlot = {},
         byItemLink = {},
+        unownedByItemLink = {},
         reportableItems = {},
         totalProblemCount = 0,
         hasProblems = false,
     }
     local reportableItemsByKey = {}
 
-    for _, problem in ipairs(Problems.GetRecords(playerInfo)) do
-        if IsValidProblem(problem) then
-            table.insert(index.orderedRecords, problem)
-            index.totalProblemCount = index.totalProblemCount + 1
-            index.hasProblems = true
+    for _, orderedProblem in ipairs(BuildOrderedProblems(playerInfo)) do
+        local problem = orderedProblem.problem
+        table.insert(index.orderedRecords, problem)
+        index.totalProblemCount = index.totalProblemCount + 1
+        index.hasProblems = true
 
-            if problem.slotName then
-                index.bySlot[problem.slotName] = index.bySlot[problem.slotName] or {}
-                table.insert(index.bySlot[problem.slotName], problem)
-            end
-
-            index.byItemLink[problem.itemLink] = index.byItemLink[problem.itemLink] or {}
-            table.insert(index.byItemLink[problem.itemLink], problem)
-
-            local key = tostring(problem.slotName or "") .. "\001" .. problem.itemLink
-            local reportableItem = reportableItemsByKey[key]
-            if not reportableItem then
-                reportableItem = {
-                    itemLink = problem.itemLink,
-                    slotName = problem.slotName,
-                    problems = {},
-                    problemRecords = {},
-                }
-                reportableItemsByKey[key] = reportableItem
-                table.insert(index.reportableItems, reportableItem)
-            end
-
-            table.insert(reportableItem.problems, problem.message)
-            table.insert(reportableItem.problemRecords, problem)
+        if problem.slotName then
+            index.bySlot[problem.slotName] = index.bySlot[problem.slotName] or {}
+            table.insert(index.bySlot[problem.slotName], problem)
+        else
+            index.unownedByItemLink[problem.itemLink] =
+                index.unownedByItemLink[problem.itemLink] or {}
+            table.insert(index.unownedByItemLink[problem.itemLink], problem)
         end
+
+        index.byItemLink[problem.itemLink] = index.byItemLink[problem.itemLink] or {}
+        table.insert(index.byItemLink[problem.itemLink], problem)
+
+        local key = tostring(problem.slotName or "") .. "\001" .. problem.itemLink
+        local reportableItem = reportableItemsByKey[key]
+        if not reportableItem then
+            reportableItem = {
+                itemLink = problem.itemLink,
+                slotName = problem.slotName,
+                problems = {},
+                problemRecords = {},
+            }
+            reportableItemsByKey[key] = reportableItem
+            table.insert(index.reportableItems, reportableItem)
+        end
+
+        table.insert(reportableItem.problems, problem.message)
+        table.insert(reportableItem.problemRecords, problem)
     end
 
     return index

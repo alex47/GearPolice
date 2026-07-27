@@ -40,6 +40,7 @@ read_globals = {
     "UnitIsGroupAssistant",
     "UnitIsGroupLeader",
     "UnitIsPlayer",
+    "UnitFullName",
     "UnitName",
 
     -- WoW item and inventory APIs

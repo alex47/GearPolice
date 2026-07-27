@@ -3,9 +3,12 @@ local GearPolice = GearPolice
 GearPolice.ReportOffers = GearPolice.ReportOffers or {}
 
 local ReportOffers = GearPolice.ReportOffers
+local Constants = GearPolice.Constants
 local ScanStatus = GearPolice.Constants.ScanStatus
 local ChatFiltersRegistered = false
 local SuppressedOutgoingMessages = {}
+local ProcessedOutgoingLines = {}
+local PendingFallbackDecisions = {}
 
 local ResponseMessages = {
     SuccessfulClean = "No issues were found in your equipped gear.",
@@ -54,23 +57,133 @@ local function IncomingWhisperFilter(_frame, _eventName, message)
     return ShouldHideReportOfferWhispers() and ReportOffers:IsWhisperRequest(message)
 end
 
-local function OutgoingWhisperFilter(_frame, _eventName, message)
-    if type(message) ~= "string" then
+local function GetCurrentTime()
+    return type(time) == "function" and time() or 0
+end
+
+local function NormalizeRecipient(recipient)
+    if type(recipient) == "string"
+        and not string.find(recipient, "-", 1, true)
+        and type(GetRealmName) == "function" then
+        recipient = GearPolice.Players.BuildFullName(recipient, GetRealmName()) or recipient
+    end
+
+    return GearPolice.Players.NormalizeFullName(recipient)
+end
+
+local function BuildSuppressionKey(recipient, message)
+    local normalizedRecipient = NormalizeRecipient(recipient)
+    if not normalizedRecipient or type(message) ~= "string" or message == "" then
+        return nil
+    end
+
+    return normalizedRecipient .. "\001" .. message
+end
+
+local function ConsumeSuppression(key)
+    local entry = key and SuppressedOutgoingMessages[key] or nil
+    if not entry or type(entry.count) ~= "number" or entry.count <= 0 then
         return false
     end
 
-    local suppressCount = SuppressedOutgoingMessages[message]
-    if type(suppressCount) ~= "number" or suppressCount <= 0 then
+    entry.count = entry.count - 1
+    if entry.count <= 0 then
+        SuppressedOutgoingMessages[key] = nil
+    end
+
+    return true
+end
+
+local function PruneSuppressionState(now)
+    for key, entry in pairs(SuppressedOutgoingMessages) do
+        if type(entry) ~= "table"
+            or type(entry.registeredAt) ~= "number"
+            or now - entry.registeredAt
+                >= Constants.OutgoingWhisperSuppressionExpirySeconds then
+            SuppressedOutgoingMessages[key] = nil
+        end
+    end
+
+    for lineId, decision in pairs(ProcessedOutgoingLines) do
+        if type(decision) ~= "table"
+            or type(decision.processedAt) ~= "number"
+            or now - decision.processedAt
+                >= Constants.ProcessedChatLineCacheLifetimeSeconds then
+            ProcessedOutgoingLines[lineId] = nil
+        end
+    end
+
+    for key, decision in pairs(PendingFallbackDecisions) do
+        if type(decision) ~= "table"
+            or type(decision.registeredAt) ~= "number"
+            or now - decision.registeredAt >= 1 then
+            PendingFallbackDecisions[key] = nil
+            ConsumeSuppression(key)
+        end
+    end
+end
+
+local function FinishFallbackDecision(key, decision)
+    if PendingFallbackDecisions[key] ~= decision then
+        return
+    end
+
+    PendingFallbackDecisions[key] = nil
+    ConsumeSuppression(key)
+end
+
+local function OutgoingWhisperFilter(_frame, _eventName, message, recipient, ...)
+    local now = GetCurrentTime()
+    PruneSuppressionState(now)
+
+    local key = BuildSuppressionKey(recipient, message)
+    if not key then
         return false
     end
 
-    if suppressCount == 1 then
-        SuppressedOutgoingMessages[message] = nil
+    local lineId = select(9, ...)
+    if lineId ~= nil then
+        local processedDecision = ProcessedOutgoingLines[lineId]
+        if processedDecision then
+            return processedDecision.shouldHide
+        end
+
+        if not ConsumeSuppression(key) then
+            return false
+        end
+
+        local shouldHide = ShouldHideReportOfferWhispers()
+        ProcessedOutgoingLines[lineId] = {
+            shouldHide = shouldHide,
+            processedAt = now,
+        }
+        return shouldHide
+    end
+
+    local fallbackDecision = PendingFallbackDecisions[key]
+    if fallbackDecision then
+        return fallbackDecision.shouldHide
+    end
+
+    if not SuppressedOutgoingMessages[key] then
+        return false
+    end
+
+    fallbackDecision = {
+        shouldHide = ShouldHideReportOfferWhispers(),
+        registeredAt = now,
+    }
+    PendingFallbackDecisions[key] = fallbackDecision
+
+    if type(GearPolice.ScheduleTimer) == "function" then
+        GearPolice:ScheduleTimer(function()
+            FinishFallbackDecision(key, fallbackDecision)
+        end, 0.01)
     else
-        SuppressedOutgoingMessages[message] = suppressCount - 1
+        FinishFallbackDecision(key, fallbackDecision)
     end
 
-    return ShouldHideReportOfferWhispers()
+    return fallbackDecision.shouldHide
 end
 
 function ReportOffers:RegisterChatFilters()
@@ -83,12 +196,30 @@ function ReportOffers:RegisterChatFilters()
     ChatFiltersRegistered = incomingRegistered or outgoingRegistered
 end
 
-function ReportOffers:RegisterOutgoingSuppression(message)
-    if not ShouldHideReportOfferWhispers() or type(message) ~= "string" or message == "" then
+function ReportOffers:RegisterOutgoingSuppression(recipient, message)
+    if not ShouldHideReportOfferWhispers() then
         return
     end
 
-    SuppressedOutgoingMessages[message] = (SuppressedOutgoingMessages[message] or 0) + 1
+    local now = GetCurrentTime()
+    PruneSuppressionState(now)
+
+    local key = BuildSuppressionKey(recipient, message)
+    if not key then
+        return
+    end
+
+    local entry = SuppressedOutgoingMessages[key]
+    if not entry then
+        entry = {
+            count = 0,
+            registeredAt = now,
+        }
+        SuppressedOutgoingMessages[key] = entry
+    end
+
+    entry.count = entry.count + 1
+    entry.registeredAt = now
 end
 
 function ReportOffers:IsWhisperRequest(message)
@@ -209,6 +340,12 @@ local function SendOffer(playerInfo)
     return true
 end
 
+local function AfterSend(playerInfo)
+    if GearPolice.AnnounceReportOfferSent then
+        GearPolice:AnnounceReportOfferSent(playerInfo.PlayerGuid)
+    end
+end
+
 ReportOffers.Flow = GearPolice.AutomaticMessageFlow.Create({
     historyKey = "ReportOfferHistory",
     timestampField = "lastOfferedAt",
@@ -218,6 +355,7 @@ ReportOffers.Flow = GearPolice.AutomaticMessageFlow.Create({
         return GearPolice:IsLocalReportOfferCoordinator()
     end,
     send = SendOffer,
+    afterSend = AfterSend,
 })
 
 function GearPolice:InitializeReportOffers()
@@ -245,8 +383,12 @@ function GearPolice:ClearPendingReportOffers()
     return ReportOffers.Flow:ClearAllPending()
 end
 
-function GearPolice:RegisterReportOfferOutgoingWhisper(message)
-    return ReportOffers:RegisterOutgoingSuppression(message)
+function GearPolice:RecordReportOffer(playerGuid)
+    return ReportOffers.Flow:Record(playerGuid)
+end
+
+function GearPolice:RegisterReportOfferOutgoingWhisper(recipient, message)
+    return ReportOffers:RegisterOutgoingSuppression(recipient, message)
 end
 
 function GearPolice:OnReportOfferWhisperReceived(_eventName, message, senderName, ...)

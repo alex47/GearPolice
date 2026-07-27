@@ -5,10 +5,22 @@ GearPolice.Players = GearPolice.Players or {}
 local Players = GearPolice.Players
 
 function Players.IsKnownName(name)
-    return type(name) == "string"
-        and name ~= ""
-        and name ~= "Unknown"
-        and name ~= "Unknown Player"
+    if type(name) ~= "string"
+        or name == ""
+        or name == "Unknown"
+        or name == "Unknown Player" then
+        return false
+    end
+
+    if type(_G.UNKNOWNOBJECT) == "string" and name == _G.UNKNOWNOBJECT then
+        return false
+    end
+
+    if type(_G.UNKNOWN) == "string" and name == _G.UNKNOWN then
+        return false
+    end
+
+    return true
 end
 
 function Players.IsPlayerGuid(value)
@@ -32,8 +44,15 @@ function Players.GetUnitFullName(unitId)
         return nil
     end
 
-    local name, realm = UnitName(unitId)
-    if unitId == "player" and (not realm or realm == "") and type(GetRealmName) == "function" then
+    local name, realm
+    if type(UnitFullName) == "function" then
+        name, realm = UnitFullName(unitId)
+    end
+    if not Players.IsKnownName(name) then
+        name, realm = UnitName(unitId)
+    end
+
+    if (not realm or realm == "") and type(GetRealmName) == "function" then
         realm = GetRealmName()
     end
 

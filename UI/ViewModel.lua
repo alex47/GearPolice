@@ -5,6 +5,7 @@ local UI = GearPolice.UI
 UI.ViewModel = UI.ViewModel or {}
 
 local ViewModel = UI.ViewModel
+local Constants = GearPolice.Constants
 local ScanStatus = GearPolice.Constants.ScanStatus
 local PlayerListFilter = GearPolice.Settings.PlayerListFilter
 
@@ -112,7 +113,7 @@ end
 function ViewModel.BuildSlot(playerInfo, slotName, problemLookup)
     local slotValue = playerInfo.EquippedItems and playerInfo.EquippedItems[slotName]
 
-    if slotValue == GearPolice.InventorySlotEmpty then
+    if slotValue == Constants.InventorySlotEmpty then
         return {
             slotName = slotName,
             slotLabel = GetSlotLabel(slotName),
@@ -120,9 +121,12 @@ function ViewModel.BuildSlot(playerInfo, slotName, problemLookup)
         }
     end
 
-    if slotValue and slotValue ~= GearPolice.InventorySlotPending then
+    if slotValue and slotValue ~= Constants.InventorySlotPending then
         local _, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(slotValue)
-        local problems = problemLookup.bySlot[slotName] or problemLookup.byItemLink[slotValue] or {}
+        local problems = problemLookup.bySlot[slotName]
+        if not problems or #problems == 0 then
+            problems = problemLookup.unownedByItemLink[slotValue] or {}
+        end
 
         return {
             slotName = slotName,

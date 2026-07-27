@@ -3,6 +3,8 @@ local GearPolice = GearPolice
 GearPolice.Roster = GearPolice.Roster or {}
 
 local Roster = GearPolice.Roster
+local Constants = GearPolice.Constants
+local Players = GearPolice.Players
 local ScanReason = GearPolice.Constants.ScanReason
 local ScanStatus = GearPolice.Constants.ScanStatus
 
@@ -184,34 +186,68 @@ function Roster.UpdateGroupMembers(addon)
     addon:ProcessScanQueue()
 end
 
+local function ScheduleNameRetry(addon, playerGuid)
+    addon.pendingRosterNameRetries = addon.pendingRosterNameRetries or {}
+    if addon.pendingRosterNameRetries[playerGuid] then
+        return false
+    end
+
+    local retryRecord = {}
+    addon.pendingRosterNameRetries[playerGuid] = retryRecord
+
+    retryRecord.timerHandle = addon:ScheduleManagedTimer(function()
+        if addon.pendingRosterNameRetries[playerGuid] ~= retryRecord then
+            return
+        end
+
+        addon.pendingRosterNameRetries[playerGuid] = nil
+
+        local roster = addon.currentRoster
+        local currentUnitId = roster and roster.unitIdByGuid
+            and roster.unitIdByGuid[playerGuid]
+        if not currentUnitId or UnitGUID(currentUnitId) ~= playerGuid then
+            return
+        end
+
+        local processed = Roster.ProcessGroupMember(
+            addon,
+            currentUnitId,
+            roster.sortIndexByGuid[playerGuid],
+            roster.groupType
+        )
+        if processed then
+            addon.UI:UpdateUI()
+            addon:ProcessScanQueue()
+        end
+    end, Constants.PlayerNameRetryDelay, playerGuid)
+
+    if not retryRecord.timerHandle
+        and addon.pendingRosterNameRetries[playerGuid] == retryRecord then
+        addon.pendingRosterNameRetries[playerGuid] = nil
+        return false
+    end
+
+    return true
+end
+
 function Roster.ProcessGroupMember(addon, unitId, sortIndex, groupType)
-    if not UnitExists(unitId) then return end
+    if not UnitExists(unitId) then return false end
 
     local playerGuid = UnitGUID(unitId)
-    if not playerGuid then return end
+    if not playerGuid then return false end
 
     local playerName, playerRealm = UnitName(unitId)
-    local playerFullName = GearPolice.Players.BuildFullName(playerName, playerRealm)
+    local playerFullName = Players.GetUnitFullName(unitId)
+        or Players.BuildFullName(playerName, playerRealm)
     local playerInfo = addon.PlayerStore:Get(playerGuid)
 
     if playerInfo then
         Roster.ApplyMetadata(playerInfo, playerGuid, unitId, sortIndex, groupType)
     end
 
-    if not GearPolice.Players.IsKnownName(playerName) then
-        addon:ScheduleManagedTimer(function()
-            local roster = addon.currentRoster
-            local currentUnitId = roster and roster.unitIdByGuid and roster.unitIdByGuid[playerGuid]
-            if currentUnitId and UnitGUID(currentUnitId) == playerGuid then
-                Roster.ProcessGroupMember(
-                    addon,
-                    currentUnitId,
-                    roster.sortIndexByGuid[playerGuid],
-                    roster.groupType
-                )
-            end
-        end, 1, playerGuid)
-        return
+    if not Players.IsKnownName(playerName) then
+        ScheduleNameRetry(addon, playerGuid)
+        return false
     end
 
     local isNewPlayer = false
@@ -221,7 +257,7 @@ function Roster.ProcessGroupMember(addon, unitId, sortIndex, groupType)
     end
 
     if not playerInfo then
-        return
+        return false
     end
 
     playerInfo.PlayerName = playerName
@@ -242,9 +278,11 @@ function Roster.ProcessGroupMember(addon, unitId, sortIndex, groupType)
         end
     elseif not playerInfo.LastScanTime or playerInfo.LastScanTime <= 0 then
         addon:AddToScanQueue(playerGuid, true, ScanReason.Group)
-    elseif (time() - playerInfo.LastScanTime) > 86400 then
+    elseif (time() - playerInfo.LastScanTime) > Constants.StaleScanAgeSeconds then
         addon:AddToScanQueue(playerGuid, true, ScanReason.Group)
     end
+
+    return true
 end
 
 function GearPolice:ResetRosterSnapshot()

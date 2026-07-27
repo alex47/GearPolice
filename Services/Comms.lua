@@ -6,6 +6,7 @@ local CommPrefix = GearPolice.AddonName
 local ProtocolVersion = "1"
 local StateMessageType = "STATE"
 local PublicAnnouncementMessageType = "PUBLIC_ANNOUNCED"
+local ReportOfferMessageType = "REPORT_OFFERED"
 local HeartbeatInterval = 30
 local PeerExpirySeconds = 90
 local RosterAnnounceMinDelay = 0.5
@@ -355,7 +356,7 @@ local function SendState(addon, priority)
     return ok == true
 end
 
-local function SendPublicAnnouncementState(addon, playerGuid)
+local function SendAutomaticMessageState(addon, messageType, playerGuid)
     local distribution = GetCommDistribution()
     local localGuid = UnitGUID("player")
     if not distribution
@@ -366,7 +367,7 @@ local function SendPublicAnnouncementState(addon, playerGuid)
     end
 
     local message = table.concat({
-        PublicAnnouncementMessageType,
+        messageType,
         ProtocolVersion,
         localGuid,
         playerGuid,
@@ -538,9 +539,23 @@ local function HandleStateMessage(addon, message, sender, senderGuid, senderFull
     UpdateCoordinatorDebug(addon)
 end
 
-local function HandlePublicAnnouncementMessage(addon, message, senderGuid)
+local AutomaticMessageConfigs = {
+    [PublicAnnouncementMessageType] = {
+        peerEligibilityField = "publicAnnouncementsEligible",
+        getCoordinatorGuid = GetPublicAnnouncementCoordinatorGuid,
+        recordMethod = "RecordPublicScanAnnouncement",
+    },
+    [ReportOfferMessageType] = {
+        peerEligibilityField = "reportOffersEligible",
+        getCoordinatorGuid = GetReportOfferCoordinatorGuid,
+        recordMethod = "RecordReportOffer",
+    },
+}
+
+local function HandleAutomaticMessage(addon, message, senderGuid, config)
     local messageType, protocolVersion, announcingGuid, playerGuid = strsplit("\t", message)
-    if messageType ~= PublicAnnouncementMessageType
+    if not config
+        or AutomaticMessageConfigs[messageType] ~= config
         or protocolVersion ~= ProtocolVersion
         or not GearPolice.Players.IsPlayerGuid(announcingGuid)
         or not GearPolice.Players.IsPlayerGuid(playerGuid)
@@ -551,13 +566,14 @@ local function HandlePublicAnnouncementMessage(addon, message, senderGuid)
 
     local peer = addon.commsPeers and addon.commsPeers[announcingGuid]
     if not peer
-        or peer.publicAnnouncementsEligible ~= true
-        or GetPublicAnnouncementCoordinatorGuid(addon) ~= announcingGuid then
+        or peer[config.peerEligibilityField] ~= true
+        or config.getCoordinatorGuid(addon) ~= announcingGuid then
         return
     end
 
-    if addon.RecordPublicScanAnnouncement then
-        addon:RecordPublicScanAnnouncement(playerGuid)
+    local recordMethod = addon[config.recordMethod]
+    if type(recordMethod) == "function" then
+        recordMethod(addon, playerGuid)
     end
 end
 
@@ -578,8 +594,13 @@ local function HandleMessage(addon, prefix, message, distribution, sender)
     local messageType = strsplit("\t", message)
     if messageType == StateMessageType then
         HandleStateMessage(addon, message, sender, senderGuid, senderFullName)
-    elseif messageType == PublicAnnouncementMessageType then
-        HandlePublicAnnouncementMessage(addon, message, senderGuid)
+    elseif AutomaticMessageConfigs[messageType] then
+        HandleAutomaticMessage(
+            addon,
+            message,
+            senderGuid,
+            AutomaticMessageConfigs[messageType]
+        )
     end
 end
 
@@ -658,7 +679,11 @@ function GearPolice:IsLocalPublicAnnouncementCoordinator()
 end
 
 function GearPolice:AnnouncePublicScanSummarySent(playerGuid)
-    return SendPublicAnnouncementState(self, playerGuid)
+    return SendAutomaticMessageState(self, PublicAnnouncementMessageType, playerGuid)
+end
+
+function GearPolice:AnnounceReportOfferSent(playerGuid)
+    return SendAutomaticMessageState(self, ReportOfferMessageType, playerGuid)
 end
 
 function GearPolice:OnGearPoliceCommReceived(prefix, message, distribution, sender)

@@ -1,6 +1,7 @@
 local GearPolice = GearPolice
 
 local Inspection = GearPolice.Inspection
+local Constants = GearPolice.Constants
 
 local function GetUpgradeScanTooltip()
     if not Inspection.upgradeScanTooltip then
@@ -71,7 +72,7 @@ function Inspection:CountSocketSlots(itemLink)
 
     if not itemStats then
         if not self:IsItemInfoAvailable(itemLink) then
-            return GearPolice.ItemMetadataPending
+            return Constants.ItemMetadataPending
         end
 
         return 0
@@ -124,7 +125,7 @@ function Inspection:IsItemMissingGems(itemLink)
     local socketSlotCount = self:CountSocketSlots(itemLink)
 
     if self:IsItemMetadataPending(socketSlotCount) then
-        return GearPolice.ItemMetadataPending
+        return Constants.ItemMetadataPending
     end
 
     if socketSlotCount == 0 then
@@ -132,7 +133,7 @@ function Inspection:IsItemMissingGems(itemLink)
     end
 
     if socketSlotCount > 4 then
-        return GearPolice.ItemMetadataPending
+        return Constants.ItemMetadataPending
     end
 
     local socketedGemCount = self:CountSocketedGemIds(itemLink, socketSlotCount)
@@ -157,7 +158,7 @@ function Inspection:IsItemBelowItemLevel(itemLink)
     local itemLevel, _, _ = GetDetailedItemLevelInfo(itemLink)
 
     if not itemLevel then
-        return GearPolice.ItemMetadataPending
+        return Constants.ItemMetadataPending
     end
 
     return itemLevel < GearPolice.Settings:GetItemLevelThreshold()
@@ -168,7 +169,7 @@ function Inspection:IsWaistMissingExtraGemEnchant(itemLink)
 
     local base = self:CountSocketSlots(itemLink)
     if self:IsItemMetadataPending(base) then
-        return GearPolice.ItemMetadataPending
+        return Constants.ItemMetadataPending
     end
 
     if base == 0 then return false end
@@ -182,7 +183,7 @@ end
 
 function Inspection:GetInventorySlotUpgradeLevel(unitId, slotID)
     if not unitId or not slotID or not UnitExists(unitId) then
-        return nil, nil, GearPolice.ItemMetadataPending
+        return nil, nil, Constants.ItemMetadataPending
     end
 
     local tooltip = GetUpgradeScanTooltip()
@@ -197,7 +198,7 @@ function Inspection:GetInventorySlotUpgradeLevel(unitId, slotID)
     tooltip:Hide()
 
     if not hasItem or not tooltipItemLink or lineCount == 0 then
-        return nil, nil, GearPolice.ItemMetadataPending
+        return nil, nil, Constants.ItemMetadataPending
     end
 
     if currentUpgrade and maximumUpgrade then
@@ -205,7 +206,7 @@ function Inspection:GetInventorySlotUpgradeLevel(unitId, slotID)
     end
 
     if sawUpgradeText then
-        return nil, nil, GearPolice.ItemMetadataPending
+        return nil, nil, Constants.ItemMetadataPending
     end
 
     return nil, nil, nil
@@ -218,7 +219,7 @@ function Inspection:GetMissingUpgradeResult(itemLink, unitId, slotID)
 
     local currentUpgrade, maximumUpgrade, pending = self:GetInventorySlotUpgradeLevel(unitId, slotID)
     if self:IsItemMetadataPending(pending) then
-        return GearPolice.ItemMetadataPending
+        return Constants.ItemMetadataPending
     end
 
     if not currentUpgrade or not maximumUpgrade then

@@ -3,6 +3,7 @@ local GearPolice = GearPolice
 GearPolice.PlayerStore = GearPolice.PlayerStore or {}
 
 local PlayerStore = GearPolice.PlayerStore
+local Constants = GearPolice.Constants
 local ScanStatus = GearPolice.Constants.ScanStatus
 
 local function InitializeScanFields(playerInfo, scanGeneration)
@@ -120,7 +121,7 @@ function PlayerStore:HasPendingEquippedItems(playerInfo)
 
     for _, slotName in ipairs(GearPolice.Slots.GetInventorySlotNames()) do
         local slotValue = playerInfo.EquippedItems[slotName]
-        if not slotValue or slotValue == GearPolice.InventorySlotPending then
+        if not slotValue or slotValue == Constants.InventorySlotPending then
             return true
         end
     end

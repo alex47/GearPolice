@@ -1,10 +1,11 @@
 local GearPolice = GearPolice
 
 local Inspection = GearPolice.Inspection
+local Constants = GearPolice.Constants
 local EnchanterRingEnchantRuleId = GearPolice.Rules.EnchanterRingEnchantRuleId
 
 local function IsPendingSlotValue(slotValue)
-    return not slotValue or slotValue == GearPolice.InventorySlotPending
+    return not slotValue or slotValue == Constants.InventorySlotPending
 end
 
 local function IsEnchantedItemLink(itemLink)

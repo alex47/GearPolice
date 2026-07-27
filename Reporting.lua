@@ -42,19 +42,19 @@ local function BuildFallbackItemReference(item)
     return itemName
 end
 
-local function RegisterOutgoingWhisperSuppression(message)
+local function RegisterOutgoingWhisperSuppression(recipientName, message)
     if not GearPolice.RegisterReportOfferOutgoingWhisper then
         return
     end
 
     if GearPolice.ChatThrottle and GearPolice.ChatThrottle.GetMessageChunks then
         for _, messageChunk in ipairs(GearPolice.ChatThrottle:GetMessageChunks(message)) do
-            GearPolice:RegisterReportOfferOutgoingWhisper(messageChunk)
+            GearPolice:RegisterReportOfferOutgoingWhisper(recipientName, messageChunk)
         end
         return
     end
 
-    GearPolice:RegisterReportOfferOutgoingWhisper(message)
+    GearPolice:RegisterReportOfferOutgoingWhisper(recipientName, message)
 end
 
 local function RenderIssueSummaryLine(line)
@@ -337,7 +337,7 @@ function Reporting:SendWhisper(recipientName, message, suppressLocal, priority)
     end
 
     if suppressLocal and GearPolice.RegisterReportOfferOutgoingWhisper then
-        RegisterOutgoingWhisperSuppression(message)
+        RegisterOutgoingWhisperSuppression(recipientName, message)
     end
 
     return GearPolice.ChatThrottle:Send(message, "WHISPER", recipientName, priority or "NORMAL")
