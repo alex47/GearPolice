@@ -8,6 +8,7 @@
 - Do not edit files under `Libs/` unless the task is explicitly to update bundled libraries.
 - Keep addon-facing branding as `GearPolice`.
 - Keep `CHANGELOG.md` user-facing: describe changes in plain player-facing language and avoid implementation details that only developers care about.
+- Never change the addon version, add a numbered release heading, or choose the next version without discussing it with the user first and receiving explicit approval. Do not infer a version bump from the size or type of a change.
 - Version numbers are release-based and increase only once per tag. After a version is selected for an upcoming release, keep all commits for that release on the same version until it is tagged; do not bump the version for each code change or commit.
 - After a release is tagged, select and apply the next version only when beginning or preparing the next tagged release.
 - Keep `CHANGELOG.md` updated for the current unreleased/tagged version unless the user explicitly says a change should not be listed.
