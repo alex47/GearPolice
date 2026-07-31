@@ -101,13 +101,13 @@ function GearPolice:OnEnable()
     self:StartComms()
 end
 
-function GearPolice:StartGearPolicingOfGroup()
-    GearPolice:UpdatePlayerGearInfoWithGroupMembers()
+function GearPolice:StartGearPolicingOfGroup(forceFreshScans)
+    GearPolice:UpdatePlayerGearInfoWithGroupMembers(forceFreshScans)
 end
 
 function GearPolice:RescanGroup()
     GearPolice:ClearAllTrackedPlayers()
-    GearPolice:StartGearPolicingOfGroup()
+    GearPolice:StartGearPolicingOfGroup(true)
 end
 
 function GearPolice:StartGearPolicingOfTarget()

@@ -11,10 +11,14 @@ local HelpSections = {
     },
     {
         title = "How To Use",
-        body = "GearPolice automatically watches your party or raid. When you join a group, it starts "
-            .. "a fresh list and begins scanning the group, including you. When players leave, they are "
-            .. "removed from the list. Players who are currently close enough to inspect are scanned first. "
-            .. "Out-of-range players remain waiting and are checked again periodically.\n\n"
+        body = "GearPolice watches your party or raid. With Auto-Scan Group enabled in the main window, "
+            .. "joining a group starts a fresh list and begins scanning everyone, including you. When players "
+            .. "leave, they are removed from the list. Players who are currently close enough to inspect are "
+            .. "scanned first. Out-of-range players remain waiting and are checked again periodically.\n\n"
+            .. "Turn Auto-Scan Group off while your group is forming to list players without scanning them. "
+            .. "Turn it back on to start a fresh group scan, or leave it off and use Rescan Group when you are "
+            .. "ready. Automatic report offers and announcements still run after a manual group scan when "
+            .. "their settings are enabled.\n\n"
             .. "Use Rescan Group to clear the current list and scan your group again.\n\n"
             .. "Use Scan Target to scan your current player target. Scan Target only works on player targets. "
             .. "This can be someone outside your group, but keep them targeted while the scan runs. Changing "
@@ -39,7 +43,8 @@ local HelpSections = {
         body = "Players are listed alphabetically. The Filter menu can show everyone, only players with "
             .. "problems, only players still scanning, or only failed and partial scans. Your selected "
             .. "filter is remembered automatically.\n\n"
-            .. "Scanning means GearPolice is still checking the player. Done means the scan finished. "
+            .. "Not Scanned means the player is listed but has not been scanned yet. Scanning means GearPolice "
+            .. "is still checking the player. Done means the scan finished. "
             .. "Partial means some item data is still missing and GearPolice will try again later. "
             .. "Retry means the player could not be inspected yet, usually because inspect data was "
             .. "not ready. Failed or Cancelled means the scan did not finish.",

@@ -213,6 +213,74 @@ function ScanSession.HandleTargetChanged(addon)
     return ReconcileObsoleteTargetWork(addon, obsoletePlayerGuids)
 end
 
+function ScanSession.CancelAutomaticGroupScans(addon)
+    local affectedPlayerGuids = {}
+    local currentScan = addon.currentScan
+
+    if currentScan and currentScan.reason == ScanReason.Group then
+        affectedPlayerGuids[currentScan.playerGuid] = true
+    end
+
+    for playerGuid, reason in pairs(addon.queuedScanReasons or {}) do
+        if reason == ScanReason.Group then
+            affectedPlayerGuids[playerGuid] = true
+        end
+    end
+
+    for playerGuid, retryRecord in pairs(addon.delayedScanRetries or {}) do
+        if retryRecord.reason == ScanReason.Group then
+            affectedPlayerGuids[playerGuid] = true
+        end
+    end
+
+    for _, retryRecord in pairs(addon.pendingRosterNameRetries or {}) do
+        retryRecord.queueGroupScans = false
+        retryRecord.forceFreshScans = false
+    end
+
+    local changed = false
+    for playerGuid in pairs(affectedPlayerGuids) do
+        addon:CancelManagedTimersForPlayer(playerGuid)
+        if addon.delayedScanRetries then
+            addon.delayedScanRetries[playerGuid] = nil
+        end
+        if addon.pendingRosterNameRetries then
+            addon.pendingRosterNameRetries[playerGuid] = nil
+        end
+        addon:RemoveFromScanQueue(playerGuid)
+        addon:ClearCurrentScanForPlayer(playerGuid)
+
+        if addon.ClearPendingReportOffer then
+            addon:ClearPendingReportOffer(playerGuid)
+        end
+        if addon.ClearPendingPublicScanAnnouncement then
+            addon:ClearPendingPublicScanAnnouncement(playerGuid)
+        end
+
+        local playerInfo = addon.PlayerStore:Get(playerGuid)
+        if playerInfo then
+            if playerInfo.CheckStatus == ScanStatus.Successful then
+                playerInfo.CheckRequested = false
+                playerInfo.ForceScanRequested = false
+                playerInfo.pendingChecks = 0
+                playerInfo.ScanGeneration = (playerInfo.ScanGeneration or 0) + 1
+            else
+                addon.PlayerStore:MarkNotScanned(playerInfo)
+            end
+        end
+        changed = true
+    end
+
+    addon:CancelScanQueueTimer()
+    addon.UI:UpdateUI()
+
+    if not InCombatLockdown() then
+        addon:ProcessScanQueue()
+    end
+
+    return changed
+end
+
 function ScanSession.Finish(addon, playerGuid, scanGeneration, status, options)
     if not addon:IsCurrentScan(playerGuid, scanGeneration) then
         return false
@@ -616,4 +684,8 @@ end
 
 function GearPolice:OnPlayerTargetChanged()
     return ScanSession.HandleTargetChanged(self)
+end
+
+function GearPolice:CancelAutomaticGroupScans()
+    return ScanSession.CancelAutomaticGroupScans(self)
 end

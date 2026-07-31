@@ -87,6 +87,24 @@ function PlayerStore:ResetForScan(playerGuid, playerName, playerFullName)
     return playerInfo
 end
 
+function PlayerStore:MarkNotScanned(playerInfo)
+    if type(playerInfo) ~= "table" then
+        return false
+    end
+
+    playerInfo.CheckRequested = false
+    playerInfo.CheckStatus = ScanStatus.NotScanned
+    playerInfo.Problems = {}
+    playerInfo.EquippedItems = {}
+    playerInfo.PendingItemMetadata = {}
+    playerInfo.LastScanTime = 0
+    playerInfo.retryAttempts = 0
+    playerInfo.pendingChecks = 0
+    playerInfo.ForceScanRequested = false
+    playerInfo.ScanGeneration = (playerInfo.ScanGeneration or 0) + 1
+    return true
+end
+
 function PlayerStore:Remove(playerGuid)
     local playerGearInfo = self:EnsureStorage()
     if playerGearInfo and playerGuid then

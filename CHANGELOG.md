@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 1.6.0 - 2026-07-31
+
+### Features
+
+- Added an Auto-Scan Group control to the main window. Turn it off while a group is forming, then enable it or use Rescan Group when you are ready to scan.
+
+### Changes
+
+- Replaced the main-window Settings button with a compact settings icon.
+
 ## 1.5.1 - 2026-07-27
 
 ### Changes

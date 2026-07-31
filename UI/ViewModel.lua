@@ -10,6 +10,7 @@ local ScanStatus = GearPolice.Constants.ScanStatus
 local PlayerListFilter = GearPolice.Settings.PlayerListFilter
 
 local StatusLabels = {
+    [ScanStatus.NotScanned] = "|cffaaaaaaNot Scanned|r",
     [ScanStatus.InProgress] = "|cffffcc00Scanning|r",
     [ScanStatus.Successful] = "|cff40ff40Done|r",
     [ScanStatus.Partial] = "|cffffcc00Partial|r",
@@ -113,6 +114,15 @@ end
 function ViewModel.BuildSlot(playerInfo, slotName, problemLookup)
     local slotValue = playerInfo.EquippedItems and playerInfo.EquippedItems[slotName]
 
+    if playerInfo.CheckStatus == ScanStatus.NotScanned and not slotValue then
+        return {
+            slotName = slotName,
+            slotLabel = GetSlotLabel(slotName),
+            state = "not_scanned",
+            texture = UI.QuestionMarkIcon,
+        }
+    end
+
     if slotValue == Constants.InventorySlotEmpty then
         return {
             slotName = slotName,
@@ -150,21 +160,22 @@ end
 function ViewModel.BuildRow(playerGuid, playerInfo, slotOrder)
     local slots = {}
     local problemLookup = ViewModel.BuildProblemLookup(playerInfo)
-    local pendingSlotCount = 0
 
     for _, slotName in ipairs(slotOrder) do
         local slot = ViewModel.BuildSlot(playerInfo, slotName, problemLookup)
-        if slot.state == "pending" then
-            pendingSlotCount = pendingSlotCount + 1
-        end
-
         table.insert(slots, slot)
     end
 
-    local hasPendingSlots = pendingSlotCount > 0
-        or playerInfo.CheckStatus == ScanStatus.InProgress
+    local hasPendingSlots = playerInfo.CheckStatus == ScanStatus.InProgress
         or playerInfo.CheckStatus == ScanStatus.Partial
         or playerInfo.CheckStatus == ScanStatus.TemporaryFailed
+
+    local issueSummary
+    if playerInfo.CheckStatus == ScanStatus.NotScanned then
+        issueSummary = "|cffaaaaaaNot scanned|r"
+    else
+        issueSummary = FormatIssueSummary(problemLookup.totalProblemCount, hasPendingSlots)
+    end
 
     return {
         playerGuid = playerGuid,
@@ -175,7 +186,7 @@ function ViewModel.BuildRow(playerGuid, playerInfo, slotOrder)
         statusTexture = UI:GetCheckStatusTexture(playerInfo.CheckStatus),
         hasProblems = problemLookup.hasProblems,
         problemCount = problemLookup.totalProblemCount,
-        issueSummary = FormatIssueSummary(problemLookup.totalProblemCount, hasPendingSlots),
+        issueSummary = issueSummary,
         slots = slots,
     }
 end

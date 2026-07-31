@@ -90,6 +90,9 @@ local function ShowSlotTooltip(button)
     elseif slot.state == "empty" then
         GameTooltip:SetText(slot.slotLabel or "Empty Slot", 1, 1, 1)
         GameTooltip:AddLine("Empty slot", 0.7, 0.7, 0.7, true)
+    elseif slot.state == "not_scanned" then
+        GameTooltip:SetText(slot.slotLabel or "Equipment Slot", 1, 1, 1)
+        GameTooltip:AddLine("Not scanned", 0.7, 0.7, 0.7, true)
     else
         GameTooltip:SetText(slot.slotLabel or "Equipment Slot", 1, 1, 1)
         GameTooltip:AddLine("Scanning...", 1, 0.82, 0, true)
@@ -193,6 +196,9 @@ local function RenderSlotButton(button, slot)
     elseif slot.state == "empty" then
         SetButtonImage(button, nil)
         SetButtonVisualState(button, "empty")
+    elseif slot.state == "not_scanned" then
+        SetButtonImage(button, slot.texture)
+        SetButtonVisualState(button, "not_scanned")
     else
         SetButtonImage(button, slot.texture)
         SetButtonVisualState(button, "pending")

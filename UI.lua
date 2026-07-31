@@ -36,6 +36,10 @@ UI.ItemIconVisualStates = {
         borderColor = { 1, 0.82, 0, 1 },
         imageColor = { 1, 1, 1, 0.75 },
     },
+    not_scanned = {
+        borderColor = { 0.45, 0.45, 0.45, 0.9 },
+        imageColor = { 1, 1, 1, 0.55 },
+    },
     empty = {
         borderColor = { 0.45, 0.45, 0.45, 0.9 },
         backgroundColor = { 0.08, 0.08, 0.08, 0.25 },
@@ -44,6 +48,7 @@ UI.ItemIconVisualStates = {
 }
 
 UI.CheckStatusTextures = {
+    [ScanStatus.NotScanned] = "Interface\\COMMON\\Indicator-Yellow",
     [ScanStatus.InProgress] = "Interface\\COMMON\\Indicator-Yellow",
     [ScanStatus.Successful] = "Interface\\RaidFrame\\ReadyCheck-Ready",
     [ScanStatus.Partial] = "Interface\\RaidFrame\\ReadyCheck-Waiting",

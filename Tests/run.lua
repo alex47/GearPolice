@@ -6,6 +6,7 @@ local Harness = assert(loadfile(testsDirectory .. "/TestHarness.lua"))()
 local suite = Harness.New(projectRoot)
 
 local testFiles = {
+    "AutomaticGroupScanTests.lua",
     "IdentityProblemsTests.lua",
     "RosterWhisperTests.lua",
     "CommsConstantsTests.lua",

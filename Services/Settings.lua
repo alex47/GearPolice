@@ -32,6 +32,7 @@ local PlayerListFilterDefinitions = {
 }
 
 local BooleanDefaults = {
+    AutomaticGroupScanEnabled = true,
     AutoWhisperInParty = false,
     AutoWhisperInRaid = true,
     DebugEnabled = false,
@@ -226,6 +227,33 @@ end
 
 function Settings:IsPublicReportAnnouncementEnabled()
     return GetBooleanSetting("PublicReportAnnouncementEnabled")
+end
+
+function Settings:IsAutomaticGroupScanEnabled()
+    return GetBooleanSetting("AutomaticGroupScanEnabled")
+end
+
+function Settings:SetAutomaticGroupScanEnabled(enabled)
+    local wasEnabled = self:IsAutomaticGroupScanEnabled()
+    enabled = enabled == true
+
+    if not SetBooleanSetting("AutomaticGroupScanEnabled", enabled) then
+        return false
+    end
+
+    if wasEnabled == enabled then
+        return true
+    end
+
+    if enabled then
+        if (IsInRaid() or IsInGroup()) and GearPolice.QueueFreshGroupScan then
+            GearPolice:QueueFreshGroupScan()
+        end
+    elseif GearPolice.CancelAutomaticGroupScans then
+        GearPolice:CancelAutomaticGroupScans()
+    end
+
+    return true
 end
 
 function Settings:SetPublicReportAnnouncementEnabled(enabled)

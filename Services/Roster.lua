@@ -133,7 +133,22 @@ function Roster.RemoveGuidFromCurrent(addon, playerGuid)
     end
 end
 
-function Roster.Reconcile(addon, snapshot)
+local function ResolveProcessingOptions(addon, options)
+    options = options or {}
+
+    local queueGroupScans = options.queueGroupScans
+    if type(queueGroupScans) ~= "boolean" then
+        queueGroupScans = not addon.Settings
+            or addon.Settings:IsAutomaticGroupScanEnabled()
+    end
+
+    return {
+        queueGroupScans = queueGroupScans == true,
+        forceFreshScans = options.forceFreshScans == true,
+    }
+end
+
+function Roster.Reconcile(addon, snapshot, options)
     if not snapshot or not snapshot.groupType then
         addon:ClearAllTrackedPlayers()
         return
@@ -153,16 +168,23 @@ function Roster.Reconcile(addon, snapshot)
     end
 
     addon.currentRoster = snapshot
+    options = ResolveProcessingOptions(addon, options)
 
     for _, playerGuid in ipairs(snapshot.orderedGuids) do
         local unitId = snapshot.unitIdByGuid[playerGuid]
-        Roster.ProcessGroupMember(addon, unitId, snapshot.sortIndexByGuid[playerGuid], snapshot.groupType)
+        Roster.ProcessGroupMember(
+            addon,
+            unitId,
+            snapshot.sortIndexByGuid[playerGuid],
+            snapshot.groupType,
+            options
+        )
     end
 
     addon.UI:UpdateUI()
 end
 
-function Roster.UpdateGroupMembers(addon)
+function Roster.UpdateGroupMembers(addon, forceFreshScans)
     local snapshot = Roster.BuildSnapshot(addon)
 
     if not snapshot.groupType then
@@ -179,20 +201,32 @@ function Roster.UpdateGroupMembers(addon)
     end
 
     addon.wasGrouped = true
-    Roster.Reconcile(addon, snapshot)
+    Roster.Reconcile(addon, snapshot, {
+        queueGroupScans = forceFreshScans == true
+            or addon.Settings:IsAutomaticGroupScanEnabled(),
+        forceFreshScans = forceFreshScans == true,
+    })
     if addon.RefreshCommsGroupState then
         addon:RefreshCommsGroupState()
     end
     addon:ProcessScanQueue()
 end
 
-local function ScheduleNameRetry(addon, playerGuid)
+local function ScheduleNameRetry(addon, playerGuid, options)
     addon.pendingRosterNameRetries = addon.pendingRosterNameRetries or {}
-    if addon.pendingRosterNameRetries[playerGuid] then
+    local existingRetry = addon.pendingRosterNameRetries[playerGuid]
+    if existingRetry then
+        existingRetry.queueGroupScans = existingRetry.queueGroupScans
+            or options.queueGroupScans
+        existingRetry.forceFreshScans = existingRetry.forceFreshScans
+            or options.forceFreshScans
         return false
     end
 
-    local retryRecord = {}
+    local retryRecord = {
+        queueGroupScans = options.queueGroupScans == true,
+        forceFreshScans = options.forceFreshScans == true,
+    }
     addon.pendingRosterNameRetries[playerGuid] = retryRecord
 
     retryRecord.timerHandle = addon:ScheduleManagedTimer(function()
@@ -213,7 +247,11 @@ local function ScheduleNameRetry(addon, playerGuid)
             addon,
             currentUnitId,
             roster.sortIndexByGuid[playerGuid],
-            roster.groupType
+            roster.groupType,
+            {
+                queueGroupScans = retryRecord.queueGroupScans,
+                forceFreshScans = retryRecord.forceFreshScans,
+            }
         )
         if processed then
             addon.UI:UpdateUI()
@@ -230,8 +268,10 @@ local function ScheduleNameRetry(addon, playerGuid)
     return true
 end
 
-function Roster.ProcessGroupMember(addon, unitId, sortIndex, groupType)
+function Roster.ProcessGroupMember(addon, unitId, sortIndex, groupType, options)
     if not UnitExists(unitId) then return false end
+
+    options = ResolveProcessingOptions(addon, options)
 
     local playerGuid = UnitGUID(unitId)
     if not playerGuid then return false end
@@ -246,8 +286,20 @@ function Roster.ProcessGroupMember(addon, unitId, sortIndex, groupType)
     end
 
     if not Players.IsKnownName(playerName) then
-        ScheduleNameRetry(addon, playerGuid)
+        ScheduleNameRetry(addon, playerGuid, options)
         return false
+    end
+
+    if options.forceFreshScans then
+        addon:ResetPlayerGearInfo(playerGuid, playerName, playerFullName or playerName)
+        playerInfo = addon.PlayerStore:Get(playerGuid)
+        if not playerInfo then
+            return false
+        end
+
+        Roster.ApplyMetadata(playerInfo, playerGuid, unitId, sortIndex, groupType)
+        addon:AddToScanQueue(playerGuid, true, ScanReason.Group)
+        return true
     end
 
     local isNewPlayer = false
@@ -263,6 +315,13 @@ function Roster.ProcessGroupMember(addon, unitId, sortIndex, groupType)
     playerInfo.PlayerName = playerName
     playerInfo.PlayerFullName = playerFullName or playerName
     Roster.ApplyMetadata(playerInfo, playerGuid, unitId, sortIndex, groupType)
+
+    if not options.queueGroupScans then
+        if isNewPlayer then
+            addon.PlayerStore:MarkNotScanned(playerInfo)
+        end
+        return true
+    end
 
     if isNewPlayer then
         addon:AddToScanQueue(playerGuid, true, ScanReason.Group)
@@ -305,6 +364,10 @@ function GearPolice:RemoveGuidFromCurrentRoster(playerGuid)
     return Roster.RemoveGuidFromCurrent(self, playerGuid)
 end
 
-function GearPolice:UpdatePlayerGearInfoWithGroupMembers()
-    return Roster.UpdateGroupMembers(self)
+function GearPolice:UpdatePlayerGearInfoWithGroupMembers(forceFreshScans)
+    return Roster.UpdateGroupMembers(self, forceFreshScans)
+end
+
+function GearPolice:QueueFreshGroupScan()
+    return Roster.UpdateGroupMembers(self, true)
 end

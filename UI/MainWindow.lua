@@ -8,6 +8,7 @@ local ToolbarButtonWidth = 134
 local ToolbarButtonHeight = 24
 local ToolbarButtonGap = 4
 local ToolbarFilterGap = 8
+local ToolbarAutoScanWidth = 150
 local ToolbarControlTopOffset = -16
 local EscapeFrameName = "GearPoliceMainWindowEscapeFrame"
 
@@ -106,6 +107,56 @@ local function CreateFilterDropdown(self, parent)
     return dropdown
 end
 
+local function ShowControlTooltip(frame, title, description)
+    GameTooltip:SetOwner(frame, "ANCHOR_TOP")
+    GameTooltip:SetText(title, 1, 1, 1)
+    if description then
+        GameTooltip:AddLine(description, 1, 1, 1, true)
+    end
+    GameTooltip:Show()
+end
+
+local function CreateAutoScanCheckbox(self, parent)
+    local checkbox = AceGUI:Create("CheckBox")
+    checkbox:SetLabel("Auto-Scan Group")
+    checkbox:SetWidth(ToolbarAutoScanWidth)
+    checkbox:SetValue(GearPolice.Settings:IsAutomaticGroupScanEnabled())
+    checkbox:SetCallback("OnValueChanged", function(widget, _event, value)
+        if not GearPolice.Settings:SetAutomaticGroupScanEnabled(value) then
+            widget:SetValue(GearPolice.Settings:IsAutomaticGroupScanEnabled())
+        end
+    end)
+    checkbox:SetCallback("OnEnter", function(widget)
+        ShowControlTooltip(
+            widget.frame,
+            "Auto-Scan Group",
+            "Automatically scan party and raid members as the group changes. Turning this on starts "
+                .. "a fresh group scan. When off, use Rescan Group to scan manually."
+        )
+    end)
+    checkbox:SetCallback("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+    checkbox.frame:SetParent(parent)
+    checkbox.frame:ClearAllPoints()
+    checkbox.frame:Show()
+    return checkbox
+end
+
+local function CreateSettingsIcon(self, parent)
+    local settingsIcon = self:CreateCenteredRowIcon()
+    settingsIcon:SetImage("Interface\\Buttons\\UI-OptionsButton")
+    settingsIcon:SetImageSize(16, 16)
+    settingsIcon:SetTooltip("Settings", "Open GearPolice settings.")
+    settingsIcon:SetCallback("OnClick", function()
+        GearPolice.UI:OpenAceConfigSettings()
+    end)
+    settingsIcon.frame:SetParent(parent)
+    settingsIcon.frame:ClearAllPoints()
+    settingsIcon.frame:Show()
+    return settingsIcon
+end
+
 local function CreateMainToolbar(self)
     local toolbar = AceGUI:Create("SimpleGroup")
     toolbar:SetFullWidth(true)
@@ -140,10 +191,11 @@ local function CreateMainToolbar(self)
     filterLabel:SetPoint("BOTTOMLEFT", filterDropdown.frame, "TOPLEFT", 0, -1)
     self.toolbarFilterLabel = filterLabel
 
-    local settingsButton = AddDetachedToolbarWidget(self, CreateToolbarButton(content, "Settings", function()
-        GearPolice.UI:OpenAceConfigSettings()
-    end))
-    settingsButton.frame:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, ToolbarControlTopOffset)
+    local autoScanCheckbox = AddDetachedToolbarWidget(self, CreateAutoScanCheckbox(self, content))
+    autoScanCheckbox.frame:SetPoint("TOPLEFT", filterDropdown.frame, "TOPRIGHT", ToolbarFilterGap, 0)
+
+    local settingsIcon = AddDetachedToolbarWidget(self, CreateSettingsIcon(self, content))
+    settingsIcon.frame:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, ToolbarControlTopOffset)
 end
 
 function UI:ShowUI()

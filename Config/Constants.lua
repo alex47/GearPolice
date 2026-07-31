@@ -5,6 +5,7 @@ GearPolice.Constants = GearPolice.Constants or {}
 local Constants = GearPolice.Constants
 
 Constants.ScanStatus = {
+    NotScanned = "NotScanned",
     InProgress = "InProgress",
     Successful = "Successful",
     Partial = "Partial",
