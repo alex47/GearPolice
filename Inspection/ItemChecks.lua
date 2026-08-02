@@ -181,6 +181,91 @@ function Inspection:IsWaistMissingExtraGemEnchant(itemLink)
     return false
 end
 
+function Inspection:GetIncorrectArmorTypeResult(itemLink, context)
+    if not itemLink or type(context) ~= "table" then
+        return false
+    end
+
+    local unitLevel = tonumber(context.unitLevel)
+    if not unitLevel or unitLevel <= 0 then
+        return Constants.ItemMetadataPending
+    end
+
+    if unitLevel < GearPolice.GearStandards.MinimumArmorSpecializationLevel then
+        return false
+    end
+
+    local expectedArmorType = context.expectedArmorType
+    if not expectedArmorType then
+        return Constants.ItemMetadataPending
+    end
+
+    local itemName, _, _, _, _, _, itemSubType, _, _, _, _, itemClassId, itemSubclassId =
+        GetItemInfo(itemLink)
+    if not itemName then
+        return Constants.ItemMetadataPending
+    end
+
+    if itemClassId and itemClassId ~= GearPolice.GearStandards.ArmorItemClassId then
+        return false
+    end
+
+    local actualArmorType = GearPolice.GearStandards.GetArmorTypeBySubclassId(itemSubclassId)
+        or GearPolice.GearStandards.GetArmorTypeByName(itemSubType)
+    if not actualArmorType or actualArmorType == expectedArmorType then
+        return false
+    end
+
+    return {
+        actualArmorType = actualArmorType,
+        expectedArmorType = expectedArmorType,
+    }
+end
+
+function Inspection:GetIncorrectPrimaryStatResult(itemLink, context)
+    if not itemLink or type(context) ~= "table" then
+        return false
+    end
+
+    local expectedPrimaryStat = context.expectedPrimaryStat
+    if not expectedPrimaryStat then
+        local unitLevel = tonumber(context.unitLevel)
+        if unitLevel and unitLevel < GearPolice.GearStandards.MinimumSpecializationLevel then
+            return false
+        end
+
+        return Constants.ItemMetadataPending
+    end
+
+    local itemStats = GetItemStats(itemLink, {})
+    if not itemStats then
+        if not self:IsItemInfoAvailable(itemLink) then
+            return Constants.ItemMetadataPending
+        end
+
+        return false
+    end
+
+    local actualPrimaryStats = {}
+    local actualPrimaryStatLabels = {}
+    for _, primaryStat in ipairs(GearPolice.GearStandards.GetOrderedPrimaryStats()) do
+        local definition = GearPolice.GearStandards.GetPrimaryStatDefinition(primaryStat)
+        if definition and (tonumber(itemStats[definition.itemStatKey]) or 0) > 0 then
+            actualPrimaryStats[primaryStat] = true
+            table.insert(actualPrimaryStatLabels, definition.label)
+        end
+    end
+
+    if #actualPrimaryStatLabels == 0 or actualPrimaryStats[expectedPrimaryStat] then
+        return false
+    end
+
+    return {
+        actualPrimaryStatLabels = actualPrimaryStatLabels,
+        expectedPrimaryStatLabel = GearPolice.GearStandards.GetPrimaryStatLabel(expectedPrimaryStat),
+    }
+end
+
 function Inspection:GetInventorySlotUpgradeLevel(unitId, slotID)
     if not unitId or not slotID or not UnitExists(unitId) then
         return nil, nil, Constants.ItemMetadataPending

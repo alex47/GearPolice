@@ -7,7 +7,7 @@ local HelpSections = {
     {
         title = "What It Does",
         body = "GearPolice checks equipped gear for missing gems, missing enchants, missing upgrades, "
-            .. "low item level, and special ring enchant cases.",
+            .. "low item level, incorrect armor types, incorrect primary stats, and special ring enchant cases.",
     },
     {
         title = "How To Use",
@@ -76,7 +76,10 @@ local HelpSections = {
             .. "being processed or messages from being sent.\n\n"
             .. "The Checks section controls which problems are reported on future scans. Low Item Level "
             .. "issues include the threshold that was used for the scan. Missing Upgrade issues show the "
-            .. "item's current and maximum upgrade levels.",
+            .. "item's current and maximum upgrade levels. Incorrect Armor Type checks the eight armor "
+            .. "specialization slots for level 50 or higher characters. Incorrect Primary Stat compares "
+            .. "static Strength, Agility, or Intellect with the player's specialization; items without a "
+            .. "static primary stat are skipped.",
     },
     {
         title = "Manual Reporting And Automatic Announcements",

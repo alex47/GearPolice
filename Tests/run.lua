@@ -7,6 +7,7 @@ local suite = Harness.New(projectRoot)
 
 local testFiles = {
     "AutomaticGroupScanTests.lua",
+    "GearStandardsTests.lua",
     "IdentityProblemsTests.lua",
     "RosterWhisperTests.lua",
     "CommsConstantsTests.lua",

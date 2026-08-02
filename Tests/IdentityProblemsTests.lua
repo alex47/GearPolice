@@ -93,6 +93,7 @@ return function(Harness, suite)
 
         Harness.LoadModule(suite, environment, "Config/Constants.lua")
         Harness.LoadModule(suite, environment, "Config/Slots.lua")
+        Harness.LoadModule(suite, environment, "Config/GearStandards.lua")
         Harness.LoadModule(suite, environment, "Config/Rules.lua")
         Harness.LoadModule(suite, environment, "State/Problems.lua")
         return environment

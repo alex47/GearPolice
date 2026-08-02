@@ -35,12 +35,17 @@ read_globals = {
     "IsInInstance",
     "IsInRaid",
     "NotifyInspect",
+    "GetInspectSpecialization",
+    "GetSpecialization",
+    "GetSpecializationInfo",
+    "UnitClass",
     "UnitExists",
     "UnitGUID",
     "UnitIsGroupAssistant",
     "UnitIsGroupLeader",
     "UnitIsPlayer",
     "UnitFullName",
+    "UnitLevel",
     "UnitName",
 
     -- WoW item and inventory APIs

@@ -89,6 +89,50 @@ local RuleDefinitions = {
         settingOrder = 50,
         summaryOrder = 50,
     },
+    incorrect_armor_type = {
+        message = "Incorrect Armor Type",
+        defaultEnabled = true,
+        settingLabel = "Incorrect Armor Type",
+        settingDescription = "Report level 50 or higher characters using the wrong armor type in armor slots.",
+        settingOrder = 70,
+        summaryOrder = 70,
+        evaluate = function(itemLink, context)
+            return GearPolice.Inspection:GetIncorrectArmorTypeResult(itemLink, context)
+        end,
+        buildMessage = function(_, _, checkResult, rule)
+            if type(checkResult) ~= "table" then
+                return rule.message
+            end
+
+            return ("%s (%s, Expected %s)"):format(
+                rule.message,
+                checkResult.actualArmorType,
+                checkResult.expectedArmorType
+            )
+        end,
+    },
+    incorrect_primary_stat = {
+        message = "Incorrect Primary Stat",
+        defaultEnabled = true,
+        settingLabel = "Incorrect Primary Stat",
+        settingDescription = "Report items with a static primary stat that does not match the player's specialization.",
+        settingOrder = 80,
+        summaryOrder = 80,
+        evaluate = function(itemLink, context)
+            return GearPolice.Inspection:GetIncorrectPrimaryStatResult(itemLink, context)
+        end,
+        buildMessage = function(_, _, checkResult, rule)
+            if type(checkResult) ~= "table" then
+                return rule.message
+            end
+
+            return ("%s (%s, Expected %s)"):format(
+                rule.message,
+                table.concat(checkResult.actualPrimaryStatLabels or {}, "/"),
+                checkResult.expectedPrimaryStatLabel
+            )
+        end,
+    },
 }
 
 local SlotRuleIds = {
@@ -115,6 +159,14 @@ local SlotRuleIds = {
     Trinket0Slot      = { "missing_gems",                       "low_item_level", "missing_upgrade" },
     Trinket1Slot      = { "missing_gems",                       "low_item_level", "missing_upgrade" },
 }
+
+for _, slotName in ipairs(GearPolice.GearStandards.GetArmorSpecializationSlotNames()) do
+    table.insert(SlotRuleIds[slotName], "incorrect_armor_type")
+end
+
+for _, slotName in ipairs(GearPolice.Slots.GetInventorySlotNames()) do
+    table.insert(SlotRuleIds[slotName], "incorrect_primary_stat")
+end
 
 local function GetOrderedRuleIds(orderField)
     local orderedRules = {}

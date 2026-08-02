@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Features
+
+- Added checks for incorrect armor types and primary stats on equipped items.
+
 ## 1.6.0 - 2026-07-31
 
 ### Features

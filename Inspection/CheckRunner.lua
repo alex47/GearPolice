@@ -12,7 +12,57 @@ local function IsEnchantedItemLink(itemLink)
     return Inspection:IsStoredItemLink(itemLink) and not Inspection:IsItemMissingEnchant(itemLink)
 end
 
-function Inspection:ApplySlotChecks(playerInfo, slotName, slotValue, slotID, scanGeneration)
+local function GetSpecializationId(playerInfo, unitId)
+    if not unitId or not playerInfo then
+        return nil
+    end
+
+    if GearPolice:IsLocalPlayerGuid(playerInfo.PlayerGuid) then
+        local specializationIndex = GetSpecialization()
+        if specializationIndex then
+            return select(1, GetSpecializationInfo(specializationIndex))
+        end
+
+        return nil
+    end
+
+    local specializationId = GetInspectSpecialization(unitId)
+    return specializationId and specializationId > 0 and specializationId or nil
+end
+
+function Inspection:BuildPlayerCheckContext(playerInfo)
+    local unitId = playerInfo and GearPolice.Units.GetUnitIdOfPlayerGuid(playerInfo.PlayerGuid)
+    if not unitId or not UnitExists(unitId) or UnitGUID(unitId) ~= playerInfo.PlayerGuid then
+        return {
+            playerInfo = playerInfo,
+        }
+    end
+
+    local _, classFile = UnitClass(unitId)
+    local specializationId = GetSpecializationId(playerInfo, unitId)
+
+    return {
+        playerInfo = playerInfo,
+        unitId = unitId,
+        unitLevel = UnitLevel(unitId),
+        classFile = classFile,
+        specializationId = specializationId,
+        expectedArmorType = GearPolice.GearStandards.GetPreferredArmorType(classFile),
+        expectedPrimaryStat = GearPolice.GearStandards.GetPreferredPrimaryStat(
+            specializationId,
+            classFile
+        ),
+    }
+end
+
+function Inspection:ApplySlotChecks(
+    playerInfo,
+    slotName,
+    slotValue,
+    slotID,
+    scanGeneration,
+    playerCheckContext
+)
     if not self:IsCurrentScan(playerInfo, scanGeneration) or not self:IsStoredItemLink(slotValue) then
         return
     end
@@ -22,11 +72,17 @@ function Inspection:ApplySlotChecks(playerInfo, slotName, slotValue, slotID, sca
         return
     end
 
+    playerCheckContext = playerCheckContext or self:BuildPlayerCheckContext(playerInfo)
     local unitId = GearPolice.Units.GetUnitIdOfPlayerGuid(playerInfo.PlayerGuid)
     local context = {
         playerInfo = playerInfo,
         slotName = slotName,
         unitId = unitId,
+        unitLevel = playerCheckContext.unitLevel,
+        classFile = playerCheckContext.classFile,
+        specializationId = playerCheckContext.specializationId,
+        expectedArmorType = playerCheckContext.expectedArmorType,
+        expectedPrimaryStat = playerCheckContext.expectedPrimaryStat,
         slotID = slotID,
     }
 
@@ -116,6 +172,7 @@ function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
     local completedSlots = 0
     local isSchedulingSlots = true
     local isUnitCheckComplete = false
+    local playerCheckContext = self:BuildPlayerCheckContext(playerInfo)
 
     local function CompleteUnitCheckIfReady()
         if not isSchedulingSlots and not isUnitCheckComplete and completedSlots >= totalSlots then
@@ -131,7 +188,14 @@ function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
             return false
         end
 
-        self:ApplySlotChecks(playerInfo, slotName, slotValue, slotID, scanGeneration)
+        self:ApplySlotChecks(
+            playerInfo,
+            slotName,
+            slotValue,
+            slotID,
+            scanGeneration,
+            playerCheckContext
+        )
 
         completedSlots = completedSlots + 1
         playerInfo.pendingChecks = totalSlots - completedSlots
