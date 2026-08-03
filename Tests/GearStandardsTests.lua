@@ -343,12 +343,14 @@ return function(Harness, suite)
         environment.GetInspectSpecialization = function()
             return 65
         end
-        environment.GetSpecialization = function()
-            return 3
-        end
-        environment.GetSpecializationInfo = function()
-            return 70
-        end
+        environment.C_SpecializationInfo = {
+            GetSpecialization = function()
+                return 3
+            end,
+            GetSpecializationInfo = function()
+                return 70
+            end,
+        }
 
         Harness.LoadModule(suite, environment, "Inspection/CheckRunner.lua")
 
@@ -370,6 +372,116 @@ return function(Harness, suite)
             gearPolice.GearStandards.PrimaryStat.Strength,
             localContext.expectedPrimaryStat
         )
+    end)
+
+    Harness.Add(suite, "missing local specialization API falls back without throwing", function()
+        local environment = LoadGearChecks()
+        local gearPolice = environment.GearPolice
+
+        gearPolice.Units = {
+            GetUnitIdOfPlayerGuid = function()
+                return "player"
+            end,
+        }
+        gearPolice.IsLocalPlayerGuid = function()
+            return true
+        end
+        environment.UnitExists = function()
+            return true
+        end
+        environment.UnitGUID = function()
+            return "Player-1-LOCAL"
+        end
+        environment.UnitClass = function()
+            return "Warrior", "WARRIOR"
+        end
+        environment.UnitLevel = function()
+            return 90
+        end
+        environment.C_SpecializationInfo = nil
+
+        Harness.LoadModule(suite, environment, "Inspection/CheckRunner.lua")
+
+        local context = gearPolice.Inspection:BuildPlayerCheckContext({
+            PlayerGuid = "Player-1-LOCAL",
+        })
+        Harness.AssertEqual(nil, context.specializationId)
+        Harness.AssertEqual(
+            gearPolice.GearStandards.PrimaryStat.Strength,
+            context.expectedPrimaryStat
+        )
+    end)
+
+    Harness.Add(suite, "rule errors fail the unit check instead of losing slot completion", function()
+        local reportedError
+        local environment = LoadGearChecks()
+        local gearPolice = environment.GearPolice
+        local inspection = gearPolice.Inspection
+
+        environment.geterrorhandler = function()
+            return function(errorMessage)
+                reportedError = errorMessage
+            end
+        end
+        environment.InCombatLockdown = function()
+            return false
+        end
+        gearPolice.Slots.GetInventorySlotNames = function()
+            return { "HeadSlot" }
+        end
+        gearPolice.Rules.GetSlotRuleIdsForSlot = function()
+            return { "throwing_rule" }
+        end
+        gearPolice.Rules.GetRuleDefinition = function()
+            return {
+                evaluate = function()
+                    error("intentional rule failure")
+                end,
+            }
+        end
+        gearPolice.Settings.IsRuleEnabled = function()
+            return true
+        end
+        gearPolice.Units = {
+            GetUnitIdOfPlayerGuid = function()
+                return "player"
+            end,
+        }
+        gearPolice.IsLocalPlayerGuid = function()
+            return true
+        end
+        gearPolice.PauseCurrentScanForCombat = function()
+            error("scan should not pause")
+        end
+        inspection.IsCurrentScan = function()
+            return true
+        end
+        inspection.IsStoredItemLink = function()
+            return true
+        end
+        inspection.ResolveInventorySlotWithRetry = function(_, _, slotName, _, onResolved)
+            onResolved(slotName, "item:1", 1)
+        end
+
+        Harness.LoadModule(suite, environment, "Inspection/CheckRunner.lua")
+        inspection.BuildPlayerCheckContext = function()
+            return {}
+        end
+
+        local completed = false
+        local failed = false
+        inspection:CheckUnit({
+            PlayerGuid = "Player-1-LOCAL",
+        }, function()
+            completed = true
+        end, 4, function()
+            failed = true
+        end)
+
+        Harness.AssertFalse(completed)
+        Harness.AssertTrue(failed)
+        Harness.AssertTrue(type(reportedError) == "string")
+        Harness.AssertTrue(reportedError:find("intentional rule failure", 1, true) ~= nil)
     end)
 
     Harness.Add(suite, "slot checks record both gear standard problems", function()

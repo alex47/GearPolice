@@ -42,6 +42,7 @@ Constants.InventorySlotRetryCount = 6
 Constants.InventorySlotRetryDelay = 2
 Constants.InventorySlotEmptyConfirmations = 5
 Constants.InventorySnapshotEvidenceMinimum = 4
+Constants.EquipmentCheckTimeout = 20
 
 Constants.ItemLevelThreshold = 450
 

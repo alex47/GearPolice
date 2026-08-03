@@ -304,4 +304,128 @@ return function(Harness, suite)
         Harness.AssertFalse(playerInfo.ForceScanRequested)
         Harness.AssertEqual(5, playerInfo.ScanGeneration)
     end)
+
+    local function LoadInspectionRun(checkUnit)
+        local playerGuid = "Player-1-TEST"
+        local playerInfo = {
+            PlayerGuid = playerGuid,
+            PlayerName = "Test",
+            CheckRequested = true,
+            ScanGeneration = 7,
+        }
+        local scheduledTimers = {}
+        local finishStatus
+        local delayedRetry
+        local reportedError
+        local environment = Harness.MakeEnvironment({
+            GearPolice = {},
+            InCombatLockdown = function()
+                return false
+            end,
+            geterrorhandler = function()
+                return function(errorMessage)
+                    reportedError = errorMessage
+                end
+            end,
+        })
+
+        Harness.LoadModule(suite, environment, "Config/Constants.lua")
+        Harness.LoadModule(suite, environment, "Inspection.lua")
+        Harness.LoadModule(suite, environment, "Services/ScanSession.lua")
+
+        local addon = environment.GearPolice
+        addon.db = {
+            global = {
+                PlayerGearInfo = {
+                    [playerGuid] = playerInfo,
+                },
+            },
+        }
+        addon.currentScan = {
+            playerGuid = playerGuid,
+            generation = 7,
+            reason = addon.Constants.ScanReason.Group,
+            inspectReadyReceived = false,
+        }
+        addon.Slots = {
+            GetInventorySlotNames = function()
+                return { "HeadSlot", "ChestSlot" }
+            end,
+        }
+        addon.UI = {
+            UpdateUI = function() end,
+        }
+        addon.Inspection.CheckUnit = checkUnit
+        addon.ScheduleManagedTimer = function(_, callback, delay, ownerGuid)
+            table.insert(scheduledTimers, {
+                callback = callback,
+                delay = delay,
+                playerGuid = ownerGuid,
+            })
+            return #scheduledTimers
+        end
+        addon.HasPendingEquippedItems = function()
+            return false
+        end
+        addon.HasPendingItemMetadata = function()
+            return false
+        end
+        addon.FinishScan = function(_, guid, generation, status)
+            Harness.AssertEqual(playerGuid, guid)
+            Harness.AssertEqual(7, generation)
+            local completedScan = addon.currentScan
+            addon.currentScan = nil
+            finishStatus = status
+            return true, playerInfo, completedScan
+        end
+        addon.MaybeSendReportOffer = function() end
+        addon.MaybeAnnouncePublicScanSummary = function() end
+        addon.ScheduleDelayedScanRetry = function(_, guid, generation, reason, status, delay)
+            delayedRetry = {
+                playerGuid = guid,
+                generation = generation,
+                reason = reason,
+                status = status,
+                delay = delay,
+            }
+        end
+
+        return addon, playerInfo, scheduledTimers, function()
+            return finishStatus, delayedRetry, reportedError
+        end
+    end
+
+    Harness.Add(suite, "equipment check errors finish the active scan as failed", function()
+        local addon, _, scheduledTimers, getResult = LoadInspectionRun(function()
+            error("intentional scan failure")
+        end)
+
+        addon.ScanSession.RunChecks(addon, "Player-1-TEST", 7)
+
+        local finishStatus, delayedRetry, reportedError = getResult()
+        Harness.AssertEqual(addon.Constants.ScanStatus.Failed, finishStatus)
+        Harness.AssertEqual(nil, addon.currentScan)
+        Harness.AssertEqual(nil, delayedRetry)
+        Harness.AssertEqual(1, #scheduledTimers)
+        Harness.AssertTrue(reportedError:find("intentional scan failure", 1, true) ~= nil)
+    end)
+
+    Harness.Add(suite, "equipment check timeout finishes partial and schedules follow-up", function()
+        local addon, playerInfo, scheduledTimers, getResult = LoadInspectionRun(function() end)
+
+        addon.ScanSession.RunChecks(addon, "Player-1-TEST", 7)
+        Harness.AssertEqual(1, #scheduledTimers)
+        Harness.AssertEqual(addon.Constants.EquipmentCheckTimeout, scheduledTimers[1].delay)
+        Harness.AssertEqual("Player-1-TEST", scheduledTimers[1].playerGuid)
+
+        scheduledTimers[1].callback()
+
+        local finishStatus, delayedRetry = getResult()
+        Harness.AssertEqual(addon.Constants.ScanStatus.Partial, finishStatus)
+        Harness.AssertEqual(addon.Constants.InventorySlotPending, playerInfo.EquippedItems.HeadSlot)
+        Harness.AssertEqual(addon.Constants.InventorySlotPending, playerInfo.EquippedItems.ChestSlot)
+        Harness.AssertEqual(addon.Constants.PartialScanRetryDelay, delayedRetry.delay)
+        Harness.AssertEqual(addon.Constants.ScanStatus.Partial, delayedRetry.status)
+        Harness.AssertEqual(nil, addon.currentScan)
+    end)
 end

@@ -6,6 +6,11 @@
 
 - Added checks for incorrect armor types and primary stats on equipped items.
 
+### Fixes
+
+- Fixed group scans stopping when GearPolice reached the local player.
+- Gear scans now recover and continue when an individual player's item checks fail or time out.
+
 ## 1.6.0 - 2026-07-31
 
 ### Features

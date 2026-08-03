@@ -421,27 +421,19 @@ function ScanSession.RunChecks(addon, playerGuid, scanGeneration)
     playerInfo.EquippedItems = {}
     addon.UI:UpdateUI()
 
-    addon.Inspection:CheckUnit(playerInfo, function(updatedPlayerInfo)
+    local function FinishCheckRun(status, debugMessage, updateLastScanTime)
         if not addon:IsCurrentScan(playerGuid, scanGeneration)
-            or updatedPlayerInfo.ScanGeneration ~= scanGeneration then
-            return
-        end
-
-        local status
-        if addon:HasPendingEquippedItems(updatedPlayerInfo)
-            or addon:HasPendingItemMetadata(updatedPlayerInfo) then
-            status = ScanStatus.Partial
-        else
-            status = ScanStatus.Successful
+            or playerInfo.ScanGeneration ~= scanGeneration then
+            return false
         end
 
         local finished, finishedPlayerInfo, completedScan =
             addon:FinishScan(playerGuid, scanGeneration, status, {
-                updateLastScanTime = true,
-                debugMessage = "Scan completed for: " .. (updatedPlayerInfo.PlayerName or "Unknown"),
+                updateLastScanTime = updateLastScanTime == true,
+                debugMessage = debugMessage,
             })
 
-        if finished then
+        if finished and updateLastScanTime then
             addon:MaybeSendReportOffer(finishedPlayerInfo, completedScan, status)
             addon:MaybeAnnouncePublicScanSummary(finishedPlayerInfo, completedScan, status)
         end
@@ -455,7 +447,65 @@ function ScanSession.RunChecks(addon, playerGuid, scanGeneration)
                 Constants.PartialScanRetryDelay
             )
         end
-    end, scanGeneration)
+
+        return finished
+    end
+
+    addon:ScheduleManagedTimer(function()
+        if not addon:IsCurrentScan(playerGuid, scanGeneration) then
+            return
+        end
+
+        local currentPlayerInfo = addon.db.global.PlayerGearInfo[playerGuid]
+        if not currentPlayerInfo or currentPlayerInfo.ScanGeneration ~= scanGeneration then
+            return
+        end
+
+        currentPlayerInfo.EquippedItems = currentPlayerInfo.EquippedItems or {}
+        for _, slotName in ipairs(addon.Slots.GetInventorySlotNames()) do
+            if not currentPlayerInfo.EquippedItems[slotName] then
+                currentPlayerInfo.EquippedItems[slotName] = Constants.InventorySlotPending
+            end
+        end
+
+        FinishCheckRun(
+            ScanStatus.Partial,
+            "Equipment checks timed out for: " .. (currentPlayerInfo.PlayerName or "Unknown"),
+            true
+        )
+    end, Constants.EquipmentCheckTimeout, playerGuid)
+
+    local checkStarted = addon.Inspection:RunProtectedCheck(function()
+        addon.Inspection:CheckUnit(playerInfo, function(updatedPlayerInfo)
+            local status
+            if addon:HasPendingEquippedItems(updatedPlayerInfo)
+                or addon:HasPendingItemMetadata(updatedPlayerInfo) then
+                status = ScanStatus.Partial
+            else
+                status = ScanStatus.Successful
+            end
+
+            FinishCheckRun(
+                status,
+                "Scan completed for: " .. (updatedPlayerInfo.PlayerName or "Unknown"),
+                true
+            )
+        end, scanGeneration, function(failedPlayerInfo)
+            FinishCheckRun(
+                ScanStatus.Failed,
+                "Gear checks failed for: " .. (failedPlayerInfo.PlayerName or "Unknown"),
+                false
+            )
+        end)
+    end)
+
+    if not checkStarted then
+        FinishCheckRun(
+            ScanStatus.Failed,
+            "Gear checks failed for: " .. (playerInfo.PlayerName or "Unknown"),
+            false
+        )
+    end
 end
 
 function ScanSession.StartInspection(addon, unitId, reason, scanGeneration)

@@ -45,6 +45,17 @@ function Inspection:IsItemMetadataPending(checkResult)
     return checkResult == Constants.ItemMetadataPending
 end
 
+function Inspection:RunProtectedCheck(callback)
+    return xpcall(callback, function(errorMessage)
+        local errorHandler = type(geterrorhandler) == "function" and geterrorhandler() or nil
+        if type(errorHandler) == "function" then
+            errorHandler(errorMessage)
+        end
+
+        return errorMessage
+    end)
+end
+
 function Inspection:MarkItemMetadataPending(playerInfo, slotName, itemLink, scanGeneration)
     if not self:IsCurrentScan(playerInfo, scanGeneration) then
         return false

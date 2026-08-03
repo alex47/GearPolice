@@ -10,6 +10,7 @@ read_globals = {
     -- WoW UI globals
     "_G",
     "C_AddOns",
+    "C_SpecializationInfo",
     "CreateFrame",
     "AddonCompartmentFrame",
     "CloseDropDownMenus",
@@ -36,8 +37,6 @@ read_globals = {
     "IsInRaid",
     "NotifyInspect",
     "GetInspectSpecialization",
-    "GetSpecialization",
-    "GetSpecializationInfo",
     "UnitClass",
     "UnitExists",
     "UnitGUID",
@@ -47,6 +46,7 @@ read_globals = {
     "UnitFullName",
     "UnitLevel",
     "UnitName",
+    "geterrorhandler",
 
     -- WoW item and inventory APIs
     "GetDetailedItemLevelInfo",

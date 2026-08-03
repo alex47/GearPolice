@@ -18,11 +18,23 @@ local function GetSpecializationId(playerInfo, unitId)
     end
 
     if GearPolice:IsLocalPlayerGuid(playerInfo.PlayerGuid) then
-        local specializationIndex = GetSpecialization()
-        if specializationIndex then
-            return select(1, GetSpecializationInfo(specializationIndex))
+        local specializationApi = C_SpecializationInfo
+        if type(specializationApi) ~= "table"
+            or type(specializationApi.GetSpecialization) ~= "function"
+            or type(specializationApi.GetSpecializationInfo) ~= "function" then
+            return nil
         end
 
+        local specializationIndex = specializationApi.GetSpecialization()
+        if not specializationIndex then
+            return nil
+        end
+
+        local specializationId = specializationApi.GetSpecializationInfo(specializationIndex)
+        return specializationId and specializationId > 0 and specializationId or nil
+    end
+
+    if type(GetInspectSpecialization) ~= "function" then
         return nil
     end
 
@@ -64,12 +76,12 @@ function Inspection:ApplySlotChecks(
     playerCheckContext
 )
     if not self:IsCurrentScan(playerInfo, scanGeneration) or not self:IsStoredItemLink(slotValue) then
-        return
+        return true
     end
 
     local slotRuleIds = GearPolice.Rules.GetSlotRuleIdsForSlot(slotName)
     if not slotRuleIds then
-        return
+        return true
     end
 
     playerCheckContext = playerCheckContext or self:BuildPlayerCheckContext(playerInfo)
@@ -89,19 +101,33 @@ function Inspection:ApplySlotChecks(
     for _, ruleId in ipairs(slotRuleIds) do
         local rule = GearPolice.Rules.GetRuleDefinition(ruleId)
         if rule and GearPolice.Settings:IsRuleEnabled(ruleId) then
-            local checkResult = rule.evaluate(slotValue, context)
+            local checkSucceeded, checkResult = self:RunProtectedCheck(function()
+                return rule.evaluate(slotValue, context)
+            end)
+            if not checkSucceeded then
+                return false, checkResult
+            end
+
             if self:IsItemMetadataPending(checkResult) then
                 self:MarkItemMetadataPending(playerInfo, slotName, slotValue, scanGeneration)
             elseif checkResult then
                 local problemMessage = rule.message
                 if type(rule.buildMessage) == "function" then
-                    problemMessage = rule.buildMessage(slotValue, context, checkResult, rule)
+                    local messageSucceeded
+                    messageSucceeded, problemMessage = self:RunProtectedCheck(function()
+                        return rule.buildMessage(slotValue, context, checkResult, rule)
+                    end)
+                    if not messageSucceeded then
+                        return false, problemMessage
+                    end
                 end
 
                 self:RecordProblem(playerInfo, slotName, slotValue, ruleId, problemMessage, scanGeneration)
             end
         end
     end
+
+    return true
 end
 
 function Inspection:ApplyEnchanterRingChecks(playerInfo, scanGeneration)
@@ -158,7 +184,7 @@ function Inspection:ApplyEnchanterRingChecks(playerInfo, scanGeneration)
     end
 end
 
-function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
+function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration, onError)
     if InCombatLockdown() then
         GearPolice:PauseCurrentScanForCombat(playerInfo.PlayerGuid, scanGeneration)
         return
@@ -172,14 +198,33 @@ function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
     local completedSlots = 0
     local isSchedulingSlots = true
     local isUnitCheckComplete = false
+    local hasUnitCheckFailed = false
     local playerCheckContext = self:BuildPlayerCheckContext(playerInfo)
+
+    local function FailUnitCheck(errorMessage)
+        if hasUnitCheckFailed then
+            return
+        end
+
+        hasUnitCheckFailed = true
+        isUnitCheckComplete = true
+        playerInfo.pendingChecks = 0
+        if type(onError) == "function" then
+            onError(playerInfo, errorMessage)
+        end
+    end
 
     local function CompleteUnitCheckIfReady()
         if not isSchedulingSlots and not isUnitCheckComplete and completedSlots >= totalSlots then
             isUnitCheckComplete = true
-            self:ApplyEnchanterRingChecks(playerInfo, scanGeneration)
-            playerInfo.pendingChecks = 0
-            onComplete(playerInfo)
+            local completionSucceeded, completionError = self:RunProtectedCheck(function()
+                self:ApplyEnchanterRingChecks(playerInfo, scanGeneration)
+                playerInfo.pendingChecks = 0
+                onComplete(playerInfo)
+            end)
+            if not completionSucceeded then
+                FailUnitCheck(completionError)
+            end
         end
     end
 
@@ -188,14 +233,24 @@ function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
             return false
         end
 
-        self:ApplySlotChecks(
-            playerInfo,
-            slotName,
-            slotValue,
-            slotID,
-            scanGeneration,
-            playerCheckContext
-        )
+        local invocationSucceeded, checksSucceeded, checkError = self:RunProtectedCheck(function()
+            return self:ApplySlotChecks(
+                playerInfo,
+                slotName,
+                slotValue,
+                slotID,
+                scanGeneration,
+                playerCheckContext
+            )
+        end)
+        if not invocationSucceeded then
+            FailUnitCheck(checksSucceeded)
+            return false
+        end
+        if checksSucceeded == false then
+            FailUnitCheck(checkError)
+            return false
+        end
 
         completedSlots = completedSlots + 1
         playerInfo.pendingChecks = totalSlots - completedSlots
@@ -208,6 +263,10 @@ function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
     end
 
     local function ScheduleSlotResolution(slotName)
+        if isUnitCheckComplete then
+            return false
+        end
+
         local slotRuleIds = GearPolice.Rules.GetSlotRuleIdsForSlot(slotName)
         if not slotRuleIds then
             return false
@@ -222,6 +281,9 @@ function Inspection:CheckUnit(playerInfo, onComplete, scanGeneration)
     end
 
     for _, slotName in ipairs(GearPolice.Slots.GetInventorySlotNames()) do
+        if isUnitCheckComplete then
+            break
+        end
         ScheduleSlotResolution(slotName)
     end
 
